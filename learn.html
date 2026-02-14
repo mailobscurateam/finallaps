@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 Hub - Simulation Room</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+Sinhala:wght@400;700;900&display=swap');
+
+        :root {
+            --f1-red: #e10600;
+            --f1-black: #050505;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Orbitron', 'Noto Sans Sinhala', sans-serif;
+            background-color: var(--f1-black);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        body.auth-ready {
+            opacity: 1;
+        }
+
+        .top-nav {
+            background: #000;
+            border-bottom: 1px solid #222;
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 50;
+        }
+
+        .back-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #666;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            font-weight: 900;
+            letter-spacing: 2px;
+            transition: color 0.3s;
+            cursor: pointer;
+        }
+
+        .back-btn:hover {
+            color: var(--f1-red);
+        }
+
+        .sim-container {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            flex: 1;
+            height: calc(100vh - 65px);
+        }
+
+        .video-player-area {
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            background: #000;
+            border: 1px solid #222;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            aspect-ratio: 16 / 9;
+            overflow: hidden;
+        }
+
+        #watermark-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 20;
+            pointer-events: none;
+            overflow: hidden;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+            align-content: space-around;
+            opacity: 0.1;
+            user-select: none;
+        }
+
+        .watermark-text {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.5);
+            transform: rotate(-30deg);
+            white-space: nowrap;
+            padding: 25px;
+            font-family: monospace;
+        }
+
+        .custom-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.4), transparent);
+            z-index: 30;
+            display: flex;
+            flex-direction: column;
+            padding: 10px 15px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .video-wrapper:hover .custom-controls { opacity: 1; }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 6px;
+            background: rgba(255,255,255,0.2);
+            margin-bottom: 10px;
+            cursor: pointer;
+            position: relative;
+            border-radius: 3px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--f1-red);
+            width: 0%;
+            border-radius: 3px;
+        }
+
+        .control-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .control-btn {
+            background: transparent;
+            color: white;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+            transition: color 0.2s;
+        }
+
+        .control-btn:hover { color: var(--f1-red); }
+
+        .speed-select {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.2);
+            font-size: 10px;
+            font-weight: 900;
+            padding: 2px 5px;
+            border-radius: 4px;
+        }
+
+        .sidebar-telemetry {
+            background: #0a0a0a;
+            border-left: 1px solid #1a1a1a;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            overflow-y: auto;
+        }
+
+        .badge {
+            font-size: 9px;
+            padding: 2px 8px;
+            background: var(--f1-red);
+            font-weight: 900;
+            clip-path: polygon(10% 0, 100% 0, 90% 100%, 0% 100%);
+        }
+
+        .data-point {
+            border-left: 2px solid #333;
+            padding-left: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .data-label {
+            font-size: 0.6rem;
+            color: #555;
+            text-transform: uppercase;
+            font-weight: 900;
+            letter-spacing: 1px;
+        }
+
+        .data-value {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #ccc;
+        }
+
+        @media (max-width: 1024px) {
+            .sim-container { grid-template-columns: 1fr; height: auto; }
+            .sidebar-telemetry { border-left: none; border-top: 1px solid #1a1a1a; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="top-nav">
+        <div class="back-btn" id="nav-back">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+            Back to Course
+        </div>
+        <div class="flex items-center gap-4">
+            <button id="btn-signout" class="text-[9px] font-black text-gray-500 hover:text-red-600 uppercase tracking-widest transition-colors">Terminate Session</button>
+            <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+        </div>
+    </nav>
+
+    <main class="sim-container">
+        <section class="video-player-area">
+            <div class="mb-6">
+                <div class="flex items-center gap-3 mb-2">
+                    <span class="badge" id="lesson-type-badge">TYPE_PENDING</span>
+                    <span class="text-[10px] text-gray-500 font-bold uppercase tracking-[3px]" id="lesson-id-label">SID: 0000</span>
+                </div>
+                <h1 class="text-xl md:text-3xl font-black italic uppercase tracking-tighter" id="lesson-title">SYNCING STREAM...</h1>
+            </div>
+
+            <div class="video-wrapper" id="master-wrapper">
+                <div id="watermark-overlay"></div>
+                <div id="video-container" class="w-full h-full flex items-center justify-center">
+                    <div class="flex flex-col items-center gap-3">
+                        <div class="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                        <p class="text-[10px] font-bold tracking-widest text-gray-500">DECRYPTING CONTENT...</p>
+                    </div>
+                </div>
+                
+                <div id="custom-controls-ui" class="custom-controls hidden">
+                    <div class="progress-bar-container" id="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                    <div class="control-row">
+                        <div class="flex items-center gap-4">
+                            <button class="control-btn" id="btn-play">
+                                <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path id="play-icon-path" d="M8 5v14l11-7z"/></svg>
+                            </button>
+                            <span class="text-[10px] font-bold font-mono" id="time-display">00:00 / 00:00</span>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <select id="speed-selector" class="speed-select">
+                                <option value="0.5">0.5x</option>
+                                <option value="1" selected>1.0x</option>
+                                <option value="1.5">1.5x</option>
+                                <option value="2">2.0x</option>
+                            </select>
+                            <button class="control-btn" id="btn-fullscreen">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 border-t border-white/5 pt-6 pb-12">
+                <h3 class="text-xs font-black text-red-600 uppercase tracking-widest mb-4">Briefing Notes</h3>
+                <p id="lesson-description" class="text-gray-400 text-sm leading-relaxed max-w-4xl font-sans">
+                    Establishing connection to briefing database...
+                </p>
+            </div>
+        </section>
+
+        <aside class="sidebar-telemetry">
+            <div>
+                <div class="data-point">
+                    <div class="data-label">Active Driver</div>
+                    <div class="data-value" id="user-name">VERIFYING...</div>
+                </div>
+                <div class="data-point">
+                    <div class="data-label">Identity ID</div>
+                    <div class="data-value truncate text-[10px] text-gray-500 font-mono" id="user-id">---</div>
+                </div>
+                <div class="data-point">
+                    <div class="data-label">Curriculum Section</div>
+                    <div class="data-value" id="section-val">---</div>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <script>
+        const SUPABASE_URL = 'https://ogfmimplmjzhqzeeexae.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9nZm1pbXBsbWp6aHF6ZWVleGFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNTgzNzcsImV4cCI6MjA4NjYzNDM3N30.l8j1VC7-Zt88UGRkclBd-dNyLZsHg2DuY_9FRRW311o';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const GOOGLE_SHEET_ID = '1HLQxJv32eo-EloTtdZhw5ZhEWIXuhMOI7OAKsqG-dfI';
+        const GOOGLE_API_KEY = 'AIzaSyD3sts8y_s8M8L2Y66Gz0ICY_9SY-VmoEo';
+        const LESSONS_SHEET = 'lessons';
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const courseId = urlParams.get('course') || 'Finallaps';
+        const lessonId = urlParams.get('lesson') || 'Day01';
+
+        let activePlayer = null;
+
+        async function checkAuth() {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            
+            if (!session) {
+                // Not logged in - redirect to index/login
+                window.location.href = 'index.html';
+                return;
+            }
+
+            // User is authenticated
+            const user = session.user;
+            document.getElementById('user-name').innerText = (user.user_metadata?.full_name || 'Authenticated Driver').toUpperCase();
+            document.getElementById('user-id').innerText = user.id;
+            document.body.classList.add('auth-ready');
+            
+            generateWatermark(user.email);
+            fetchLessonData();
+        }
+
+        function generateWatermark(text) {
+            const container = document.getElementById('watermark-overlay');
+            container.innerHTML = '';
+            for(let i = 0; i < 20; i++) {
+                const span = document.createElement('span');
+                span.className = 'watermark-text';
+                span.innerText = text;
+                container.appendChild(span);
+            }
+        }
+
+        async function fetchLessonData() {
+            try {
+                const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${LESSONS_SHEET}!A2:J500?key=${GOOGLE_API_KEY}`);
+                const data = await response.json();
+                
+                if (data.values) {
+                    const lesson = data.values.find(row => row[0] === courseId && row[1] === lessonId);
+                    if (lesson) {
+                        const type = (lesson[4] || "").toLowerCase();
+                        if (type.includes('zoom')) {
+                            window.location.href = `learnzoom.html?course=${courseId}&lesson=${lessonId}`;
+                            return;
+                        }
+                        renderLesson(lesson);
+                    }
+                }
+            } catch (err) {
+                console.error("Data Sync Error", err);
+            }
+        }
+
+        function renderLesson(data) {
+            document.getElementById('lesson-title').innerText = data[3].toUpperCase();
+            document.getElementById('lesson-id-label').innerText = `SID: ${data[1]}`;
+            document.getElementById('lesson-type-badge').innerText = data[4].toUpperCase();
+            document.getElementById('lesson-description').innerText = data[6] || "No description provided.";
+            document.getElementById('section-val').innerText = data[2].toUpperCase();
+
+            const videoUrl = data[5];
+            const videoContainer = document.getElementById('video-container');
+
+            if (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')) {
+                let vidId = videoUrl.includes('v=') ? videoUrl.split('v=')[1].split('&')[0] : videoUrl.split('/').pop();
+                videoContainer.innerHTML = `<iframe src="https://www.youtube.com/embed/${vidId}?rel=0&modestbranding=1" frameborder="0" class="w-full h-full"></iframe>`;
+            } else {
+                videoContainer.innerHTML = `<video id="html5-player" class="w-full h-full cursor-pointer" playsinline src="${videoUrl}"></video>`;
+                activePlayer = document.getElementById('html5-player');
+                document.getElementById('custom-controls-ui').classList.remove('hidden');
+                setupHTML5Controls();
+            }
+        }
+
+        function setupHTML5Controls() {
+            const btnPlay = document.getElementById('btn-play');
+            const playIcon = document.getElementById('play-icon-path');
+            const progressBar = document.getElementById('progress-bar');
+            const progressFill = document.getElementById('progress-fill');
+            const timeDisplay = document.getElementById('time-display');
+            const speedSelector = document.getElementById('speed-selector');
+            const btnFullscreen = document.getElementById('btn-fullscreen');
+            const wrapper = document.getElementById('master-wrapper');
+
+            btnPlay.onclick = () => {
+                if (activePlayer.paused) {
+                    activePlayer.play();
+                    playIcon.setAttribute('d', 'M6 19h4V5H6v14zm8-14v14h4V5h-4z');
+                } else {
+                    activePlayer.pause();
+                    playIcon.setAttribute('d', 'M8 5v14l11-7z');
+                }
+            };
+
+            activePlayer.onclick = () => btnPlay.click();
+
+            progressBar.onclick = (e) => {
+                const rect = progressBar.getBoundingClientRect();
+                const pos = (e.clientX - rect.left) / rect.width;
+                activePlayer.currentTime = pos * activePlayer.duration;
+            };
+
+            speedSelector.onchange = (e) => activePlayer.playbackRate = parseFloat(e.target.value);
+
+            btnFullscreen.onclick = () => {
+                if (!document.fullscreenElement) wrapper.requestFullscreen();
+                else document.exitFullscreen();
+            };
+
+            activePlayer.ontimeupdate = () => {
+                const perc = (activePlayer.currentTime / activePlayer.duration) * 100;
+                progressFill.style.width = perc + '%';
+                timeDisplay.innerText = `${formatTime(activePlayer.currentTime)} / ${formatTime(activePlayer.duration)}`;
+            };
+        }
+
+        function formatTime(seconds) {
+            if (isNaN(seconds)) return "00:00";
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+        document.getElementById('btn-signout').onclick = async () => {
+            await supabaseClient.auth.signOut();
+            window.location.href = 'index.html';
+        };
+
+        document.getElementById('nav-back').onclick = () => {
+            window.location.href = `courses.html?id=${courseId}`;
+        };
+
+        window.onload = checkAuth;
+    </script>
+</body>
+</html>
