@@ -6,6 +6,8 @@
     <title>F1 Hub - Simulation Room</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.js"></script>
+    <!-- YouTube IFrame API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+Sinhala:wght@400;700;900&display=swap');
 
@@ -28,9 +30,7 @@
             transition: opacity 0.5s ease-in-out;
         }
 
-        body.auth-ready {
-            opacity: 1;
-        }
+        body.auth-ready { opacity: 1; }
 
         .top-nav {
             background: #000;
@@ -39,7 +39,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            z-index: 50;
+            z-index: 100;
         }
 
         .back-btn {
@@ -55,9 +55,7 @@
             cursor: pointer;
         }
 
-        .back-btn:hover {
-            color: var(--f1-red);
-        }
+        .back-btn:hover { color: var(--f1-red); }
 
         .sim-container {
             display: grid;
@@ -84,29 +82,27 @@
             overflow: hidden;
         }
 
-        #watermark-overlay {
+        /* Interaction Shield: Prevents clicking the actual YT player */
+        .interaction-shield {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 20;
-            pointer-events: none;
-            overflow: hidden;
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: space-around;
-            align-content: space-around;
-            opacity: 0.1;
-            user-select: none;
+            inset: 0;
+            z-index: 10;
+            background: transparent;
         }
 
-        .watermark-text {
-            font-size: 11px;
-            color: rgba(255, 255, 255, 0.5);
-            transform: rotate(-30deg);
+        /* Moving Inverted Watermark */
+        #moving-watermark {
+            position: absolute;
+            z-index: 20;
+            pointer-events: none;
+            font-size: 12px;
+            font-weight: 900;
             white-space: nowrap;
-            padding: 25px;
+            text-transform: lowercase;
+            mix-blend-mode: difference;
+            color: #fff;
+            opacity: 0.8;
+            padding: 4px 8px;
             font-family: monospace;
         }
 
@@ -115,11 +111,11 @@
             bottom: 0;
             left: 0;
             width: 100%;
-            background: linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.4), transparent);
+            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
             z-index: 30;
             display: flex;
             flex-direction: column;
-            padding: 10px 15px;
+            padding: 15px;
             opacity: 0;
             transition: opacity 0.3s;
         }
@@ -128,19 +124,19 @@
 
         .progress-bar-container {
             width: 100%;
-            height: 6px;
+            height: 4px;
             background: rgba(255,255,255,0.2);
-            margin-bottom: 10px;
+            margin-bottom: 12px;
             cursor: pointer;
             position: relative;
-            border-radius: 3px;
+            transition: height 0.2s;
         }
+        .progress-bar-container:hover { height: 8px; }
 
         .progress-fill {
             height: 100%;
             background: var(--f1-red);
             width: 0%;
-            border-radius: 3px;
         }
 
         .control-row {
@@ -149,16 +145,21 @@
             justify-content: space-between;
         }
 
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+        }
+
         .control-btn {
             background: transparent;
             color: white;
             border: none;
             cursor: pointer;
-            padding: 5px;
-            transition: color 0.2s;
+            transition: color 0.2s, transform 0.1s;
         }
-
         .control-btn:hover { color: var(--f1-red); }
+        .control-btn:active { transform: scale(0.9); }
 
         .speed-select {
             background: rgba(255,255,255,0.1);
@@ -166,8 +167,16 @@
             border: 1px solid rgba(255,255,255,0.2);
             font-size: 10px;
             font-weight: 900;
-            padding: 2px 5px;
+            padding: 2px 8px;
             border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .volume-slider {
+            width: 60px;
+            height: 4px;
+            accent-color: var(--f1-red);
+            cursor: pointer;
         }
 
         .sidebar-telemetry {
@@ -238,26 +247,32 @@
             </div>
 
             <div class="video-wrapper" id="master-wrapper">
-                <div id="watermark-overlay"></div>
-                <div id="video-container" class="w-full h-full flex items-center justify-center">
-                    <div class="flex flex-col items-center gap-3">
-                        <div class="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-                        <p class="text-[10px] font-bold tracking-widest text-gray-500">DECRYPTING CONTENT...</p>
-                    </div>
-                </div>
+                <!-- Watermark -->
+                <div id="moving-watermark">f1-driver-telemetry</div>
                 
-                <div id="custom-controls-ui" class="custom-controls hidden">
+                <!-- Shield -->
+                <div class="interaction-shield" id="interaction-shield"></div>
+
+                <!-- YouTube API Target -->
+                <div id="yt-player" class="w-full h-full"></div>
+                
+                <!-- Custom Control Overlay -->
+                <div id="custom-controls-ui" class="custom-controls">
                     <div class="progress-bar-container" id="progress-bar">
                         <div class="progress-fill" id="progress-fill"></div>
                     </div>
                     <div class="control-row">
-                        <div class="flex items-center gap-4">
+                        <div class="control-group">
                             <button class="control-btn" id="btn-play">
-                                <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path id="play-icon-path" d="M8 5v14l11-7z"/></svg>
+                                <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path id="play-icon-path" d="M8 5v14l11-7z"/></svg>
                             </button>
-                            <span class="text-[10px] font-bold font-mono" id="time-display">00:00 / 00:00</span>
+                            <div class="flex items-center gap-2">
+                                <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                                <input type="range" id="volume-slider" class="volume-slider" min="0" max="100" value="100">
+                            </div>
+                            <span class="text-[10px] font-bold font-mono tracking-tighter" id="time-display">00:00 / 00:00</span>
                         </div>
-                        <div class="flex items-center gap-4">
+                        <div class="control-group">
                             <select id="speed-selector" class="speed-select">
                                 <option value="0.5">0.5x</option>
                                 <option value="1" selected>1.0x</option>
@@ -311,36 +326,43 @@
         const courseId = urlParams.get('course') || 'Finallaps';
         const lessonId = urlParams.get('lesson') || 'Day01';
 
-        let activePlayer = null;
+        let player; // YouTube Player instance
+        let watermarkData = { x: 50, y: 50, dx: 1, dy: 1 };
+        let timer;
 
         async function checkAuth() {
             const { data: { session } } = await supabaseClient.auth.getSession();
-            
-            if (!session) {
-                // Not logged in - redirect to index/login
-                window.location.href = 'index.html';
-                return;
-            }
+            if (!session) { window.location.href = 'index.html'; return; }
 
-            // User is authenticated
             const user = session.user;
             document.getElementById('user-name').innerText = (user.user_metadata?.full_name || 'Authenticated Driver').toUpperCase();
             document.getElementById('user-id').innerText = user.id;
+            document.getElementById('moving-watermark').innerText = user.email;
             document.body.classList.add('auth-ready');
             
-            generateWatermark(user.email);
+            startWatermarkAnimation();
             fetchLessonData();
         }
 
-        function generateWatermark(text) {
-            const container = document.getElementById('watermark-overlay');
-            container.innerHTML = '';
-            for(let i = 0; i < 20; i++) {
-                const span = document.createElement('span');
-                span.className = 'watermark-text';
-                span.innerText = text;
-                container.appendChild(span);
+        function startWatermarkAnimation() {
+            const el = document.getElementById('moving-watermark');
+            const wrapper = document.getElementById('master-wrapper');
+            
+            function animate() {
+                const rect = wrapper.getBoundingClientRect();
+                const elRect = el.getBoundingClientRect();
+
+                watermarkData.x += watermarkData.dx * 0.5;
+                watermarkData.y += watermarkData.dy * 0.5;
+
+                if (watermarkData.x <= 0 || watermarkData.x + elRect.width >= rect.width) watermarkData.dx *= -1;
+                if (watermarkData.y <= 0 || watermarkData.y + elRect.height >= rect.height) watermarkData.dy *= -1;
+
+                el.style.left = watermarkData.x + 'px';
+                el.style.top = watermarkData.y + 'px';
+                requestAnimationFrame(animate);
             }
+            animate();
         }
 
         async function fetchLessonData() {
@@ -350,21 +372,12 @@
                 
                 if (data.values) {
                     const lesson = data.values.find(row => row[0] === courseId && row[1] === lessonId);
-                    if (lesson) {
-                        const type = (lesson[4] || "").toLowerCase();
-                        if (type.includes('zoom')) {
-                            window.location.href = `learnzoom.html?course=${courseId}&lesson=${lessonId}`;
-                            return;
-                        }
-                        renderLesson(lesson);
-                    }
+                    if (lesson) initVideo(lesson);
                 }
-            } catch (err) {
-                console.error("Data Sync Error", err);
-            }
+            } catch (err) { console.error("Data Sync Error", err); }
         }
 
-        function renderLesson(data) {
+        function initVideo(data) {
             document.getElementById('lesson-title').innerText = data[3].toUpperCase();
             document.getElementById('lesson-id-label').innerText = `SID: ${data[1]}`;
             document.getElementById('lesson-type-badge').innerText = data[4].toUpperCase();
@@ -372,58 +385,93 @@
             document.getElementById('section-val').innerText = data[2].toUpperCase();
 
             const videoUrl = data[5];
-            const videoContainer = document.getElementById('video-container');
+            let vidId = "";
 
             if (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')) {
-                let vidId = videoUrl.includes('v=') ? videoUrl.split('v=')[1].split('&')[0] : videoUrl.split('/').pop();
-                videoContainer.innerHTML = `<iframe src="https://www.youtube.com/embed/${vidId}?rel=0&modestbranding=1" frameborder="0" class="w-full h-full"></iframe>`;
-            } else {
-                videoContainer.innerHTML = `<video id="html5-player" class="w-full h-full cursor-pointer" playsinline src="${videoUrl}"></video>`;
-                activePlayer = document.getElementById('html5-player');
-                document.getElementById('custom-controls-ui').classList.remove('hidden');
-                setupHTML5Controls();
+                vidId = videoUrl.includes('v=') ? videoUrl.split('v=')[1].split('&')[0] : videoUrl.split('/').pop();
+                
+                // Initialize YT Player via API
+                player = new YT.Player('yt-player', {
+                    videoId: vidId,
+                    playerVars: {
+                        'autoplay': 0,
+                        'controls': 0, // Disable official controls
+                        'disablekb': 1,
+                        'modestbranding': 1,
+                        'rel': 0,
+                        'showinfo': 0,
+                        'iv_load_policy': 3
+                    },
+                    events: {
+                        'onReady': onPlayerReady,
+                        'onStateChange': onPlayerStateChange
+                    }
+                });
             }
         }
 
-        function setupHTML5Controls() {
-            const btnPlay = document.getElementById('btn-play');
+        function onPlayerReady(event) {
+            setupCustomControls();
+        }
+
+        function onPlayerStateChange(event) {
             const playIcon = document.getElementById('play-icon-path');
+            if (event.data === YT.PlayerState.PLAYING) {
+                playIcon.setAttribute('d', 'M6 19h4V5H6v14zm8-14v14h4V5h-4z');
+            } else {
+                playIcon.setAttribute('d', 'M8 5v14l11-7z');
+            }
+        }
+
+        function setupCustomControls() {
+            const btnPlay = document.getElementById('btn-play');
+            const shield = document.getElementById('interaction-shield');
             const progressBar = document.getElementById('progress-bar');
             const progressFill = document.getElementById('progress-fill');
             const timeDisplay = document.getElementById('time-display');
             const speedSelector = document.getElementById('speed-selector');
+            const volumeSlider = document.getElementById('volume-slider');
             const btnFullscreen = document.getElementById('btn-fullscreen');
             const wrapper = document.getElementById('master-wrapper');
 
-            btnPlay.onclick = () => {
-                if (activePlayer.paused) {
-                    activePlayer.play();
-                    playIcon.setAttribute('d', 'M6 19h4V5H6v14zm8-14v14h4V5h-4z');
-                } else {
-                    activePlayer.pause();
-                    playIcon.setAttribute('d', 'M8 5v14l11-7z');
-                }
+            // Play/Pause
+            const togglePlay = () => {
+                const state = player.getPlayerState();
+                if (state === YT.PlayerState.PLAYING) player.pauseVideo();
+                else player.playVideo();
             };
 
-            activePlayer.onclick = () => btnPlay.click();
+            btnPlay.onclick = togglePlay;
+            shield.onclick = togglePlay;
 
+            // Progress Update
+            setInterval(() => {
+                if (player && player.getCurrentTime) {
+                    const current = player.getCurrentTime();
+                    const total = player.getDuration();
+                    const perc = (current / total) * 100;
+                    progressFill.style.width = perc + '%';
+                    timeDisplay.innerText = `${formatTime(current)} / ${formatTime(total)}`;
+                }
+            }, 500);
+
+            // Seek
             progressBar.onclick = (e) => {
                 const rect = progressBar.getBoundingClientRect();
                 const pos = (e.clientX - rect.left) / rect.width;
-                activePlayer.currentTime = pos * activePlayer.duration;
+                player.seekTo(pos * player.getDuration());
             };
 
-            speedSelector.onchange = (e) => activePlayer.playbackRate = parseFloat(e.target.value);
+            // Speed
+            speedSelector.onchange = (e) => player.setPlaybackRate(parseFloat(e.target.value));
 
+            // Volume
+            volumeSlider.oninput = (e) => player.setVolume(e.target.value);
+
+            // Fullscreen
             btnFullscreen.onclick = () => {
                 if (!document.fullscreenElement) wrapper.requestFullscreen();
                 else document.exitFullscreen();
-            };
-
-            activePlayer.ontimeupdate = () => {
-                const perc = (activePlayer.currentTime / activePlayer.duration) * 100;
-                progressFill.style.width = perc + '%';
-                timeDisplay.innerText = `${formatTime(activePlayer.currentTime)} / ${formatTime(activePlayer.duration)}`;
             };
         }
 
