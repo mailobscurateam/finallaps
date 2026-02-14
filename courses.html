@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>F1 Hub - Course Curriculum</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>F1 Course Simulation</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+Sinhala:wght@400;700;900&display=swap');
@@ -11,299 +11,265 @@
         :root {
             --f1-red: #e10600;
             --f1-black: #050505;
-            --f1-dark: #111111;
         }
 
         body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Orbitron', 'Noto Sans Sinhala', sans-serif;
             background-color: var(--f1-black);
             color: white;
-            font-family: 'Orbitron', 'Noto Sans Sinhala', sans-serif;
             min-height: 100vh;
-            -webkit-tap-highlight-color: transparent;
         }
 
         .f1-border-bottom {
-            border-bottom: 1px solid #222;
+            border-bottom: 4px solid var(--f1-red);
+            clip-path: polygon(0 0, 100% 0, 98% 100%, 0% 100%);
         }
 
-        /* Responsive Grid Background */
-        .grid-bg {
-            background-image: radial-gradient(#222 1px, transparent 1px);
-            background-size: 20px 20px;
-        }
-        @media (min-width: 768px) {
-            .grid-bg { background-size: 30px 30px; }
-        }
-
-        /* Course Card Optimization */
-        .course-card {
-            background: #0a0a0a;
+        .module-card {
+            background: #0d0d0d;
             border: 1px solid #1a1a1a;
-            transition: transform 0.2s ease, border-color 0.2s ease;
-            display: flex;
-            flex-direction: column;
-            height: 100%;
+            transition: all 0.2s ease;
             cursor: pointer;
         }
 
-        @media (hover: hover) {
-            .course-card:hover {
-                border-color: var(--f1-red);
-                transform: translateY(-4px);
-                background: #111;
-            }
-        }
-
-        .course-card:active {
-            transform: scale(0.98);
+        .module-card:hover {
+            border-color: var(--f1-red);
             background: #111;
+            transform: translateX(5px);
         }
 
-        .tag {
+        .status-badge {
             font-size: 8px;
-            font-weight: 900;
-            text-transform: uppercase;
-            padding: 2px 6px;
-            background: #1a1a1a;
-            border: 1px solid #333;
-            white-space: nowrap;
-        }
-
-        .lesson-type-tag, .zoom-tag {
-            font-size: 9px;
-            font-weight: 900;
-            padding: 2px 12px;
-            clip-path: polygon(10% 0, 100% 0, 90% 100%, 0% 100%);
-            text-transform: uppercase;
-            font-style: italic;
-        }
-
-        .lesson-type-tag { background: var(--f1-red); }
-        .zoom-tag { background: #2D8CFF; }
-
-        .section-header {
-            border-left: 4px solid var(--f1-red);
-            padding-left: 0.75rem;
-            margin-top: 2rem;
-            margin-bottom: 1rem;
-        }
-
-        .nav-link {
-            font-size: 10px;
+            padding: 2px 8px;
             font-weight: 900;
             text-transform: uppercase;
             letter-spacing: 1px;
-            color: #71717a;
-            transition: color 0.3s;
         }
 
-        .nav-link.active { color: var(--f1-red); }
-
-        .user-pill {
-            background: #111;
-            border: 1px solid #222;
-            padding: 4px 12px;
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+        .btn-back {
+            font-size: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #666;
+            transition: color 0.2s;
         }
+
+        .btn-back:hover { color: var(--f1-red); }
 
         /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: #050505; }
-        ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #333; }
         ::-webkit-scrollbar-thumb:hover { background: var(--f1-red); }
+
+        .loading-screen {
+            position: fixed;
+            inset: 0;
+            background: black;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s;
+        }
+
+        @keyframes scan {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+        .scanner {
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: var(--f1-red);
+            box-shadow: 0 0 15px var(--f1-red);
+            animation: scan 2s linear infinite;
+            opacity: 0.3;
+        }
     </style>
 </head>
-<body class="grid-bg pb-10">
+<body>
 
-    <nav class="f1-border-bottom bg-black/90 backdrop-blur-md sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center">
-            <div class="flex items-center gap-4 sm:gap-8">
-                <h1 class="text-lg sm:text-xl font-black italic tracking-tighter">F1 <span class="text-red-600">HUB</span></h1>
-                <div class="flex gap-4 sm:gap-6">
-                    <a href="dashboard.html" class="nav-link">Stats</a>
-                    <a href="courses.html" class="nav-link active">Drive</a>
-                </div>
-            </div>
-            
-            <!-- Authenticated User Section -->
-            <div id="auth-section" class="flex items-center gap-3">
-                <div class="user-pill hidden sm:flex">
-                    <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                    <div class="flex flex-col">
-                        <span id="user-name" class="text-[9px] font-black uppercase text-white leading-none">Driver</span>
-                        <span id="user-id-display" class="text-[7px] font-bold text-zinc-500 uppercase tracking-widest">ID: 0000</span>
-                    </div>
-                </div>
-                <button onclick="logout()" class="text-[9px] font-black text-zinc-500 hover:text-red-600 uppercase tracking-widest transition-colors">
-                    Exit
-                </button>
+    <div id="loading" class="loading-screen">
+        <div class="scanner"></div>
+        <div class="text-center">
+            <h1 class="text-xl font-black italic tracking-tighter">LOADING <span class="text-red-600">SIMULATION</span></h1>
+            <div class="mt-4 w-48 h-1 bg-zinc-800 mx-auto overflow-hidden">
+                <div class="h-full bg-red-600 animate-[loading_1.5s_ease-in-out_infinite]" style="width: 30%"></div>
             </div>
         </div>
-    </nav>
+    </div>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-12">
-        <header class="mb-8 sm:mb-14">
-            <div class="flex items-center gap-2 mb-2 sm:mb-3">
-                <div class="w-6 sm:w-10 h-[2px] bg-red-600"></div>
-                <span class="text-red-600 text-[9px] sm:text-xs font-black uppercase tracking-[0.2em] sm:tracking-[0.4em]">Curriculum Intelligence</span>
+    <div class="max-w-6xl mx-auto p-4 md:p-8">
+        <!-- Header Navigation -->
+        <nav class="flex items-center justify-between mb-12">
+            <a href="dashboard.html" class="btn-back flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" stroke-width="3"></path></svg>
+                Return to Paddock
+            </a>
+            <div class="text-right">
+                <p class="text-[8px] text-red-600 font-black tracking-widest uppercase">System Encrypted</p>
+                <p class="text-[10px] font-bold" id="sim-time">00:00:00</p>
             </div>
-            <h2 id="course-title" class="text-3xl sm:text-5xl md:text-6xl font-black italic uppercase tracking-tighter mb-3 sm:mb-5 leading-none">
-                SIMULATION DATA
-            </h2>
-            <p id="course-desc" class="text-zinc-500 max-w-2xl text-xs sm:text-sm leading-relaxed">
-                Syncing with race control for local track data...
-            </p>
+        </nav>
+
+        <!-- Course Identity -->
+        <header class="mb-12">
+            <div class="f1-border-bottom pb-4 mb-4">
+                <p id="course-id-label" class="text-[10px] text-gray-500 font-black tracking-[4px] uppercase">COURSE_ID: NULL</p>
+                <h1 id="course-title" class="text-3xl md:text-5xl font-black italic uppercase tracking-tighter">LOADING...</h1>
+            </div>
+            <div class="flex flex-wrap gap-4 text-[9px] font-bold uppercase tracking-widest text-gray-400">
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500"></span> Simulator Active</span>
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500"></span> HD Content Enabled</span>
+                <span class="flex items-center gap-1" id="module-count">0 Modules Detected</span>
+            </div>
         </header>
 
-        <div id="sections-container" class="space-y-10 sm:space-y-16">
-            <!-- Loader -->
-            <div class="flex flex-col items-center justify-center py-20 text-zinc-700">
-                <div class="w-10 h-10 border-2 border-zinc-800 border-t-red-600 rounded-full animate-spin mb-4"></div>
-                <p class="text-[9px] font-black uppercase tracking-widest">Initialising Sector Profiles...</p>
+        <!-- Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Left: Module List -->
+            <div class="lg:col-span-2">
+                <h3 class="text-xs font-black uppercase text-red-600 mb-6 tracking-widest">Training Modules</h3>
+                <div id="module-container" class="space-y-4">
+                    <!-- Modules will be injected here -->
+                </div>
+            </div>
+
+            <!-- Right: Progress/Stats -->
+            <div class="space-y-6">
+                <div class="bg-zinc-900/30 p-6 border border-zinc-800">
+                    <h3 class="text-[10px] font-black uppercase mb-6 tracking-widest">Driver Statistics</h3>
+                    <div class="space-y-6">
+                        <div>
+                            <div class="flex justify-between text-[9px] mb-2 uppercase font-bold">
+                                <span>Completion</span>
+                                <span class="text-red-600">0%</span>
+                            </div>
+                            <div class="w-full h-1 bg-zinc-800">
+                                <div class="bg-red-600 h-full w-0"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[9px] mb-2 uppercase font-bold">
+                                <span>Session Time</span>
+                                <span id="session-timer">00:00</span>
+                            </div>
+                            <div class="w-full h-1 bg-zinc-800">
+                                <div class="bg-zinc-600 h-full w-1/3"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-red-600 p-6 italic">
+                    <h4 class="font-black text-sm uppercase leading-none mb-2">Sim Notice</h4>
+                    <p class="text-[10px] font-bold leading-relaxed">Ensure your telemetry link is stable before starting high-load video modules.</p>
+                </div>
             </div>
         </div>
-    </main>
+    </div>
 
     <script>
         const GOOGLE_SHEET_ID = '1HLQxJv32eo-EloTtdZhw5ZhEWIXuhMOI7OAKsqG-dfI';
         const GOOGLE_API_KEY = 'AIzaSyD3sts8y_s8M8L2Y66Gz0ICY_9SY-VmoEo';
-        const LESSONS_SHEET = 'lessons';
-        const COURSES_SHEET = 'courses';
+        
+        // This is where you'd link to your specific "Course Details" or "Curriculum" sheet
+        const CURRICULUM_SHEET = 'curriculum'; 
 
-        const urlParams = new URLSearchParams(window.location.search);
-        const activeCourseId = urlParams.get('id') || 'Finallaps';
+        async function initPage() {
+            const courseId = localStorage.getItem('selectedCourseId');
+            const courseName = localStorage.getItem('selectedCourseName');
 
-        // AUTHENTICATION CHECK
-        function checkAuth() {
-            const userData = localStorage.getItem('f1_user');
-            if (!userData) {
-                // Redirect to login if no session found
-                window.location.href = 'index.html';
+            if (!courseId) {
+                window.location.href = 'dashboard.html';
                 return;
             }
-            const user = JSON.parse(userData);
-            document.getElementById('user-name').innerText = user.name || 'Driver';
-            document.getElementById('user-id-display').innerText = `ID: ${user.id || 'N/A'}`;
+
+            document.getElementById('course-id-label').innerText = `COURSE_ID: ${courseId}`;
+            document.getElementById('course-title').innerText = courseName || 'UNNAMED SIMULATION';
+
+            await fetchCurriculum(courseId);
+            
+            // Hide loading screen
+            setTimeout(() => {
+                document.getElementById('loading').style.opacity = '0';
+                setTimeout(() => document.getElementById('loading').style.display = 'none', 500);
+            }, 1000);
+
+            startSimTimers();
         }
 
-        function logout() {
-            localStorage.removeItem('f1_user');
-            window.location.href = 'index.html';
-        }
-
-        async function fetchCurriculum() {
+        async function fetchCurriculum(courseId) {
+            const container = document.getElementById('module-container');
             try {
-                // Fetch Course Meta
-                const metaRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${COURSES_SHEET}!A2:C100?key=${GOOGLE_API_KEY}`);
-                const metaData = await metaRes.json();
-                const courseMeta = metaData.values?.find(row => row[0] === activeCourseId);
-
-                if (courseMeta) {
-                    document.getElementById('course-title').innerText = courseMeta[1].toUpperCase();
-                    document.getElementById('course-desc').innerText = courseMeta[2];
-                }
-
-                // Fetch Lessons
-                const lessonsRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${LESSONS_SHEET}!A2:J500?key=${GOOGLE_API_KEY}`);
-                const lessonsData = await lessonsRes.json();
-
-                if (lessonsData.values) {
-                    const filteredLessons = lessonsData.values.filter(row => row[0] === activeCourseId);
-                    renderGroupedLessons(filteredLessons);
-                }
-            } catch (err) {
-                console.error("Link failure:", err);
-                document.getElementById('sections-container').innerHTML = `<p class="text-center text-red-600 font-bold uppercase py-10">Telemetry Lost - Check Connection</p>`;
-            }
-        }
-
-        function renderGroupedLessons(lessons) {
-            const container = document.getElementById('sections-container');
-            container.innerHTML = '';
-
-            const grouped = lessons.reduce((acc, lesson) => {
-                const sectionName = lesson[2] || "Uncategorized";
-                if (!acc[sectionName]) acc[sectionName] = [];
-                acc[sectionName].push(lesson);
-                return acc;
-            }, {});
-
-            Object.keys(grouped).forEach(sectionName => {
-                const sectionLessons = grouped[sectionName];
+                // In a real scenario, you'd filter by courseId in the API call or JS
+                const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${CURRICULUM_SHEET}!A2:E100?key=${GOOGLE_API_KEY}`);
+                const data = await response.json();
                 
-                const sectionWrapper = document.createElement('div');
-                sectionWrapper.className = "fade-in";
-                sectionWrapper.innerHTML = `
-                    <div class="section-header">
-                        <h3 class="text-[10px] sm:text-xs font-black text-red-600 uppercase tracking-[0.2em] sm:tracking-[0.4em]">
-                            Sector: ${sectionName}
-                        </h3>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                        ${sectionLessons.map(lesson => renderLessonCard(lesson)).join('')}
-                    </div>
-                `;
-                container.appendChild(sectionWrapper);
-            });
-        }
+                if (!data.values) {
+                    container.innerHTML = `<p class="text-zinc-600 text-xs italic">No specific curriculum found for this simulation.</p>`;
+                    return;
+                }
 
-        function renderLessonCard(lesson) {
-            const lessonId = lesson[1] || '';
-            const lessonTypeRaw = lesson[4] || 'Video';
-            const lessonType = lessonTypeRaw.toLowerCase();
-            const isZoom = lessonType.includes('zoom');
-            
-            const escapedLessonId = lessonId.replace(/'/g, "\\'");
-            const escapedLessonType = lessonType.replace(/'/g, "\\'");
+                // Filter modules that belong to this courseId (assuming column A is course_id)
+                const modules = data.values.filter(row => row[0] === courseId);
+                
+                document.getElementById('module-count').innerText = `${modules.length} Modules Detected`;
 
-            return `
-                <div class="course-card p-4 sm:p-6" onclick="navigateToLesson('${escapedLessonId}', '${escapedLessonType}')">
-                    <div class="flex-grow">
-                        <div class="flex justify-between items-start mb-4 sm:mb-6">
-                            <span class="tag">ID: ${lessonId}</span>
-                            <span class="${isZoom ? 'zoom-tag' : 'lesson-type-tag'}">
-                                ${lessonTypeRaw}
-                            </span>
+                if (modules.length === 0) {
+                    container.innerHTML = `<p class="text-zinc-600 text-xs italic">No specific curriculum found for this simulation.</p>`;
+                    return;
+                }
+
+                container.innerHTML = '';
+                modules.forEach((mod, idx) => {
+                    // Structure: [course_id, module_title, module_type, content_link, duration]
+                    const [_, title, type, link, duration] = mod;
+                    
+                    const div = document.createElement('div');
+                    div.className = 'module-card p-5 flex items-center justify-between group';
+                    div.onclick = () => window.open(link, '_blank');
+                    div.innerHTML = `
+                        <div class="flex items-center gap-4">
+                            <div class="text-zinc-700 font-black italic text-2xl group-hover:text-red-600 transition-colors">${String(idx + 1).padStart(2, '0')}</div>
+                            <div>
+                                <h4 class="text-xs font-black uppercase tracking-tight">${title}</h4>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <span class="status-badge bg-zinc-800 text-zinc-400">${type}</span>
+                                    <span class="text-[8px] text-zinc-600 font-bold uppercase">${duration || 'Variable Time'}</span>
+                                </div>
+                            </div>
                         </div>
-                        <h3 class="text-lg sm:text-xl font-black italic uppercase tracking-tight mb-2 leading-tight">
-                            ${lesson[3]}
-                        </h3>
-                        <p class="text-zinc-500 text-[10px] sm:text-xs line-clamp-3 mb-4 font-sans">
-                            ${lesson[6] || 'No further data available for this sector simulation.'}
-                        </p>
-                    </div>
-                    <div class="flex items-center justify-between mt-auto pt-4 border-t border-white/5">
-                        <span class="text-[8px] sm:text-[9px] font-bold text-zinc-600 uppercase tracking-widest">
-                            Mode: ${lessonTypeRaw}
-                        </span>
-                        <div class="text-red-600">
-                            <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
-                            </svg>
+                        <div class="opacity-0 group-hover:opacity-100 transition-opacity text-red-600">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"></path></svg>
                         </div>
-                    </div>
-                </div>
-            `;
-        }
+                    `;
+                    container.appendChild(div);
+                });
 
-        function navigateToLesson(lessonId, type) {
-            if (!lessonId) return;
-            
-            let destination = 'learn.html'; 
-            if (type.includes('zoom')) {
-                destination = 'learnzoom.html';
+            } catch (err) {
+                container.innerHTML = `<p class="text-red-600 text-[10px] font-bold">TELEMETRY LINK INTERRUPTED</p>`;
             }
-
-            const url = `${destination}?course=${encodeURIComponent(activeCourseId)}&lesson=${encodeURIComponent(lessonId)}`;
-            window.location.href = url;
         }
 
-        // Initialize
-        checkAuth();
-        fetchCurriculum();
+        function startSimTimers() {
+            let seconds = 0;
+            setInterval(() => {
+                const now = new Date();
+                document.getElementById('sim-time').innerText = now.toLocaleTimeString('en-GB', { hour12: false });
+                
+                seconds++;
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                document.getElementById('session-timer').innerText = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+            }, 1000);
+        }
+
+        window.addEventListener('load', initPage);
     </script>
 </body>
 </html>
