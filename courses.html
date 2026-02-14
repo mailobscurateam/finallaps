@@ -3,373 +3,307 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>F1 Hub - Course Content</title>
+    <title>F1 Hub - Course Curriculum</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+Sinhala:wght@400;700;900&display=swap');
 
         :root {
             --f1-red: #e10600;
             --f1-black: #050505;
-            --sidebar-width: 260px;
+            --f1-dark: #111111;
         }
 
         body {
-            margin: 0;
-            padding: 0;
-            font-family: 'Orbitron', 'Noto Sans Sinhala', sans-serif;
             background-color: var(--f1-black);
             color: white;
+            font-family: 'Orbitron', 'Noto Sans Sinhala', sans-serif;
             min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            opacity: 0; /* Hidden until auth check */
-            transition: opacity 0.5s;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        .sidebar {
-            width: var(--sidebar-width);
-            height: 100vh;
-            background: #000;
-            border-right: 1px solid #222;
-            position: fixed;
-            left: 0;
-            top: 0;
-            z-index: 100;
-            display: flex;
-            flex-direction: column;
+        .f1-border-bottom {
+            border-bottom: 1px solid #222;
         }
 
-        .sidebar-item {
-            display: flex;
-            align-items: center;
-            padding: 1rem 1.5rem;
-            color: #666;
-            transition: all 0.2s;
-            border-left: 3px solid transparent;
-            cursor: pointer;
-            font-size: 0.85rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+        /* Responsive Grid Background */
+        .grid-bg {
+            background-image: radial-gradient(#222 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        @media (min-width: 768px) {
+            .grid-bg { background-size: 30px 30px; }
         }
 
-        .sidebar-item:hover, .sidebar-item.active {
-            color: white;
-            background: rgba(225, 6, 0, 0.05);
-            border-left-color: var(--f1-red);
-        }
-
-        .main-content {
-            margin-left: var(--sidebar-width);
-            padding: 2rem;
-            flex: 1;
-        }
-
-        .content-card {
-            background: #111;
-            border: 1px solid #222;
-            padding: 1.5rem;
-            transition: border-color 0.3s;
-        }
-
-        .lesson-row {
-            display: grid;
-            grid-template-columns: 80px 1fr auto;
-            align-items: center;
-            padding: 1.25rem;
+        /* Course Card Optimization */
+        .course-card {
             background: #0a0a0a;
             border: 1px solid #1a1a1a;
-            margin-bottom: 0.5rem;
-            transition: all 0.3s;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            cursor: pointer;
         }
 
-        .lesson-row:hover {
-            border-color: #333;
-            background: #0f0f0f;
+        @media (hover: hover) {
+            .course-card:hover {
+                border-color: var(--f1-red);
+                transform: translateY(-4px);
+                background: #111;
+            }
         }
+
+        .course-card:active {
+            transform: scale(0.98);
+            background: #111;
+        }
+
+        .tag {
+            font-size: 8px;
+            font-weight: 900;
+            text-transform: uppercase;
+            padding: 2px 6px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            white-space: nowrap;
+        }
+
+        .lesson-type-tag, .zoom-tag {
+            font-size: 9px;
+            font-weight: 900;
+            padding: 2px 12px;
+            clip-path: polygon(10% 0, 100% 0, 90% 100%, 0% 100%);
+            text-transform: uppercase;
+            font-style: italic;
+        }
+
+        .lesson-type-tag { background: var(--f1-red); }
+        .zoom-tag { background: #2D8CFF; }
 
         .section-header {
-            font-size: 0.75rem;
+            border-left: 4px solid var(--f1-red);
+            padding-left: 0.75rem;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .nav-link {
+            font-size: 10px;
             font-weight: 900;
-            color: var(--f1-red);
             text-transform: uppercase;
-            letter-spacing: 3px;
-            margin: 2.5rem 0 1rem 0;
+            letter-spacing: 1px;
+            color: #71717a;
+            transition: color 0.3s;
+        }
+
+        .nav-link.active { color: var(--f1-red); }
+
+        .user-pill {
+            background: #111;
+            border: 1px solid #222;
+            padding: 4px 12px;
+            border-radius: 4px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
 
-        .section-header::after {
-            content: '';
-            height: 1px;
-            flex: 1;
-            background: linear-gradient(90deg, #333, transparent);
-        }
-
-        .badge {
-            font-size: 9px;
-            padding: 2px 6px;
-            background: var(--f1-red);
-            font-weight: 900;
-            clip-path: polygon(10% 0, 100% 0, 90% 100%, 0% 100%);
-        }
-
-        .learn-btn {
-            background: var(--f1-red);
-            color: white;
-            font-size: 0.65rem;
-            font-weight: 900;
-            padding: 8px 16px;
-            clip-path: polygon(10% 0, 100% 0, 90% 100%, 0% 100%);
-            transition: transform 0.2s;
-            text-decoration: none;
-            display: inline-block;
-        }
-
-        .learn-btn:hover {
-            transform: scale(1.05);
-            filter: brightness(1.2);
-        }
-
-        .date-container {
-            font-size: 0.65rem;
-            color: #555;
-            font-weight: 700;
-            margin-top: 4px;
-            display: flex;
-            gap: 12px;
-            text-transform: uppercase;
-        }
-
-        .page-footer-info {
-            margin-top: auto;
-            border-top: 1px solid #222;
-            padding: 1rem 2rem;
-            text-align: right;
-            font-size: 0.7rem;
-            color: #444;
-            letter-spacing: 2px;
-            font-weight: 900;
-        }
-
-        .user-profile-section {
-            margin-top: auto;
-            padding: 1.5rem;
-            border-top: 1px solid #1a1a1a;
-        }
-
-        @media (max-width: 768px) {
-            .sidebar { display: none; }
-            .main-content { margin-left: 0; }
-            .lesson-row { grid-template-columns: 1fr auto; }
-            .lesson-week { display: none; }
-        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #050505; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--f1-red); }
     </style>
 </head>
-<body>
+<body class="grid-bg pb-10">
 
-    <aside class="sidebar">
-        <div class="p-6 mb-8">
-            <h1 class="text-xl font-black italic tracking-tighter text-white">
-                F1 <span class="text-red-600">HUB</span>
-            </h1>
-            <p class="text-[10px] text-gray-500 tracking-[3px] uppercase mt-1">Telemetry System</p>
+    <nav class="f1-border-bottom bg-black/90 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center">
+            <div class="flex items-center gap-4 sm:gap-8">
+                <h1 class="text-lg sm:text-xl font-black italic tracking-tighter">F1 <span class="text-red-600">HUB</span></h1>
+                <div class="flex gap-4 sm:gap-6">
+                    <a href="dashboard.html" class="nav-link">Stats</a>
+                    <a href="courses.html" class="nav-link active">Drive</a>
+                </div>
+            </div>
+            
+            <!-- Authenticated User Section -->
+            <div id="auth-section" class="flex items-center gap-3">
+                <div class="user-pill hidden sm:flex">
+                    <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                    <div class="flex flex-col">
+                        <span id="user-name" class="text-[9px] font-black uppercase text-white leading-none">Driver</span>
+                        <span id="user-id-display" class="text-[7px] font-bold text-zinc-500 uppercase tracking-widest">ID: 0000</span>
+                    </div>
+                </div>
+                <button onclick="logout()" class="text-[9px] font-black text-zinc-500 hover:text-red-600 uppercase tracking-widest transition-colors">
+                    Exit
+                </button>
+            </div>
         </div>
-        <nav class="flex flex-col gap-1">
-            <div class="sidebar-item" onclick="location.href='dashboard.html'">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
-                Dashboard
-            </div>
-            <div class="sidebar-item active">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-                Curriculum
-            </div>
-        </nav>
+    </nav>
 
-        <div class="user-profile-section">
-            <p id="user-display-name" class="text-[10px] font-black text-white truncate mb-1 uppercase tracking-wider">Loading...</p>
-            <p id="user-display-email" class="text-[9px] text-gray-500 truncate mb-4 italic">Fetching profile...</p>
-            <button onclick="handleLogout()" class="w-full py-2 text-[9px] font-black uppercase tracking-widest bg-white/5 hover:bg-red-600 hover:text-white transition-colors border border-white/10">
-                Log Out
-            </button>
-        </div>
-    </aside>
-
-    <div class="main-content">
-        <header class="mb-12 border-b border-white/5 pb-8">
-            <div class="flex items-center gap-3 mb-4">
-                <span class="badge" id="course-id-label">--</span>
-                <span class="text-xs text-gray-500 font-bold uppercase tracking-[4px]">Mission Briefing active</span>
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-12">
+        <header class="mb-8 sm:mb-14">
+            <div class="flex items-center gap-2 mb-2 sm:mb-3">
+                <div class="w-6 sm:w-10 h-[2px] bg-red-600"></div>
+                <span class="text-red-600 text-[9px] sm:text-xs font-black uppercase tracking-[0.2em] sm:tracking-[0.4em]">Curriculum Intelligence</span>
             </div>
-            <h2 class="text-5xl font-black italic uppercase tracking-tighter" id="course-title">SYNCING...</h2>
-            <p class="text-gray-400 mt-4 max-w-2xl leading-relaxed text-sm" id="course-desc">Establishing link with race control. Fetching module parameters...</p>
+            <h2 id="course-title" class="text-3xl sm:text-5xl md:text-6xl font-black italic uppercase tracking-tighter mb-3 sm:mb-5 leading-none">
+                SIMULATION DATA
+            </h2>
+            <p id="course-desc" class="text-zinc-500 max-w-2xl text-xs sm:text-sm leading-relaxed">
+                Syncing with race control for local track data...
+            </p>
         </header>
 
-        <div id="syllabus-container">
-            <div class="flex justify-center py-20">
-                <p class="text-xs font-bold tracking-[5px] animate-pulse text-gray-600">DOWNLOADING TELEMETRY...</p>
+        <div id="sections-container" class="space-y-10 sm:space-y-16">
+            <!-- Loader -->
+            <div class="flex flex-col items-center justify-center py-20 text-zinc-700">
+                <div class="w-10 h-10 border-2 border-zinc-800 border-t-red-600 rounded-full animate-spin mb-4"></div>
+                <p class="text-[9px] font-black uppercase tracking-widest">Initialising Sector Profiles...</p>
             </div>
         </div>
-    </div>
-
-    <footer class="page-footer-info">
-        MASTER_STREAM: <span id="footer-course-id" class="text-white">NONE</span>
-    </footer>
+    </main>
 
     <script>
-        // --- CONSTANTS ---
         const GOOGLE_SHEET_ID = '1HLQxJv32eo-EloTtdZhw5ZhEWIXuhMOI7OAKsqG-dfI';
         const GOOGLE_API_KEY = 'AIzaSyD3sts8y_s8M8L2Y66Gz0ICY_9SY-VmoEo';
-        const COURSES_SHEET = 'courses';
         const LESSONS_SHEET = 'lessons';
-        const SUPABASE_URL = 'https://ogfmimplmjzhqzeeexae.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9nZm1pbXBsbWp6aHF6ZWVleGFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNTgzNzcsImV4cCI6MjA4NjYzNDM3N30.l8j1VC7-Zt88UGRkclBd-dNyLZsHg2DuY_9FRRW311o';
+        const COURSES_SHEET = 'courses';
 
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         const urlParams = new URLSearchParams(window.location.search);
-        const courseId = urlParams.get('id') || 'Finallaps';
+        const activeCourseId = urlParams.get('id') || 'Finallaps';
 
-        // --- AUTH LOGIC ---
-        async function checkAuth() {
-            const { data: { session }, error } = await supabaseClient.auth.getSession();
-            
-            if (error || !session) {
-                window.location.href = 'login.html';
+        // AUTHENTICATION CHECK
+        function checkAuth() {
+            const userData = localStorage.getItem('f1_user');
+            if (!userData) {
+                // Redirect to login if no session found
+                window.location.href = 'index.html';
                 return;
             }
-
-            // Populate User Info
-            const user = session.user;
-            document.getElementById('user-display-name').innerText = user.user_metadata?.full_name || 'Active Driver';
-            document.getElementById('user-display-email').innerText = user.email;
-            
-            // Show Page
-            document.body.style.opacity = '1';
-            initPage();
+            const user = JSON.parse(userData);
+            document.getElementById('user-name').innerText = user.name || 'Driver';
+            document.getElementById('user-id-display').innerText = `ID: ${user.id || 'N/A'}`;
         }
 
-        async function handleLogout() {
-            await supabaseClient.auth.signOut();
-            window.location.href = 'login.html';
+        function logout() {
+            localStorage.removeItem('f1_user');
+            window.location.href = 'index.html';
         }
 
-        // --- DATA LOGIC ---
-        function parseDMY(dateStr) {
-            if (!dateStr || typeof dateStr !== 'string') return null;
-            const parts = dateStr.split('/');
-            if (parts.length !== 3) return null;
-            const day = parseInt(parts[0], 10);
-            const month = parseInt(parts[1], 10) - 1;
-            const year = parseInt(parts[2], 10);
-            const date = new Date(year, month, day);
-            return isNaN(date.getTime()) ? null : date;
-        }
-
-        async function initPage() {
-            document.getElementById('footer-course-id').innerText = courseId.toUpperCase();
-            
+        async function fetchCurriculum() {
             try {
-                // Course Info Fetch
-                const courseRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${COURSES_SHEET}!A2:E100?key=${GOOGLE_API_KEY}`);
-                const courseData = await courseRes.json();
-                
-                if (courseData.values) {
-                    const course = courseData.values.find(row => row[0] === courseId);
-                    if (course) {
-                        document.getElementById('course-id-label').innerText = course[0];
-                        document.getElementById('course-title').innerText = course[1].toUpperCase();
-                        document.getElementById('course-desc').innerText = course[3] || "No briefing available.";
-                    }
+                // Fetch Course Meta
+                const metaRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${COURSES_SHEET}!A2:C100?key=${GOOGLE_API_KEY}`);
+                const metaData = await metaRes.json();
+                const courseMeta = metaData.values?.find(row => row[0] === activeCourseId);
+
+                if (courseMeta) {
+                    document.getElementById('course-title').innerText = courseMeta[1].toUpperCase();
+                    document.getElementById('course-desc').innerText = courseMeta[2];
                 }
 
-                // Lessons Fetch
+                // Fetch Lessons
                 const lessonsRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${LESSONS_SHEET}!A2:J500?key=${GOOGLE_API_KEY}`);
                 const lessonsData = await lessonsRes.json();
-                
-                if (lessonsData.values) {
-                    const now = new Date();
-                    now.setHours(0, 0, 0, 0);
 
-                    const filtered = lessonsData.values
-                        .filter(row => {
-                            if (row[0] !== courseId) return false;
-                            const endDateStr = row[8];
-                            const endDate = parseDMY(endDateStr);
-                            if (endDate) {
-                                endDate.setHours(23, 59, 59, 999);
-                                if (now > endDate) return false;
-                            }
-                            return true;
-                        })
-                        .map(row => ({
-                            id: row[1],
-                            section: row[2],
-                            name: row[3],
-                            type: row[4],
-                            start: row[7],
-                            end: row[8],
-                            week: row[9]
-                        }));
-                    
-                    renderLessons(filtered);
+                if (lessonsData.values) {
+                    const filteredLessons = lessonsData.values.filter(row => row[0] === activeCourseId);
+                    renderGroupedLessons(filteredLessons);
                 }
             } catch (err) {
-                console.error("Transmission Error:", err);
-                document.getElementById('syllabus-container').innerHTML = '<p class="text-red-500 font-bold">CRITICAL SYSTEM ERROR: UNABLE TO SYNC DATA.</p>';
+                console.error("Link failure:", err);
+                document.getElementById('sections-container').innerHTML = `<p class="text-center text-red-600 font-bold uppercase py-10">Telemetry Lost - Check Connection</p>`;
             }
         }
 
-        function renderLessons(lessons) {
-            const container = document.getElementById('syllabus-container');
+        function renderGroupedLessons(lessons) {
+            const container = document.getElementById('sections-container');
             container.innerHTML = '';
 
-            if (lessons.length === 0) {
-                container.innerHTML = '<div class="content-card text-center py-10 text-gray-500 italic">No active curriculum modules found.</div>';
-                return;
-            }
+            const grouped = lessons.reduce((acc, lesson) => {
+                const sectionName = lesson[2] || "Uncategorized";
+                if (!acc[sectionName]) acc[sectionName] = [];
+                acc[sectionName].push(lesson);
+                return acc;
+            }, {});
 
-            let currentSection = '';
-
-            lessons.forEach(lesson => {
-                if (lesson.section !== currentSection) {
-                    currentSection = lesson.section;
-                    const header = document.createElement('div');
-                    header.className = 'section-header';
-                    header.innerText = currentSection || 'GENERAL PARAMETERS';
-                    container.appendChild(header);
-                }
-
-                const row = document.createElement('div');
-                row.className = 'lesson-row';
-                row.innerHTML = `
-                    <div class="lesson-week text-[10px] font-black text-gray-600">
-                        W${lesson.week || '00'}
+            Object.keys(grouped).forEach(sectionName => {
+                const sectionLessons = grouped[sectionName];
+                
+                const sectionWrapper = document.createElement('div');
+                sectionWrapper.className = "fade-in";
+                sectionWrapper.innerHTML = `
+                    <div class="section-header">
+                        <h3 class="text-[10px] sm:text-xs font-black text-red-600 uppercase tracking-[0.2em] sm:tracking-[0.4em]">
+                            Sector: ${sectionName}
+                        </h3>
                     </div>
-                    <div>
-                        <h4 class="text-sm font-bold text-white uppercase tracking-wider">${lesson.name}</h4>
-                        <p class="text-[9px] text-gray-500 mt-1 uppercase font-bold tracking-widest">
-                            ${lesson.type} <span class="mx-2 text-white/10">|</span> ID: ${lesson.id}
-                        </p>
-                        <div class="date-container">
-                            <span><span class="text-gray-700">START:</span> ${lesson.start || 'TBD'}</span>
-                            <span><span class="text-gray-700">END:</span> ${lesson.end || 'TBD'}</span>
-                        </div>
-                    </div>
-                    <div>
-                        <a href="learn.html?course=${courseId}&lesson=${lesson.id}" class="learn-btn">
-                            ENTER SIMULATION
-                        </a>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                        ${sectionLessons.map(lesson => renderLessonCard(lesson)).join('')}
                     </div>
                 `;
-                container.appendChild(row);
+                container.appendChild(sectionWrapper);
             });
         }
 
-        // Initialize Auth Check on Load
-        window.onload = checkAuth;
+        function renderLessonCard(lesson) {
+            const lessonId = lesson[1] || '';
+            const lessonTypeRaw = lesson[4] || 'Video';
+            const lessonType = lessonTypeRaw.toLowerCase();
+            const isZoom = lessonType.includes('zoom');
+            
+            const escapedLessonId = lessonId.replace(/'/g, "\\'");
+            const escapedLessonType = lessonType.replace(/'/g, "\\'");
+
+            return `
+                <div class="course-card p-4 sm:p-6" onclick="navigateToLesson('${escapedLessonId}', '${escapedLessonType}')">
+                    <div class="flex-grow">
+                        <div class="flex justify-between items-start mb-4 sm:mb-6">
+                            <span class="tag">ID: ${lessonId}</span>
+                            <span class="${isZoom ? 'zoom-tag' : 'lesson-type-tag'}">
+                                ${lessonTypeRaw}
+                            </span>
+                        </div>
+                        <h3 class="text-lg sm:text-xl font-black italic uppercase tracking-tight mb-2 leading-tight">
+                            ${lesson[3]}
+                        </h3>
+                        <p class="text-zinc-500 text-[10px] sm:text-xs line-clamp-3 mb-4 font-sans">
+                            ${lesson[6] || 'No further data available for this sector simulation.'}
+                        </p>
+                    </div>
+                    <div class="flex items-center justify-between mt-auto pt-4 border-t border-white/5">
+                        <span class="text-[8px] sm:text-[9px] font-bold text-zinc-600 uppercase tracking-widest">
+                            Mode: ${lessonTypeRaw}
+                        </span>
+                        <div class="text-red-600">
+                            <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function navigateToLesson(lessonId, type) {
+            if (!lessonId) return;
+            
+            let destination = 'learn.html'; 
+            if (type.includes('zoom')) {
+                destination = 'learnzoom.html';
+            }
+
+            const url = `${destination}?course=${encodeURIComponent(activeCourseId)}&lesson=${encodeURIComponent(lessonId)}`;
+            window.location.href = url;
+        }
+
+        // Initialize
+        checkAuth();
+        fetchCurriculum();
     </script>
 </body>
 </html>
