@@ -225,14 +225,43 @@
         }
 
         function formatVideoUrl(rawUrl) {
-            let videoUrl = rawUrl;
+            let videoUrl = rawUrl.trim();
+
+            // Handle YouTube
             if (videoUrl.includes('youtube.com/watch?v=')) {
                 const videoId = videoUrl.split('v=')[1].split('&')[0];
-                videoUrl = `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&autoplay=1`;
+                return `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&autoplay=1`;
             } else if (videoUrl.includes('youtu.be/')) {
                 const videoId = videoUrl.split('youtu.be/')[1].split('?')[0];
-                videoUrl = `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&autoplay=1`;
+                return `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&autoplay=1`;
             }
+
+            // Handle Zoom Recording Links
+            // Issue: Zoom links often have a 'continueMode=true' or 'originRequestUrl' which triggers redirects back to login/previous pages.
+            // We strip unnecessary parameters and ensure it's pointing to the play view.
+            if (videoUrl.includes('zoom.us/rec/play') || videoUrl.includes('zoom.us/rec/share')) {
+                try {
+                    const url = new URL(videoUrl);
+                    // Retain primary identifying parameters but strip the 'originRequestUrl' and 'continueMode' 
+                    // which often trigger the navigation loops in iframes
+                    const searchParams = url.searchParams;
+                    
+                    // Essential params for Zoom playback
+                    const newParams = new URLSearchParams();
+                    if (searchParams.has('pwd')) newParams.set('pwd', searchParams.get('pwd'));
+                    if (searchParams.has('accessLevel')) newParams.set('accessLevel', searchParams.get('accessLevel'));
+                    
+                    // Force playback mode parameters
+                    newParams.set('autoplay', 'false'); // Usually safer for first load
+                    
+                    // Reconstruct
+                    url.search = newParams.toString();
+                    return url.toString();
+                } catch (e) {
+                    return videoUrl;
+                }
+            }
+
             return videoUrl;
         }
 
@@ -240,12 +269,10 @@
             const user = await initAuth();
             if (!user) return;
 
-            // --- CACHE LOGIC ---
             const cacheKey = `f1_cache_${courseId}_${lessonId}`;
             const cachedData = sessionStorage.getItem(cacheKey);
 
             if (cachedData) {
-                console.log("Telemetry retrieved from local cache.");
                 const data = JSON.parse(cachedData);
                 renderVideo(data.title, data.url);
                 return;
@@ -265,7 +292,6 @@
                     const title = lessonRow[3];
                     const videoUrl = formatVideoUrl(lessonRow[5]);
 
-                    // Store in cache for current session
                     sessionStorage.setItem(cacheKey, JSON.stringify({ title, url: videoUrl }));
                     
                     renderVideo(title, videoUrl);
@@ -280,6 +306,11 @@
         function renderVideo(title, url) {
             document.getElementById('lesson-title').innerText = title;
             const iframe = document.getElementById('zoom-iframe');
+            
+            // Set sandbox if necessary to prevent top-level navigation, 
+            // but usually stripping 'continueMode' from Zoom URL fixes the loop.
+            // iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation');
+            
             iframe.src = url;
 
             iframe.onload = () => {
