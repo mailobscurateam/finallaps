@@ -146,6 +146,7 @@
             text-transform: uppercase;
             transition: all 0.3s;
             clip-path: polygon(5% 0, 100% 0, 95% 100%, 0% 100%);
+            cursor: pointer;
         }
 
         .course-card:hover .f1-btn {
@@ -180,6 +181,26 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
+        /* Notification/Message Toast */
+        #toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--f1-red);
+            color: white;
+            padding: 1rem 2rem;
+            font-weight: 900;
+            font-style: italic;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            clip-path: polygon(5% 0, 100% 0, 95% 100%, 0% 100%);
+            transform: translateY(200%);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 1000;
+        }
+
+        #toast.visible { transform: translateY(0); }
+
         /* Responsive */
         @media (max-width: 768px) {
             .sidebar { transform: translateX(-100%); }
@@ -200,6 +221,9 @@
     </style>
 </head>
 <body class="loading">
+
+    <!-- Toast UI -->
+    <div id="toast">System Alert</div>
 
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
@@ -410,6 +434,23 @@
             }
         };
 
+        // UI HELPERS
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.innerText = message;
+            toast.classList.add('visible');
+            setTimeout(() => {
+                toast.classList.remove('visible');
+            }, 3000);
+        }
+
+        // Action function for courses
+        window.enterSimulation = function(courseName) {
+            showToast(`CONNECTING TO SIMULATOR: ${courseName.toUpperCase()}`);
+            // Logic to redirect or open simulation could go here
+            // e.g., window.location.href = `lesson.html?course=${courseName}`;
+        };
+
         window.handleLogout = async function() {
             try {
                 await supabaseClient.auth.signOut();
@@ -424,22 +465,18 @@
             const { data: { session }, error } = await supabaseClient.auth.getSession();
             
             if (error || !session) {
-                // If not logged in, force redirect
                 window.location.href = 'login.html';
                 return;
             }
 
-            // User is authenticated, populate profile
             const user = session.user;
             const name = user.user_metadata.full_name || user.email.split('@')[0];
             
             document.getElementById('user-display').innerText = `ID: ${user.email.toUpperCase()}`;
             document.getElementById('driver-name').innerText = name.toUpperCase();
             
-            // Show body and initialize data
             document.body.classList.remove('loading');
             
-            // Initialize Dashboard Data
             fetchCoursesFromSheet();
             fetchNoticesFromSheet();
             initMotivation();
@@ -493,7 +530,7 @@
                                     <span class="text-[9px] text-red-600 font-bold">0%</span>
                                 </div>
                                 <div class="progress-bar"><div class="progress-fill" style="width: 0%;"></div></div>
-                                <button class="f1-btn w-full mt-6">Enter Simulation</button>
+                                <button class="f1-btn w-full mt-6" onclick="enterSimulation('${name.replace(/'/g, "\\'")}')">Enter Simulation</button>
                             </div>
                         </div>
                     `;
@@ -504,7 +541,7 @@
                         moduleItem.className = 'flex items-center justify-between p-3 bg-black/40 rounded border border-white/5';
                         moduleItem.innerHTML = `
                             <span class="text-xs font-bold">${name}</span>
-                            <span class="text-[10px] bg-red-600 px-2 py-1 rounded">START</span>
+                            <button class="text-[10px] bg-red-600 px-2 py-1 rounded font-black hover:bg-white hover:text-red-600 transition-colors" onclick="switchView('courses')">START</button>
                         `;
                         moduleList.appendChild(moduleItem);
                     }
