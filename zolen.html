@@ -43,6 +43,12 @@
             width: 100%;
             height: 100%;
             border: 0;
+            opacity: 0;
+            transition: opacity 1s ease-in;
+        }
+
+        .video-container iframe.visible {
+            opacity: 1;
         }
 
         .status-bar {
@@ -77,10 +83,51 @@
             color: white;
         }
 
+        .launch-btn {
+            background: var(--f1-red);
+            color: white;
+            padding: 16px 32px;
+            font-size: 0.8rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            clip-path: polygon(5% 0, 100% 0, 95% 100%, 0% 100%);
+            transition: all 0.3s;
+            box-shadow: 0 0 20px rgba(225, 6, 0, 0.4);
+        }
+
+        .launch-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(225, 6, 0, 0.6);
+        }
+
         .telemetry-box {
             border-left: 2px solid var(--f1-red);
             background: linear-gradient(90deg, rgba(225, 6, 0, 0.05), transparent);
             padding: 1rem;
+        }
+
+        .preloader-overlay {
+            position: absolute;
+            inset: 0;
+            background: #0a0a0a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+        }
+
+        /* Hide specific elements when in browser fullscreen mode */
+        :fullscreen header, :fullscreen footer, :fullscreen .mt-8, :fullscreen .grid {
+            display: none;
+        }
+        
+        :fullscreen .video-container {
+            padding-bottom: 0;
+            height: 100vh;
+            width: 100vw;
+            border: none;
         }
     </style>
 </head>
@@ -93,9 +140,11 @@
             </h1>
             <p id="lesson-title" class="text-[10px] text-gray-500 tracking-[3px] uppercase mt-1">Authenticating Data Stream...</p>
         </div>
-        <button onclick="goBack()" class="nav-btn">
-            Return to Pits
-        </button>
+        <div class="flex gap-4">
+            <button onclick="goBack()" class="nav-btn">
+                Return to Pits
+            </button>
+        </div>
     </header>
 
     <div class="status-bar">
@@ -104,7 +153,7 @@
 
     <main class="flex-1 p-4 md:p-8 max-w-6xl mx-auto w-full">
         <!-- Telemetry Info -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div id="telemetry-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div class="telemetry-box">
                 <p class="text-[9px] text-gray-500 uppercase font-bold">Module ID</p>
                 <p id="info-id" class="text-sm font-bold">--</p>
@@ -115,16 +164,25 @@
             </div>
             <div class="telemetry-box">
                 <p class="text-[9px] text-gray-500 uppercase font-bold">Status</p>
-                <p id="info-status" class="text-sm font-bold text-green-500 italic">READY</p>
+                <p id="info-status" class="text-sm font-bold text-yellow-500 italic uppercase">Syncing...</p>
             </div>
         </div>
 
-        <!-- Video Player -->
+        <!-- Video Player Wrapper -->
         <div id="video-wrapper" class="video-container shadow-2xl rounded-sm">
-            <div id="placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-center p-8 bg-[#0a0a0a]">
-                <div class="w-12 h-12 border-2 border-red-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p class="text-xs font-bold tracking-[4px] text-gray-600 uppercase">Establishing Satellite Uplink...</p>
+            <!-- Loader Overlay -->
+            <div id="preloader" class="preloader-overlay">
+                <div id="spinner" class="w-12 h-12 border-2 border-red-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <div id="ready-ui" class="hidden flex flex-col items-center">
+                    <p class="text-[10px] font-bold tracking-[6px] text-green-500 uppercase mb-6 animate-pulse">Encryption Decoded / Link Stable</p>
+                    <button onclick="startStream()" class="launch-btn">
+                        Activate Full Screen Feed
+                    </button>
+                </div>
+                <p id="loader-text" class="text-[10px] font-bold tracking-[4px] text-gray-600 uppercase">Establishing Satellite Uplink...</p>
             </div>
+            
+            <div id="iframe-holder"></div>
         </div>
 
         <div class="mt-8 p-6 bg-white/5 border border-white/10 italic text-sm text-gray-400 leading-relaxed">
@@ -171,13 +229,9 @@
                     const lesson = data.values.find(row => row[1] === lessonId && row[0] === courseId);
                     
                     if (lesson) {
-                        const title = lesson[3];
-                        const videoUrl = lesson[5]; // Column F is index 5
-                        
-                        document.getElementById('lesson-title').innerText = title.toUpperCase();
+                        document.getElementById('lesson-title').innerText = lesson[3].toUpperCase();
                         document.getElementById('info-id').innerText = lessonId.toUpperCase();
-                        
-                        embedVideo(videoUrl);
+                        prepareVideo(lesson[5]); // Column F
                     } else {
                         showError("DATA MISMATCH: MODULE NOT FOUND");
                     }
@@ -188,40 +242,56 @@
             }
         }
 
-        function embedVideo(url) {
-            const wrapper = document.getElementById('video-wrapper');
-            const loadingBar = document.getElementById('loading-bar');
-            
+        function prepareVideo(url) {
             if (!url) {
                 showError("MISSING VIDEO PARAMETERS");
                 return;
             }
 
-            // Convert standard zoom URLs to embeddable ones if possible, 
-            // or just use the URL provided in the spreadsheet.
-            // Note: Zoom recordings usually require the user to be logged in 
-            // and might not support iframe embedding without specific settings.
+            const holder = document.getElementById('iframe-holder');
             const iframe = document.createElement('iframe');
+            iframe.id = "video-iframe";
             iframe.src = url;
             iframe.allow = "autoplay; fullscreen; picture-in-picture";
+            
             iframe.onload = () => {
-                loadingBar.style.width = '100%';
-                setTimeout(() => loadingBar.style.opacity = '0', 500);
+                document.getElementById('loading-bar').style.width = '100%';
+                // Switch loader from "Loading" to "Ready" UI
+                document.getElementById('spinner').classList.add('hidden');
+                document.getElementById('loader-text').classList.add('hidden');
+                document.getElementById('ready-ui').classList.remove('hidden');
+                document.getElementById('info-status').innerText = "LINK READY";
+                document.getElementById('info-status').className = "text-sm font-bold text-green-500 italic uppercase";
             };
 
-            wrapper.innerHTML = '';
-            wrapper.appendChild(iframe);
+            holder.appendChild(iframe);
+        }
+
+        function startStream() {
+            const wrapper = document.getElementById("video-wrapper");
+            const iframe = document.getElementById("video-iframe");
+            const preloader = document.getElementById("preloader");
+
+            // Attempt Fullscreen
+            if (wrapper.requestFullscreen) {
+                wrapper.requestFullscreen();
+            } else if (wrapper.webkitRequestFullscreen) {
+                wrapper.webkitRequestFullscreen();
+            }
+
+            // Reveal Video
+            preloader.style.display = 'none';
+            iframe.classList.add('visible');
+            document.getElementById('loading-bar').style.opacity = '0';
         }
 
         function showError(msg) {
-            document.getElementById('video-wrapper').innerHTML = `
-                <div class="absolute inset-0 flex flex-col items-center justify-center text-center p-8">
-                    <p class="text-red-500 font-black tracking-widest uppercase mb-2">Critical Error</p>
-                    <p class="text-xs text-gray-400 uppercase tracking-tighter">${msg}</p>
-                </div>
+            document.getElementById('preloader').innerHTML = `
+                <p class="text-red-500 font-black tracking-widest uppercase mb-2">Critical Error</p>
+                <p class="text-[10px] text-gray-400 uppercase tracking-tighter">${msg}</p>
             `;
             document.getElementById('info-status').innerText = "OFFLINE";
-            document.getElementById('info-status').className = "text-sm font-bold text-red-600";
+            document.getElementById('info-status').className = "text-sm font-bold text-red-600 uppercase";
         }
 
         function goBack() {
