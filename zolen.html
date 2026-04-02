@@ -44,6 +44,22 @@
 
         .video-container iframe.visible { opacity: 1; }
 
+        /* Watermark Styles */
+        .watermark {
+            position: absolute;
+            z-index: 30;
+            pointer-events: none;
+            user-select: none;
+            font-family: sans-serif;
+            font-weight: bold;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.3);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+            text-transform: lowercase;
+            white-space: nowrap;
+            display: none; /* Shown after auth */
+        }
+
         .status-bar { height: 4px; background: #111; position: relative; overflow: hidden; }
         .status-progress { position: absolute; height: 100%; background: var(--f1-red); width: 0%; transition: width 0.3s; }
 
@@ -111,6 +127,10 @@
                 <div id="spinner" class="w-12 h-12 border-2 border-red-600 border-t-transparent rounded-full animate-spin mb-4"></div>
                 <p id="loader-text" class="text-[10px] font-bold tracking-[4px] text-gray-600 uppercase text-center">Syncing Stream...</p>
             </div>
+            
+            <!-- Floating Email Watermark -->
+            <div id="email-watermark" class="watermark">user@example.com</div>
+            
             <div id="iframe-holder"></div>
         </div>
     </main>
@@ -138,18 +158,34 @@
                 const { data: { session }, error } = await supabaseClient.auth.getSession();
                 
                 if (error || !session) {
-                    // If no session, the curriculum page usually handles login, 
-                    // but we'll show an error here if they somehow bypassed it.
                     showError("UNAUTHENTICATED ACCESS");
                     return;
                 }
 
                 currentUser = session.user;
+                setupWatermark(currentUser.email || currentUser.id);
                 loadLessonAndCheckLimit();
             } catch (e) {
                 console.error("Init Error:", e);
                 showError("SYSTEM INITIALIZATION FAILED");
             }
+        }
+
+        function setupWatermark(email) {
+            const wm = document.getElementById('email-watermark');
+            wm.innerText = email;
+            wm.style.display = 'block';
+            
+            // Randomly move the watermark every 30 seconds
+            const moveWatermark = () => {
+                const maxX = 70; // Stay within visible bounds
+                const maxY = 80;
+                wm.style.left = Math.floor(Math.random() * maxX + 5) + '%';
+                wm.style.top = Math.floor(Math.random() * maxY + 5) + '%';
+            };
+            
+            moveWatermark();
+            setInterval(moveWatermark, 30000);
         }
 
         async function loadLessonAndCheckLimit() {
@@ -176,7 +212,6 @@
                 document.getElementById('info-id').innerText = lessonId.toUpperCase();
                 document.getElementById('info-limit').innerText = allowedSeconds > 0 ? `${hours}H ${minutes}M` : 'UNLIMITED';
 
-                // Check Supabase Database for watched duration
                 const { data: watchData, error: dbError } = await supabaseClient
                     .from('watch_sessions')
                     .select('total_seconds_watched')
@@ -184,14 +219,13 @@
                     .eq('lesson_id', lessonId)
                     .single();
 
-                if (dbError && dbError.code !== 'PGRST116') { // PGRST116 is "No rows found"
+                if (dbError && dbError.code !== 'PGRST116') {
                     console.error("Supabase Fetch Error:", dbError);
                 }
 
                 if (watchData) {
                     watchedSeconds = watchData.total_seconds_watched || 0;
                 } else {
-                    // Create entry if it doesn't exist
                     await supabaseClient
                         .from('watch_sessions')
                         .insert({ 
@@ -259,7 +293,6 @@
                 updateTimerUI();
 
                 try {
-                    // Update Supabase instead of Firebase
                     await supabaseClient
                         .from('watch_sessions')
                         .update({ 
@@ -298,10 +331,12 @@
             `;
             document.getElementById('info-status').innerText = "LOCKED";
             document.getElementById('info-status').className = "text-sm font-bold text-red-600 uppercase";
+            // Hide watermark on error
+            document.getElementById('email-watermark').style.display = 'none';
         }
 
         function goBack() {
-            window.location.href = `curriculum.html?id=${courseId}`;
+            window.location.href = `courses.html?id=${courseId}`;
         }
 
         window.addEventListener('DOMContentLoaded', init);
