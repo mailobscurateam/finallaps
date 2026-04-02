@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 Hub - Zoom Simulation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+
+        :root {
+            --f1-red: #e10600;
+            --f1-black: #050505;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Orbitron', sans-serif;
+            background-color: var(--f1-black);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+            height: 0;
+            overflow: hidden;
+            background: #000;
+            border: 1px solid #222;
+        }
+
+        .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+
+        .status-bar {
+            height: 4px;
+            background: #111;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .status-progress {
+            position: absolute;
+            height: 100%;
+            background: var(--f1-red);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 10px 20px;
+            font-size: 0.7rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s;
+        }
+
+        .nav-btn:hover {
+            background: var(--f1-red);
+            border-color: var(--f1-red);
+            color: white;
+        }
+
+        .telemetry-box {
+            border-left: 2px solid var(--f1-red);
+            background: linear-gradient(90deg, rgba(225, 6, 0, 0.05), transparent);
+            padding: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="p-6 border-b border-white/10 flex justify-between items-center bg-black/50 backdrop-blur-md sticky top-0 z-50">
+        <div>
+            <h1 class="text-lg font-black italic tracking-tighter">
+                ZOOM <span class="text-red-600">FEED</span>
+            </h1>
+            <p id="lesson-title" class="text-[10px] text-gray-500 tracking-[3px] uppercase mt-1">Authenticating Data Stream...</p>
+        </div>
+        <button onclick="goBack()" class="nav-btn">
+            Return to Pits
+        </button>
+    </header>
+
+    <div class="status-bar">
+        <div id="loading-bar" class="status-progress"></div>
+    </div>
+
+    <main class="flex-1 p-4 md:p-8 max-w-6xl mx-auto w-full">
+        <!-- Telemetry Info -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="telemetry-box">
+                <p class="text-[9px] text-gray-500 uppercase font-bold">Module ID</p>
+                <p id="info-id" class="text-sm font-bold">--</p>
+            </div>
+            <div class="telemetry-box">
+                <p class="text-[9px] text-gray-500 uppercase font-bold">Stream Type</p>
+                <p id="info-type" class="text-sm font-bold">ENCRYPTED ZOOM RECORDING</p>
+            </div>
+            <div class="telemetry-box">
+                <p class="text-[9px] text-gray-500 uppercase font-bold">Status</p>
+                <p id="info-status" class="text-sm font-bold text-green-500 italic">READY</p>
+            </div>
+        </div>
+
+        <!-- Video Player -->
+        <div id="video-wrapper" class="video-container shadow-2xl rounded-sm">
+            <div id="placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-center p-8 bg-[#0a0a0a]">
+                <div class="w-12 h-12 border-2 border-red-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p class="text-xs font-bold tracking-[4px] text-gray-600 uppercase">Establishing Satellite Uplink...</p>
+            </div>
+        </div>
+
+        <div class="mt-8 p-6 bg-white/5 border border-white/10 italic text-sm text-gray-400 leading-relaxed">
+            <p class="mb-4"><strong class="text-white uppercase not-italic">Driver Note:</strong> Ensure you are logged into your Zoom account if this recording requires authentication. If the video does not appear, check your connection to the race control server.</p>
+        </div>
+    </main>
+
+    <footer class="p-6 text-[9px] text-center text-gray-600 font-bold tracking-[5px] uppercase">
+        F1_HUB // SECURE_COMMUNICATION_PROTOCOL_V4
+    </footer>
+
+    <script>
+        const GOOGLE_SHEET_ID = '1HLQxJv32eo-EloTtdZhw5ZhEWIXuhMOI7OAKsqG-dfI';
+        const GOOGLE_API_KEY = 'AIzaSyD3sts8y_s8M8L2Y66Gz0ICY_9SY-VmoEo';
+        const LESSONS_SHEET = 'lessons';
+        const SUPABASE_URL = 'https://ogfmimplmjzhqzeeexae.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9nZm1pbXBsbWp6aHF6ZWVleGFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNTgzNzcsImV4cCI6MjA4NjYzNDM3N30.l8j1VC7-Zt88UGRkclBd-dNyLZsHg2DuY_9FRRW311o';
+
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const urlParams = new URLSearchParams(window.location.search);
+        const courseId = urlParams.get('course');
+        const lessonId = urlParams.get('lesson');
+
+        async function checkAuth() {
+            const { data: { session }, error } = await supabaseClient.auth.getSession();
+            if (error || !session) {
+                window.location.href = 'login.html';
+                return;
+            }
+            document.body.style.opacity = '1';
+            loadLessonData();
+        }
+
+        async function loadLessonData() {
+            const loadingBar = document.getElementById('loading-bar');
+            loadingBar.style.width = '30%';
+
+            try {
+                const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${LESSONS_SHEET}!A2:J500?key=${GOOGLE_API_KEY}`);
+                const data = await response.json();
+                loadingBar.style.width = '70%';
+
+                if (data.values) {
+                    const lesson = data.values.find(row => row[1] === lessonId && row[0] === courseId);
+                    
+                    if (lesson) {
+                        const title = lesson[3];
+                        const videoUrl = lesson[5]; // Column F is index 5
+                        
+                        document.getElementById('lesson-title').innerText = title.toUpperCase();
+                        document.getElementById('info-id').innerText = lessonId.toUpperCase();
+                        
+                        embedVideo(videoUrl);
+                    } else {
+                        showError("DATA MISMATCH: MODULE NOT FOUND");
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+                showError("TRANSMISSION INTERRUPTED");
+            }
+        }
+
+        function embedVideo(url) {
+            const wrapper = document.getElementById('video-wrapper');
+            const loadingBar = document.getElementById('loading-bar');
+            
+            if (!url) {
+                showError("MISSING VIDEO PARAMETERS");
+                return;
+            }
+
+            // Convert standard zoom URLs to embeddable ones if possible, 
+            // or just use the URL provided in the spreadsheet.
+            // Note: Zoom recordings usually require the user to be logged in 
+            // and might not support iframe embedding without specific settings.
+            const iframe = document.createElement('iframe');
+            iframe.src = url;
+            iframe.allow = "autoplay; fullscreen; picture-in-picture";
+            iframe.onload = () => {
+                loadingBar.style.width = '100%';
+                setTimeout(() => loadingBar.style.opacity = '0', 500);
+            };
+
+            wrapper.innerHTML = '';
+            wrapper.appendChild(iframe);
+        }
+
+        function showError(msg) {
+            document.getElementById('video-wrapper').innerHTML = `
+                <div class="absolute inset-0 flex flex-col items-center justify-center text-center p-8">
+                    <p class="text-red-500 font-black tracking-widest uppercase mb-2">Critical Error</p>
+                    <p class="text-xs text-gray-400 uppercase tracking-tighter">${msg}</p>
+                </div>
+            `;
+            document.getElementById('info-status').innerText = "OFFLINE";
+            document.getElementById('info-status').className = "text-sm font-bold text-red-600";
+        }
+
+        function goBack() {
+            window.location.href = `curriculum.html?id=${courseId}`;
+        }
+
+        window.onload = checkAuth;
+    </script>
+</body>
+</html>
