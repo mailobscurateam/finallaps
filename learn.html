@@ -82,7 +82,7 @@
             overflow: hidden;
         }
 
-        /* Interaction Shield: Prevents clicking the actual YT player */
+        /* Interaction Shield */
         .interaction-shield {
             position: absolute;
             inset: 0;
@@ -217,6 +217,20 @@
             color: #ccc;
         }
 
+        /* Error Overlay for Limits */
+        .limit-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.95);
+            z-index: 50;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 2rem;
+        }
+
         @media (max-width: 1024px) {
             .sim-container { grid-template-columns: 1fr; height: auto; }
             .sidebar-telemetry { border-left: none; border-top: 1px solid #1a1a1a; }
@@ -231,6 +245,10 @@
             Back to Course
         </div>
         <div class="flex items-center gap-4">
+            <div id="limit-telemetry" class="hidden text-right mr-4">
+                <p class="text-[8px] text-gray-500 uppercase font-bold tracking-widest">Session Airtime</p>
+                <p id="time-remaining" class="text-xs font-black text-red-500 tracking-tighter">--:--</p>
+            </div>
             <button id="btn-signout" class="text-[9px] font-black text-gray-500 hover:text-red-600 uppercase tracking-widest transition-colors">Terminate Session</button>
             <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
         </div>
@@ -247,6 +265,12 @@
             </div>
 
             <div class="video-wrapper" id="master-wrapper">
+                <div id="limit-error" class="limit-overlay">
+                    <h2 class="text-red-600 font-black italic text-2xl mb-2">ACCESS TERMINATED</h2>
+                    <p class="text-xs text-gray-400 uppercase tracking-widest mb-6" id="limit-error-msg">WATCH LIMIT EXCEEDED</p>
+                    <button onclick="window.history.back()" class="px-6 py-2 border border-red-600 text-[10px] font-black uppercase tracking-widest hover:bg-red-600 transition-all">Exit Room</button>
+                </div>
+
                 <!-- Watermark -->
                 <div id="moving-watermark">f1-driver-telemetry</div>
                 
@@ -309,6 +333,10 @@
                     <div class="data-label">Curriculum Section</div>
                     <div class="data-value" id="section-val">---</div>
                 </div>
+                <div class="data-point">
+                    <div class="data-label">Session Status</div>
+                    <div class="data-value text-green-500" id="session-status">STABLE</div>
+                </div>
             </div>
         </aside>
     </main>
@@ -326,18 +354,23 @@
         const courseId = urlParams.get('course') || 'Finallaps';
         const lessonId = urlParams.get('lesson') || 'Day01';
 
-        let player; // YouTube Player instance
+        let player; 
         let watermarkData = { x: 50, y: 50, dx: 1, dy: 1 };
-        let timer;
+        
+        // Watch Logic State
+        let currentUser = null;
+        let allowedSeconds = 0;
+        let watchedSeconds = 0;
+        let heartbeatInterval = null;
 
         async function checkAuth() {
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (!session) { window.location.href = 'index.html'; return; }
 
-            const user = session.user;
-            document.getElementById('user-name').innerText = (user.user_metadata?.full_name || 'Authenticated Driver').toUpperCase();
-            document.getElementById('user-id').innerText = user.id;
-            document.getElementById('moving-watermark').innerText = user.email;
+            currentUser = session.user;
+            document.getElementById('user-name').innerText = (currentUser.user_metadata?.full_name || 'Authenticated Driver').toUpperCase();
+            document.getElementById('user-id').innerText = currentUser.id;
+            document.getElementById('moving-watermark').innerText = currentUser.email;
             document.body.classList.add('auth-ready');
             
             startWatermarkAnimation();
@@ -367,14 +400,99 @@
 
         async function fetchLessonData() {
             try {
-                const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${LESSONS_SHEET}!A2:J500?key=${GOOGLE_API_KEY}`);
+                const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${LESSONS_SHEET}!A2:L500?key=${GOOGLE_API_KEY}`);
                 const data = await response.json();
                 
                 if (data.values) {
-                    const lesson = data.values.find(row => row[0] === courseId && row[1] === lessonId);
-                    if (lesson) initVideo(lesson);
+                    const row = data.values.find(r => r[0] === courseId && r[1] === lessonId);
+                    if (row) {
+                        // Watch Time Logic Integration
+                        const hours = parseInt(row[10]) || 0;
+                        const minutes = parseInt(row[11]) || 0;
+                        allowedSeconds = (hours * 3600) + (minutes * 60);
+
+                        await syncProgressFromDB();
+                        
+                        if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) {
+                            showLimitError("PROTOCOL LOCK: WATCH LIMIT REACHED");
+                            return;
+                        }
+
+                        initVideo(row);
+                    }
                 }
             } catch (err) { console.error("Data Sync Error", err); }
+        }
+
+        async function syncProgressFromDB() {
+            const { data, error } = await supabaseClient
+                .from('watch_sessions')
+                .select('total_seconds_watched')
+                .eq('user_id', currentUser.id)
+                .eq('lesson_id', lessonId)
+                .single();
+
+            if (data) {
+                watchedSeconds = data.total_seconds_watched;
+            } else {
+                await supabaseClient.from('watch_sessions').insert({
+                    user_id: currentUser.id,
+                    course_id: courseId,
+                    lesson_id: lessonId,
+                    total_seconds_watched: 0
+                });
+            }
+        }
+
+        function startHeartbeat() {
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
+            heartbeatInterval = setInterval(async () => {
+                // Only track time if playing
+                if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+                    watchedSeconds += 10;
+                    updateRemainingUI();
+
+                    try {
+                        await supabaseClient
+                            .from('watch_sessions')
+                            .update({ 
+                                total_seconds_watched: watchedSeconds,
+                                last_watched_at: new Date().toISOString()
+                            })
+                            .eq('user_id', currentUser.id)
+                            .eq('lesson_id', lessonId);
+
+                        if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) {
+                            player.pauseVideo();
+                            showLimitError("LIMIT REACHED: ACCESS TERMINATED");
+                        }
+                    } catch (e) {
+                        console.warn("Telemetry Update Failed", e);
+                    }
+                }
+            }, 10000);
+        }
+
+        function updateRemainingUI() {
+            if (allowedSeconds > 0) {
+                const telemetry = document.getElementById('limit-telemetry');
+                const display = document.getElementById('time-remaining');
+                telemetry.classList.remove('hidden');
+                
+                const remaining = Math.max(0, allowedSeconds - watchedSeconds);
+                const h = Math.floor(remaining / 3600);
+                const m = Math.floor((remaining % 3600) / 60);
+                const s = remaining % 60;
+                display.innerText = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+            }
+        }
+
+        function showLimitError(msg) {
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
+            document.getElementById('limit-error').style.display = 'flex';
+            document.getElementById('limit-error-msg').innerText = msg;
+            document.getElementById('session-status').innerText = "LOCKED";
+            document.getElementById('session-status').className = "data-value text-red-600";
         }
 
         function initVideo(data) {
@@ -390,12 +508,11 @@
             if (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')) {
                 vidId = videoUrl.includes('v=') ? videoUrl.split('v=')[1].split('&')[0] : videoUrl.split('/').pop();
                 
-                // Initialize YT Player via API
                 player = new YT.Player('yt-player', {
                     videoId: vidId,
                     playerVars: {
                         'autoplay': 0,
-                        'controls': 0, // Disable official controls
+                        'controls': 0, 
                         'disablekb': 1,
                         'modestbranding': 1,
                         'rel': 0,
@@ -412,6 +529,8 @@
 
         function onPlayerReady(event) {
             setupCustomControls();
+            updateRemainingUI();
+            startHeartbeat();
         }
 
         function onPlayerStateChange(event) {
@@ -434,8 +553,8 @@
             const btnFullscreen = document.getElementById('btn-fullscreen');
             const wrapper = document.getElementById('master-wrapper');
 
-            // Play/Pause
             const togglePlay = () => {
+                if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) return;
                 const state = player.getPlayerState();
                 if (state === YT.PlayerState.PLAYING) player.pauseVideo();
                 else player.playVideo();
@@ -444,7 +563,6 @@
             btnPlay.onclick = togglePlay;
             shield.onclick = togglePlay;
 
-            // Progress Update
             setInterval(() => {
                 if (player && player.getCurrentTime) {
                     const current = player.getCurrentTime();
@@ -455,20 +573,15 @@
                 }
             }, 500);
 
-            // Seek
             progressBar.onclick = (e) => {
                 const rect = progressBar.getBoundingClientRect();
                 const pos = (e.clientX - rect.left) / rect.width;
                 player.seekTo(pos * player.getDuration());
             };
 
-            // Speed
             speedSelector.onchange = (e) => player.setPlaybackRate(parseFloat(e.target.value));
-
-            // Volume
             volumeSlider.oninput = (e) => player.setVolume(e.target.value);
 
-            // Fullscreen
             btnFullscreen.onclick = () => {
                 if (!document.fullscreenElement) wrapper.requestFullscreen();
                 else document.exitFullscreen();
