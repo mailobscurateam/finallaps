@@ -6,10 +6,6 @@
     <title>F1 Hub - Zoom Simulation</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.js"></script>
-    <!-- Firebase Compat Scripts -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
 
@@ -27,7 +23,7 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            opacity: 1; /* Forced visibility to prevent black screen on load */
+            opacity: 1;
         }
 
         .video-container {
@@ -123,9 +119,11 @@
         const GOOGLE_SHEET_ID = '1HLQxJv32eo-EloTtdZhw5ZhEWIXuhMOI7OAKsqG-dfI';
         const GOOGLE_API_KEY = 'AIzaSyD3sts8y_s8M8L2Y66Gz0ICY_9SY-VmoEo';
         const LESSONS_SHEET = 'lessons';
+        const SUPABASE_URL = 'https://ogfmimplmjzhqzeeexae.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9nZm1pbXBsbWp6aHF6ZWVleGFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNTgzNzcsImV4cCI6MjA4NjYzNDM3N30.l8j1VC7-Zt88UGRkclBd-dNyLZsHg2DuY_9FRRW311o';
+
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
-        let db, auth;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const urlParams = new URLSearchParams(window.location.search);
         const courseId = urlParams.get('course');
         const lessonId = urlParams.get('lesson');
@@ -137,31 +135,17 @@
 
         async function init() {
             try {
-                // Ensure config exists
-                if (typeof __firebase_config === 'undefined') {
-                    throw new Error("Firebase Config Missing");
-                }
-
-                const firebaseConfig = JSON.parse(__firebase_config);
-                if (!firebase.apps.length) {
-                    firebase.initializeApp(firebaseConfig);
-                }
+                const { data: { session }, error } = await supabaseClient.auth.getSession();
                 
-                auth = firebase.auth();
-                db = firebase.firestore();
+                if (error || !session) {
+                    // If no session, the curriculum page usually handles login, 
+                    // but we'll show an error here if they somehow bypassed it.
+                    showError("UNAUTHENTICATED ACCESS");
+                    return;
+                }
 
-                auth.onAuthStateChanged(async (user) => {
-                    if (user) {
-                        currentUser = user;
-                        loadLessonAndCheckLimit();
-                    } else {
-                        try {
-                            await auth.signInAnonymously();
-                        } catch (e) {
-                            showError("AUTH FAILED: " + e.message);
-                        }
-                    }
-                });
+                currentUser = session.user;
+                loadLessonAndCheckLimit();
             } catch (e) {
                 console.error("Init Error:", e);
                 showError("SYSTEM INITIALIZATION FAILED");
@@ -192,18 +176,30 @@
                 document.getElementById('info-id').innerText = lessonId.toUpperCase();
                 document.getElementById('info-limit').innerText = allowedSeconds > 0 ? `${hours}H ${minutes}M` : 'UNLIMITED';
 
-                const sessionPath = `artifacts/${appId}/users/${currentUser.uid}/watch_sessions/${courseId}_${lessonId}`;
-                const sessionSnap = await db.doc(sessionPath).get();
+                // Check Supabase Database for watched duration
+                const { data: watchData, error: dbError } = await supabaseClient
+                    .from('watch_sessions')
+                    .select('total_seconds_watched')
+                    .eq('user_id', currentUser.id)
+                    .eq('lesson_id', lessonId)
+                    .single();
 
-                if (sessionSnap.exists) {
-                    watchedSeconds = sessionSnap.data().total_seconds_watched || 0;
+                if (dbError && dbError.code !== 'PGRST116') { // PGRST116 is "No rows found"
+                    console.error("Supabase Fetch Error:", dbError);
+                }
+
+                if (watchData) {
+                    watchedSeconds = watchData.total_seconds_watched || 0;
                 } else {
-                    await db.doc(sessionPath).set({ 
-                        total_seconds_watched: 0, 
-                        courseId, 
-                        lessonId,
-                        last_updated: firebase.firestore.FieldValue.serverTimestamp()
-                    });
+                    // Create entry if it doesn't exist
+                    await supabaseClient
+                        .from('watch_sessions')
+                        .insert({ 
+                            user_id: currentUser.id,
+                            course_id: courseId,
+                            lesson_id: lessonId,
+                            total_seconds_watched: 0
+                        });
                 }
 
                 if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) {
@@ -229,7 +225,6 @@
             iframe.id = "video-iframe";
             iframe.src = url.trim();
             iframe.allow = "autoplay; fullscreen; picture-in-picture";
-            // Important for some embedded players to work inside restricted containers
             iframe.setAttribute('sandbox', 'allow-forms allow-scripts allow-pointer-lock allow-same-origin allow-top-navigation allow-presentation');
             
             iframe.onload = () => {
@@ -247,7 +242,6 @@
                 }
             };
 
-            // If iframe fails to trigger onload (common with some blockages)
             setTimeout(() => {
                 const loader = document.getElementById('loader-text');
                 if (document.getElementById('preloader').style.display !== 'none') {
@@ -265,11 +259,15 @@
                 updateTimerUI();
 
                 try {
-                    const sessionPath = `artifacts/${appId}/users/${currentUser.uid}/watch_sessions/${courseId}_${lessonId}`;
-                    await db.doc(sessionPath).update({
-                        total_seconds_watched: firebase.firestore.FieldValue.increment(10),
-                        last_updated: firebase.firestore.FieldValue.serverTimestamp()
-                    });
+                    // Update Supabase instead of Firebase
+                    await supabaseClient
+                        .from('watch_sessions')
+                        .update({ 
+                            total_seconds_watched: watchedSeconds,
+                            last_watched_at: new Date().toISOString()
+                        })
+                        .eq('user_id', currentUser.id)
+                        .eq('lesson_id', lessonId);
 
                     if (watchedSeconds >= allowedSeconds) {
                         clearInterval(heartbeatInterval);
@@ -306,7 +304,6 @@
             window.location.href = `curriculum.html?id=${courseId}`;
         }
 
-        // Run on load
         window.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
