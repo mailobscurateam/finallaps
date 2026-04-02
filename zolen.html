@@ -6,9 +6,10 @@
     <title>F1 Hub - Zoom Simulation</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js" type="module"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js" type="module"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js" type="module"></script>
+    <!-- Firebase Compat Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
 
@@ -26,8 +27,7 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            opacity: 0;
-            transition: opacity 0.5s;
+            opacity: 1; /* Forced visibility to prevent black screen on load */
         }
 
         .video-container {
@@ -42,7 +42,8 @@
         .video-container iframe {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            border: 0; opacity: 0; transition: opacity 1s ease-in;
+            border: 0; opacity: 0; transition: opacity 0.8s ease-in;
+            background: #000;
         }
 
         .video-container iframe.visible { opacity: 1; }
@@ -67,7 +68,7 @@
         .preloader-overlay {
             position: absolute; inset: 0; background: #0a0a0a;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 20; transition: opacity 0.5s ease-out;
+            z-index: 20;
         }
     </style>
 </head>
@@ -82,10 +83,10 @@
         </div>
         <div class="flex items-center gap-6">
             <div id="timer-display" class="hidden text-right">
-                <p class="text-[8px] text-gray-500 uppercase font-bold tracking-widest">Time Remaining</p>
+                <p class="text-[8px] text-gray-500 uppercase font-bold tracking-widest">Remaining</p>
                 <p id="time-left" class="text-sm font-black text-red-500 tracking-tighter">--:--</p>
             </div>
-            <button onclick="goBack()" class="nav-btn">Return to Pits</button>
+            <button onclick="goBack()" class="nav-btn">Exit</button>
         </div>
     </header>
 
@@ -96,44 +97,35 @@
     <main class="flex-1 p-4 md:p-8 max-w-6xl mx-auto w-full">
         <div id="telemetry-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div class="telemetry-box">
-                <p class="text-[9px] text-gray-500 uppercase font-bold">Module ID</p>
+                <p class="text-[9px] text-gray-500 uppercase font-bold">Module</p>
                 <p id="info-id" class="text-sm font-bold">--</p>
             </div>
             <div class="telemetry-box">
-                <p class="text-[9px] text-gray-500 uppercase font-bold">Session Limit</p>
-                <p id="info-limit" class="text-sm font-bold tracking-widest">CALCULATING...</p>
+                <p class="text-[9px] text-gray-500 uppercase font-bold">Limit</p>
+                <p id="info-limit" class="text-sm font-bold tracking-widest">--</p>
             </div>
             <div class="telemetry-box">
                 <p class="text-[9px] text-gray-500 uppercase font-bold">Status</p>
-                <p id="info-status" class="text-sm font-bold text-yellow-500 italic uppercase">Syncing...</p>
+                <p id="info-status" class="text-sm font-bold text-yellow-500 italic uppercase">Initializing...</p>
             </div>
         </div>
 
         <div id="video-wrapper" class="video-container shadow-2xl rounded-sm">
             <div id="preloader" class="preloader-overlay">
                 <div id="spinner" class="w-12 h-12 border-2 border-red-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p id="loader-text" class="text-[10px] font-bold tracking-[4px] text-gray-600 uppercase text-center">Checking Flight Clearances...</p>
+                <p id="loader-text" class="text-[10px] font-bold tracking-[4px] text-gray-600 uppercase text-center">Syncing Stream...</p>
             </div>
             <div id="iframe-holder"></div>
         </div>
     </main>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc, increment, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // CONFIGURATION
+    <script>
         const GOOGLE_SHEET_ID = '1HLQxJv32eo-EloTtdZhw5ZhEWIXuhMOI7OAKsqG-dfI';
         const GOOGLE_API_KEY = 'AIzaSyD3sts8y_s8M8L2Y66Gz0ICY_9SY-VmoEo';
         const LESSONS_SHEET = 'lessons';
         
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        let db, auth;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
         const urlParams = new URLSearchParams(window.location.search);
         const courseId = urlParams.get('course');
         const lessonId = urlParams.get('lesson');
@@ -143,16 +135,37 @@
         let watchedSeconds = 0;
         let heartbeatInterval = null;
 
-        // AUTH INITIALIZATION
         async function init() {
-            await signInAnonymously(auth);
-            onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    currentUser = user;
-                    document.body.style.opacity = '1';
-                    loadLessonAndCheckLimit();
+            try {
+                // Ensure config exists
+                if (typeof __firebase_config === 'undefined') {
+                    throw new Error("Firebase Config Missing");
                 }
-            });
+
+                const firebaseConfig = JSON.parse(__firebase_config);
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                }
+                
+                auth = firebase.auth();
+                db = firebase.firestore();
+
+                auth.onAuthStateChanged(async (user) => {
+                    if (user) {
+                        currentUser = user;
+                        loadLessonAndCheckLimit();
+                    } else {
+                        try {
+                            await auth.signInAnonymously();
+                        } catch (e) {
+                            showError("AUTH FAILED: " + e.message);
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error("Init Error:", e);
+                showError("SYSTEM INITIALIZATION FAILED");
+            }
         }
 
         async function loadLessonAndCheckLimit() {
@@ -160,11 +173,10 @@
             loadingBar.style.width = '30%';
 
             try {
-                // Fetch limit and video from Sheet
                 const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${LESSONS_SHEET}!A2:L500?key=${GOOGLE_API_KEY}`);
                 const data = await response.json();
                 
-                if (!data.values) throw new Error("No data found");
+                if (!data.values) throw new Error("No data in sheet");
 
                 const row = data.values.find(r => r[1] === lessonId && r[0] === courseId);
                 if (!row) {
@@ -172,85 +184,101 @@
                     return;
                 }
 
-                // Column K (Index 10) = Hours, Column L (Index 11) = Minutes
                 const hours = parseInt(row[10]) || 0;
                 const minutes = parseInt(row[11]) || 0;
                 allowedSeconds = (hours * 3600) + (minutes * 60);
                 
-                document.getElementById('lesson-title').innerText = row[3].toUpperCase();
+                document.getElementById('lesson-title').innerText = (row[3] || 'LESSON').toUpperCase();
                 document.getElementById('info-id').innerText = lessonId.toUpperCase();
-                document.getElementById('info-limit').innerText = `${hours}H ${minutes}M`;
+                document.getElementById('info-limit').innerText = allowedSeconds > 0 ? `${hours}H ${minutes}M` : 'UNLIMITED';
 
-                // Check Database for existing progress
-                const sessionRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'watch_sessions', `${courseId}_${lessonId}`);
-                const sessionSnap = await getDoc(sessionRef);
+                const sessionPath = `artifacts/${appId}/users/${currentUser.uid}/watch_sessions/${courseId}_${lessonId}`;
+                const sessionSnap = await db.doc(sessionPath).get();
 
-                if (sessionSnap.exists()) {
+                if (sessionSnap.exists) {
                     watchedSeconds = sessionSnap.data().total_seconds_watched || 0;
                 } else {
-                    await setDoc(sessionRef, { 
+                    await db.doc(sessionPath).set({ 
                         total_seconds_watched: 0, 
                         courseId, 
                         lessonId,
-                        last_updated: new Date().toISOString() 
+                        last_updated: firebase.firestore.FieldValue.serverTimestamp()
                     });
                 }
 
-                if (watchedSeconds >= allowedSeconds) {
-                    showError("ACCESS EXPIRED: WATCH LIMIT REACHED");
+                if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) {
+                    showError("ACCESS EXPIRED: LIMIT REACHED");
                     return;
                 }
 
-                prepareVideo(row[5]); // Column F
-                startHeartbeat();
-
+                prepareVideo(row[5]); 
             } catch (err) {
-                console.error(err);
-                showError("CONNECTION TIMEOUT");
+                console.error("Fetch Error:", err);
+                showError("NETWORK TIMEOUT");
             }
         }
 
         function prepareVideo(url) {
+            if (!url) {
+                showError("INVALID STREAM URL");
+                return;
+            }
+
             const holder = document.getElementById('iframe-holder');
             const iframe = document.createElement('iframe');
             iframe.id = "video-iframe";
-            iframe.src = url;
-            iframe.allow = "autoplay; fullscreen";
+            iframe.src = url.trim();
+            iframe.allow = "autoplay; fullscreen; picture-in-picture";
+            // Important for some embedded players to work inside restricted containers
+            iframe.setAttribute('sandbox', 'allow-forms allow-scripts allow-pointer-lock allow-same-origin allow-top-navigation allow-presentation');
             
             iframe.onload = () => {
                 document.getElementById('loading-bar').style.width = '100%';
-                document.getElementById('info-status').innerText = "LINK ACTIVE";
+                document.getElementById('info-status').innerText = "ONLINE";
                 document.getElementById('info-status').className = "text-sm font-bold text-green-500 italic uppercase";
-                document.getElementById('preloader').style.opacity = '0';
-                document.getElementById('timer-display').classList.remove('hidden');
-                updateTimerUI();
                 
-                setTimeout(() => {
-                    document.getElementById('preloader').style.display = 'none';
-                    iframe.classList.add('visible');
-                    document.getElementById('loading-bar').style.opacity = '0';
-                }, 500);
+                document.getElementById('preloader').style.display = 'none';
+                iframe.classList.add('visible');
+                
+                if (allowedSeconds > 0) {
+                    document.getElementById('timer-display').classList.remove('hidden');
+                    startHeartbeat();
+                    updateTimerUI();
+                }
             };
+
+            // If iframe fails to trigger onload (common with some blockages)
+            setTimeout(() => {
+                const loader = document.getElementById('loader-text');
+                if (document.getElementById('preloader').style.display !== 'none') {
+                    loader.innerHTML = "Slow Connection...<br><span class='text-[8px] text-red-500'>Please check if Zoom is blocked</span>";
+                }
+            }, 10000);
+
             holder.appendChild(iframe);
         }
 
         function startHeartbeat() {
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
             heartbeatInterval = setInterval(async () => {
                 watchedSeconds += 10;
                 updateTimerUI();
 
-                // Save progress to database
-                const sessionRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'watch_sessions', `${courseId}_${lessonId}`);
-                await updateDoc(sessionRef, {
-                    total_seconds_watched: increment(10),
-                    last_updated: new Date().toISOString()
-                });
+                try {
+                    const sessionPath = `artifacts/${appId}/users/${currentUser.uid}/watch_sessions/${courseId}_${lessonId}`;
+                    await db.doc(sessionPath).update({
+                        total_seconds_watched: firebase.firestore.FieldValue.increment(10),
+                        last_updated: firebase.firestore.FieldValue.serverTimestamp()
+                    });
 
-                if (watchedSeconds >= allowedSeconds) {
-                    clearInterval(heartbeatInterval);
-                    showError("WATCH LIMIT EXCEEDED");
+                    if (watchedSeconds >= allowedSeconds) {
+                        clearInterval(heartbeatInterval);
+                        showError("WATCH LIMIT REACHED");
+                    }
+                } catch (e) {
+                    console.warn("Update Error:", e);
                 }
-            }, 10000); // Check/Update every 10 seconds
+            }, 10000);
         }
 
         function updateTimerUI() {
@@ -263,24 +291,23 @@
 
         function showError(msg) {
             if (heartbeatInterval) clearInterval(heartbeatInterval);
-            document.getElementById('timer-display').classList.add('hidden');
-            document.getElementById('video-wrapper').innerHTML = `
-                <div class="absolute inset-0 flex flex-col items-center justify-center text-center p-8 bg-black z-50">
-                    <div class="w-16 h-1 border-t border-red-600 mb-4"></div>
-                    <p class="text-red-500 font-black tracking-[4px] uppercase mb-2">System Lock</p>
-                    <p class="text-[10px] text-gray-400 uppercase tracking-[2px] max-w-xs leading-loose">${msg}</p>
-                    <button onclick="window.location.reload()" class="mt-8 text-[9px] border border-white/20 px-4 py-2 hover:bg-white/10 uppercase">Retry Connection</button>
+            document.getElementById('preloader').innerHTML = `
+                <div class="text-center p-6">
+                    <p class="text-red-600 font-black tracking-widest uppercase mb-2">Protocol Error</p>
+                    <p class="text-[10px] text-gray-500 uppercase tracking-widest">${msg}</p>
+                    <button onclick="location.reload()" class="mt-6 text-[9px] border border-red-600/30 px-4 py-2 hover:bg-red-600/10">Re-Initialize</button>
                 </div>
             `;
-            document.getElementById('info-status').innerText = "BLOCKED";
+            document.getElementById('info-status').innerText = "LOCKED";
             document.getElementById('info-status').className = "text-sm font-bold text-red-600 uppercase";
         }
 
-        window.goBack = () => {
+        function goBack() {
             window.location.href = `curriculum.html?id=${courseId}`;
-        };
+        }
 
-        init();
+        // Run on load
+        window.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>
