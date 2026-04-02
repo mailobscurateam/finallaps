@@ -308,7 +308,7 @@
                             id: row[1],
                             section: row[2],
                             name: row[3],
-                            type: row[4],
+                            type: (row[4] || '').toUpperCase(), // Normalize type to uppercase
                             start: row[7],
                             end: row[8],
                             week: row[9]
@@ -342,6 +342,9 @@
                     container.appendChild(header);
                 }
 
+                // Logic: if lesson type is 'ZOOM', use 'zolen.html', otherwise use 'learn.html'
+                const targetPage = (lesson.type === 'ZOOM') ? 'zolen.html' : 'learn.html';
+
                 const row = document.createElement('div');
                 row.className = 'lesson-row';
                 row.innerHTML = `
@@ -359,7 +362,7 @@
                         </div>
                     </div>
                     <div>
-                        <a href="learn.html?course=${courseId}&lesson=${lesson.id}" class="learn-btn">
+                        <a href="${targetPage}?course=${courseId}&lesson=${lesson.id}" class="learn-btn">
                             ENTER SIMULATION
                         </a>
                     </div>
