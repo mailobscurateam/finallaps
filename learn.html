@@ -228,6 +228,36 @@
             padding: 2rem;
         }
 
+        /* Modern Resource Button */
+        .resource-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 28px;
+            background: linear-gradient(90deg, #e10600, #ff4d4d);
+            color: white;
+            font-weight: 900;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 2px;
+            clip-path: polygon(5% 0, 100% 0, 95% 100%, 0% 100%);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 15px rgba(225, 6, 0, 0.3);
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .resource-btn:hover {
+            transform: scale(1.05) skewX(-2deg);
+            box-shadow: 0 8px 25px rgba(225, 6, 0, 0.5);
+            filter: brightness(1.1);
+        }
+
+        .resource-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
         @media (max-width: 1024px) {
             .sim-container { grid-template-columns: 1fr; height: auto; }
             .sidebar-telemetry { border-left: none; border-top: 1px solid #1a1a1a; }
@@ -308,6 +338,14 @@
                 </div>
             </div>
 
+            <!-- Resource Button Area -->
+            <div id="resource-area" class="mt-6 hidden">
+                <a id="resource-link" href="#" target="_blank" class="resource-btn">
+                    <svg fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                    Access Resource Deck
+                </a>
+            </div>
+
             <div class="mt-8 border-t border-white/5 pt-6 pb-12">
                 <h3 class="text-xs font-black text-red-600 uppercase tracking-widest mb-4">Briefing Notes</h3>
                 <p id="lesson-description" class="text-gray-400 text-sm leading-relaxed max-w-4xl font-sans">
@@ -354,7 +392,6 @@
         let player; 
         let watermarkData = { x: 50, y: 50, dx: 1, dy: 1 };
         
-        // Session Clock Logic
         let currentUser = null;
         let allowedSeconds = 0;
         let watchedSeconds = 0;
@@ -404,6 +441,20 @@
                         const minutes = parseInt(row[11]) || 0;
                         allowedSeconds = (hours * 3600) + (minutes * 60);
 
+                        // Column G (index 6) is the Resource Link
+                        const resourceLink = row[6];
+                        if (resourceLink && resourceLink.startsWith('http')) {
+                            const area = document.getElementById('resource-area');
+                            const link = document.getElementById('resource-link');
+                            link.href = resourceLink;
+                            area.classList.remove('hidden');
+                        }
+
+                        // Column G (index 6) was used for description in your previous code
+                        // Adjusting: If G is used for Resource, description might be in H (index 7)? 
+                        // I will assume index 7 for briefing notes based on your column request.
+                        document.getElementById('lesson-description').innerText = row[7] || "No additional briefing notes provided.";
+
                         await syncProgressFromDB();
                         
                         if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) {
@@ -412,14 +463,14 @@
                         }
 
                         initVideo(row);
-                        startSessionClock(); // Start counting immediately upon data ready
+                        startSessionClock();
                     }
                 }
             } catch (err) { console.error("Data Sync Error", err); }
         }
 
         async function syncProgressFromDB() {
-            const { data, error } = await supabaseClient
+            const { data } = await supabaseClient
                 .from('watch_sessions')
                 .select('total_seconds_watched')
                 .eq('user_id', currentUser.id)
@@ -439,7 +490,6 @@
         }
 
         function startSessionClock() {
-            // UI Clock: Tick every second for responsiveness
             if (sessionTimer) clearInterval(sessionTimer);
             sessionTimer = setInterval(() => {
                 watchedSeconds += 1;
@@ -448,11 +498,10 @@
                 if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) {
                     if (player && player.pauseVideo) player.pauseVideo();
                     showLimitError("TIME EXPIRED: SESSION TERMINATED");
-                    syncWithDB(); // Final sync
+                    syncWithDB();
                 }
             }, 1000);
 
-            // DB Sync: Tick every 10 seconds to reduce API load
             if (dbSyncTimer) clearInterval(dbSyncTimer);
             dbSyncTimer = setInterval(syncWithDB, 10000);
         }
@@ -478,17 +527,12 @@
                 const telemetry = document.getElementById('limit-telemetry');
                 const display = document.getElementById('time-remaining');
                 telemetry.classList.remove('hidden');
-                
                 const remaining = Math.max(0, allowedSeconds - watchedSeconds);
                 const h = Math.floor(remaining / 3600);
                 const m = Math.floor((remaining % 3600) / 60);
                 const s = remaining % 60;
                 display.innerText = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-                
-                // Alert user if under 60 seconds
-                if (remaining < 60) {
-                    display.classList.add('animate-pulse');
-                }
+                if (remaining < 60) display.classList.add('animate-pulse');
             }
         }
 
@@ -499,53 +543,34 @@
             document.getElementById('limit-error-msg').innerText = msg;
             document.getElementById('session-status').innerText = "TERMINATED";
             document.getElementById('session-status').className = "data-value text-red-600";
+            document.getElementById('resource-area').classList.add('hidden'); // Hide resources on session lock
         }
 
         function initVideo(data) {
             document.getElementById('lesson-title').innerText = data[3].toUpperCase();
             document.getElementById('lesson-id-label').innerText = `SID: ${data[1]}`;
             document.getElementById('lesson-type-badge').innerText = data[4].toUpperCase();
-            document.getElementById('lesson-description').innerText = data[6] || "No description provided.";
             document.getElementById('section-val').innerText = data[2].toUpperCase();
 
             const videoUrl = data[5];
             let vidId = "";
 
-            if (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')) {
+            if (videoUrl && (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be'))) {
                 vidId = videoUrl.includes('v=') ? videoUrl.split('v=')[1].split('&')[0] : videoUrl.split('/').pop();
-                
                 player = new YT.Player('yt-player', {
                     videoId: vidId,
-                    playerVars: {
-                        'autoplay': 0,
-                        'controls': 0, 
-                        'disablekb': 1,
-                        'modestbranding': 1,
-                        'rel': 0,
-                        'showinfo': 0,
-                        'iv_load_policy': 3
-                    },
-                    events: {
-                        'onReady': onPlayerReady,
-                        'onStateChange': onPlayerStateChange
-                    }
+                    playerVars: { 'autoplay': 0, 'controls': 0, 'disablekb': 1, 'modestbranding': 1, 'rel': 0, 'showinfo': 0, 'iv_load_policy': 3 },
+                    events: { 'onReady': onPlayerReady, 'onStateChange': onPlayerStateChange }
                 });
             }
         }
 
-        function onPlayerReady(event) {
-            setupCustomControls();
-            updateRemainingUI();
-        }
+        function onPlayerReady(event) { setupCustomControls(); updateRemainingUI(); }
 
         function onPlayerStateChange(event) {
             const playIcon = document.getElementById('play-icon-path');
             if (event.data === YT.PlayerState.PLAYING) {
-                // Check limit again on play attempt
-                if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) {
-                    player.pauseVideo();
-                    return;
-                }
+                if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) { player.pauseVideo(); return; }
                 playIcon.setAttribute('d', 'M6 19h4V5H6v14zm8-14v14h4V5h-4z');
             } else {
                 playIcon.setAttribute('d', 'M8 5v14l11-7z');
@@ -591,11 +616,7 @@
 
             speedSelector.onchange = (e) => player.setPlaybackRate(parseFloat(e.target.value));
             volumeSlider.oninput = (e) => player.setVolume(e.target.value);
-
-            btnFullscreen.onclick = () => {
-                if (!document.fullscreenElement) wrapper.requestFullscreen();
-                else document.exitFullscreen();
-            };
+            btnFullscreen.onclick = () => { if (!document.fullscreenElement) wrapper.requestFullscreen(); else document.exitFullscreen(); };
         }
 
         function formatTime(seconds) {
@@ -606,14 +627,12 @@
         }
 
         document.getElementById('btn-signout').onclick = async () => {
-            await syncWithDB(); // Final telemetry save
+            await syncWithDB();
             await supabaseClient.auth.signOut();
             window.location.href = 'index.html';
         };
 
-        document.getElementById('nav-back').onclick = () => {
-            window.location.href = `courses.html?id=${courseId}`;
-        };
+        document.getElementById('nav-back').onclick = () => { window.location.href = `courses.html?id=${courseId}`; };
 
         window.onload = checkAuth;
     </script>
