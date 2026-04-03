@@ -82,7 +82,6 @@
             overflow: hidden;
         }
 
-        /* Interaction Shield */
         .interaction-shield {
             position: absolute;
             inset: 0;
@@ -90,7 +89,6 @@
             background: transparent;
         }
 
-        /* Moving Inverted Watermark */
         #moving-watermark {
             position: absolute;
             z-index: 20;
@@ -217,7 +215,6 @@
             color: #ccc;
         }
 
-        /* Error Overlay for Limits */
         .limit-overlay {
             position: absolute;
             inset: 0;
@@ -246,7 +243,7 @@
         </div>
         <div class="flex items-center gap-4">
             <div id="limit-telemetry" class="hidden text-right mr-4">
-                <p class="text-[8px] text-gray-500 uppercase font-bold tracking-widest">Session Airtime</p>
+                <p class="text-[8px] text-gray-500 uppercase font-bold tracking-widest">Session Airtime Remaining</p>
                 <p id="time-remaining" class="text-xs font-black text-red-500 tracking-tighter">--:--</p>
             </div>
             <button id="btn-signout" class="text-[9px] font-black text-gray-500 hover:text-red-600 uppercase tracking-widest transition-colors">Terminate Session</button>
@@ -267,7 +264,7 @@
             <div class="video-wrapper" id="master-wrapper">
                 <div id="limit-error" class="limit-overlay">
                     <h2 class="text-red-600 font-black italic text-2xl mb-2">ACCESS TERMINATED</h2>
-                    <p class="text-xs text-gray-400 uppercase tracking-widest mb-6" id="limit-error-msg">WATCH LIMIT EXCEEDED</p>
+                    <p class="text-xs text-gray-400 uppercase tracking-widest mb-6" id="limit-error-msg">SESSION DURATION EXCEEDED</p>
                     <button onclick="window.history.back()" class="px-6 py-2 border border-red-600 text-[10px] font-black uppercase tracking-widest hover:bg-red-600 transition-all">Exit Room</button>
                 </div>
 
@@ -357,11 +354,12 @@
         let player; 
         let watermarkData = { x: 50, y: 50, dx: 1, dy: 1 };
         
-        // Watch Logic State
+        // Session Clock Logic
         let currentUser = null;
         let allowedSeconds = 0;
         let watchedSeconds = 0;
-        let heartbeatInterval = null;
+        let sessionTimer = null;
+        let dbSyncTimer = null;
 
         async function checkAuth() {
             const { data: { session } } = await supabaseClient.auth.getSession();
@@ -380,17 +378,13 @@
         function startWatermarkAnimation() {
             const el = document.getElementById('moving-watermark');
             const wrapper = document.getElementById('master-wrapper');
-            
             function animate() {
                 const rect = wrapper.getBoundingClientRect();
                 const elRect = el.getBoundingClientRect();
-
                 watermarkData.x += watermarkData.dx * 0.5;
                 watermarkData.y += watermarkData.dy * 0.5;
-
                 if (watermarkData.x <= 0 || watermarkData.x + elRect.width >= rect.width) watermarkData.dx *= -1;
                 if (watermarkData.y <= 0 || watermarkData.y + elRect.height >= rect.height) watermarkData.dy *= -1;
-
                 el.style.left = watermarkData.x + 'px';
                 el.style.top = watermarkData.y + 'px';
                 requestAnimationFrame(animate);
@@ -406,7 +400,6 @@
                 if (data.values) {
                     const row = data.values.find(r => r[0] === courseId && r[1] === lessonId);
                     if (row) {
-                        // Watch Time Logic Integration
                         const hours = parseInt(row[10]) || 0;
                         const minutes = parseInt(row[11]) || 0;
                         allowedSeconds = (hours * 3600) + (minutes * 60);
@@ -414,11 +407,12 @@
                         await syncProgressFromDB();
                         
                         if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) {
-                            showLimitError("PROTOCOL LOCK: WATCH LIMIT REACHED");
+                            showLimitError("PROTOCOL LOCK: SESSION TIME DEPLETED");
                             return;
                         }
 
                         initVideo(row);
+                        startSessionClock(); // Start counting immediately upon data ready
                     }
                 }
             } catch (err) { console.error("Data Sync Error", err); }
@@ -444,33 +438,39 @@
             }
         }
 
-        function startHeartbeat() {
-            if (heartbeatInterval) clearInterval(heartbeatInterval);
-            heartbeatInterval = setInterval(async () => {
-                // Only track time if playing
-                if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
-                    watchedSeconds += 10;
-                    updateRemainingUI();
+        function startSessionClock() {
+            // UI Clock: Tick every second for responsiveness
+            if (sessionTimer) clearInterval(sessionTimer);
+            sessionTimer = setInterval(() => {
+                watchedSeconds += 1;
+                updateRemainingUI();
 
-                    try {
-                        await supabaseClient
-                            .from('watch_sessions')
-                            .update({ 
-                                total_seconds_watched: watchedSeconds,
-                                last_watched_at: new Date().toISOString()
-                            })
-                            .eq('user_id', currentUser.id)
-                            .eq('lesson_id', lessonId);
-
-                        if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) {
-                            player.pauseVideo();
-                            showLimitError("LIMIT REACHED: ACCESS TERMINATED");
-                        }
-                    } catch (e) {
-                        console.warn("Telemetry Update Failed", e);
-                    }
+                if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) {
+                    if (player && player.pauseVideo) player.pauseVideo();
+                    showLimitError("TIME EXPIRED: SESSION TERMINATED");
+                    syncWithDB(); // Final sync
                 }
-            }, 10000);
+            }, 1000);
+
+            // DB Sync: Tick every 10 seconds to reduce API load
+            if (dbSyncTimer) clearInterval(dbSyncTimer);
+            dbSyncTimer = setInterval(syncWithDB, 10000);
+        }
+
+        async function syncWithDB() {
+            if (!currentUser) return;
+            try {
+                await supabaseClient
+                    .from('watch_sessions')
+                    .update({ 
+                        total_seconds_watched: watchedSeconds,
+                        last_watched_at: new Date().toISOString()
+                    })
+                    .eq('user_id', currentUser.id)
+                    .eq('lesson_id', lessonId);
+            } catch (e) {
+                console.warn("Telemetry Sync Error", e);
+            }
         }
 
         function updateRemainingUI() {
@@ -484,14 +484,20 @@
                 const m = Math.floor((remaining % 3600) / 60);
                 const s = remaining % 60;
                 display.innerText = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                
+                // Alert user if under 60 seconds
+                if (remaining < 60) {
+                    display.classList.add('animate-pulse');
+                }
             }
         }
 
         function showLimitError(msg) {
-            if (heartbeatInterval) clearInterval(heartbeatInterval);
+            if (sessionTimer) clearInterval(sessionTimer);
+            if (dbSyncTimer) clearInterval(dbSyncTimer);
             document.getElementById('limit-error').style.display = 'flex';
             document.getElementById('limit-error-msg').innerText = msg;
-            document.getElementById('session-status').innerText = "LOCKED";
+            document.getElementById('session-status').innerText = "TERMINATED";
             document.getElementById('session-status').className = "data-value text-red-600";
         }
 
@@ -530,12 +536,16 @@
         function onPlayerReady(event) {
             setupCustomControls();
             updateRemainingUI();
-            startHeartbeat();
         }
 
         function onPlayerStateChange(event) {
             const playIcon = document.getElementById('play-icon-path');
             if (event.data === YT.PlayerState.PLAYING) {
+                // Check limit again on play attempt
+                if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) {
+                    player.pauseVideo();
+                    return;
+                }
                 playIcon.setAttribute('d', 'M6 19h4V5H6v14zm8-14v14h4V5h-4z');
             } else {
                 playIcon.setAttribute('d', 'M8 5v14l11-7z');
@@ -596,6 +606,7 @@
         }
 
         document.getElementById('btn-signout').onclick = async () => {
+            await syncWithDB(); // Final telemetry save
             await supabaseClient.auth.signOut();
             window.location.href = 'index.html';
         };
