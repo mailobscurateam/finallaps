@@ -108,20 +108,20 @@
 
                 switch(type) {
                     case 'youtube':
-                        targetUrl = `learnyt.html?id=${lesson.id}`; 
+                        targetUrl = `/learn/yt?id=${lesson.id}`; 
                         break;
                     case 'zoom':
-                        targetUrl = `zoomlearn.html?id=${lesson.id}`;
+                        targetUrl = `/learn/zoom?id=${lesson.id}`;
                         break;
                     case 'pdf':
-                        targetUrl = `pdflearn.html?id=${lesson.id}`;
+                        targetUrl = `/learn/pdf?id=${lesson.id}`;
                         break;
                     case 'live':
                         targetUrl = lesson.video_url || '#';
                         isExternal = true;
                         break;
                     default:
-                        targetUrl = `learnyt.html?id=${lesson.id}`;
+                        targetUrl = `/learn/yt?id=${lesson.id}`;
                 }
 
                 return `
