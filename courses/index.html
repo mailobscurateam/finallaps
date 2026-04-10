@@ -86,7 +86,6 @@
             transform: scale(1.1);
         }
 
-        /* Initial Hide for Auth Check */
         body { opacity: 0; transition: opacity 0.5s ease; }
         body.auth-ready { opacity: 1; }
     </style>
@@ -124,7 +123,7 @@
                     Available <span class="gradient-text">Modules</span>
                 </h1>
                 <p class="text-gray-400 max-w-2xl mx-auto text-lg leading-relaxed">
-                    Welcome back. Access your specialized Combined Mathematics curriculum below.
+                    Welcome back. Access your specialized Combined Mathematics curriculum directly from the Nexus Database.
                 </p>
             </div>
         </section>
@@ -134,22 +133,21 @@
             <div class="max-w-6xl mx-auto">
                 <div id="course-loader" class="flex flex-col items-center py-20">
                     <div class="w-12 h-12 border-4 border-pink-500/20 border-t-pink-500 rounded-full animate-spin mb-4"></div>
-                    <p class="mono text-xs text-gray-500 uppercase tracking-widest animate-pulse">Syncing Cloud Database...</p>
+                    <p class="mono text-xs text-gray-500 uppercase tracking-widest animate-pulse">Querying Nexus DB...</p>
                 </div>
 
                 <div id="courses-container" class="course-grid hidden">
-                    <!-- Cards will be injected here -->
+                    <!-- Cards injected here -->
                 </div>
 
                 <div id="error-state" class="hidden text-center py-20 glass-card rounded-[2rem] border-red-500/20">
                     <i data-lucide="alert-circle" class="w-12 h-12 text-red-500 mx-auto mb-4"></i>
                     <h3 class="text-xl font-bold mb-2">Sync Interrupted</h3>
-                    <p class="text-gray-400 text-sm">Check Sheet permissions or Column formatting.</p>
+                    <p class="text-gray-400 text-sm">Could not retrieve courses from Supabase. Check table permissions.</p>
                 </div>
             </div>
         </section>
 
-        <!-- Footer -->
         <footer class="p-20 border-t border-white/5 text-center bg-black/40">
             <div class="mono text-[10px] text-gray-600 tracking-widest uppercase mb-4">
                 Authorized Session &copy; 2026 Nexus Prime Education
@@ -158,91 +156,57 @@
     </main>
 
     <script>
-        // Use an IIFE or block scope to avoid redeclaration errors if the script is re-run in Canvas
         (function() {
-            // CONFIGURATIONS
-            const GOOGLE_SHEET_ID = '1HLQxJv32eo-EloTtdZhw5ZhEWIXuhMOI7OAKsqG-dfI';
-            const GOOGLE_API_KEY = 'AIzaSyD3sts8y_s8M8L2Y66Gz0ICY_9SY-VmoEo';
-            const COURSES_SHEET = 'courses';
-
+            // SUPABASE CONFIG
             const SUPABASE_URL = 'https://ogfmimplmjzhqzeeexae.supabase.co';
             const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9nZm1pbXBsbWp6aHF6ZWVleGFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNTgzNzcsImV4cCI6MjA4NjYzNDM3N30.l8j1VC7-Zt88UGRkclBd-dNyLZsHg2DuY_9FRRW311o';
 
-            // Fixed the initialization error: Supabase JS V2 uses supabase.createClient
-            // The global variable is 'supabase' if loaded from CDN
+            // Initialize Supabase
             if (!window.supabaseClient) {
-                try {
-                    window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                } catch (e) {
-                    console.error("Supabase initialization failed. Trying alternative global...", e);
-                    // Fallback for different CDN naming conventions if needed
-                    if (window.supabasejs) {
-                        window.supabaseClient = window.supabasejs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                    }
-                }
+                window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             }
-            const supabaseInstance = window.supabaseClient;
+            const sb = window.supabaseClient;
 
             // --- AUTH LOGIC ---
             async function checkAuth() {
                 try {
-                    const { data: { session }, error } = await supabaseInstance.auth.getSession();
-                    
+                    const { data: { session }, error } = await sb.auth.getSession();
                     if (error || !session) {
-                        console.log("No active session found. Redirecting to login...");
                         window.location.href = '/login';
                         return;
                     }
-
-                    // User is logged in
                     document.body.classList.add('auth-ready');
                     document.getElementById('user-display').classList.remove('hidden');
                     document.getElementById('user-email').textContent = session.user.email;
                     
-                    // Proceed to load data
                     fetchCourses();
                 } catch (e) {
-                    console.error("Auth check failed:", e);
                     window.location.href = '/login';
                 }
             }
 
             window.handleLogout = async function() {
-                await supabaseInstance.auth.signOut();
+                await sb.auth.signOut();
                 window.location.href = '/login';
             };
 
-            // --- DATA FETCHING ---
-            window.cacheCourseId = function(id) {
-                if (!id) return;
-                const d = new Date();
-                d.setTime(d.getTime() + (7*24*60*60*1000));
-                let expires = "expires="+ d.toUTCString();
-                document.cookie = `last_viewed_course=${id}; ${expires}; path=/`;
-                localStorage.setItem('nexus_last_course_id', id);
-            }
-
+            // --- DATA FETCHING (Now using Supabase instead of Sheets) ---
             async function fetchCourses() {
-                const url = `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${COURSES_SHEET}!A2:F?key=${GOOGLE_API_KEY}`;
-                
                 try {
-                    const response = await fetch(url);
-                    const data = await response.json();
-                    
-                    if (!data.values || data.values.length === 0) throw new Error('No data found');
+                    // Fetching from 'courses' table
+                    const { data: courses, error } = await sb
+                        .from('courses')
+                        .select('*');
 
-                    const courses = data.values.map(row => ({
-                        id: row[0] || 'N/A',
-                        name: row[1] || 'Untitled Course',
-                        instructor: row[2] || 'Expert Educator',
-                        description: row[3] || 'Comprehensive module overview.',
-                        image: row[4] || 'https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&q=80&w=800',
-                        enrollLink: row[5] || '#'
-                    }));
+                    if (error) throw error;
+                    if (!courses || courses.length === 0) {
+                        renderCourses([]); // Handle empty state
+                        return;
+                    }
 
                     renderCourses(courses);
                 } catch (error) {
-                    console.error('Sheet fetch failed:', error);
+                    console.error('Database fetch failed:', error);
                     document.getElementById('course-loader').classList.add('hidden');
                     document.getElementById('error-state').classList.remove('hidden');
                 }
@@ -252,41 +216,46 @@
                 const container = document.getElementById('courses-container');
                 const loader = document.getElementById('course-loader');
                 
-                container.innerHTML = courses.map((course) => `
-                    <div class="glass-card rounded-[2rem] flex flex-col h-full group">
-                        <div class="course-image-container">
-                            <img src="${course.image}" alt="${course.name}" class="course-image" onerror="this.src='https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&q=80&w=800'">
-                            <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
-                            <div class="absolute bottom-4 left-6 flex items-center space-x-2">
-                                <span class="mono text-[9px] font-bold text-pink-400 bg-pink-500/10 border border-pink-500/20 px-3 py-1 rounded-full uppercase tracking-widest">
-                                    ID: ${course.id}
-                                </span>
+                if (courses.length === 0) {
+                    container.innerHTML = `<p class="col-span-full text-center text-gray-500 py-10">No modules available at this time.</p>`;
+                } else {
+                    container.innerHTML = courses.map((course) => `
+                        <div class="glass-card rounded-[2rem] flex flex-col h-full group">
+                            <div class="course-image-container">
+                                <img src="${course.image_url || 'https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&q=80&w=800'}" 
+                                     alt="${course.name}" 
+                                     class="course-image">
+                                <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+                                <div class="absolute bottom-4 left-6 flex items-center space-x-2">
+                                    <span class="mono text-[9px] font-bold text-pink-400 bg-pink-500/10 border border-pink-500/20 px-3 py-1 rounded-full uppercase tracking-widest">
+                                        ID: ${course.id}
+                                    </span>
+                                </div>
                             </div>
-                        </div>
 
-                        <div class="p-8 flex flex-col flex-grow">
-                            <h3 class="text-2xl font-black mb-1 leading-tight group-hover:text-pink-500 transition-colors">
-                                ${course.name}
-                            </h3>
-                            <p class="mono text-[11px] text-gray-500 uppercase tracking-widest mb-4">
-                                By ${course.instructor}
-                            </p>
-                            
-                            <p class="text-gray-400 text-sm leading-relaxed mb-8 flex-grow">
-                                ${course.description}
-                            </p>
-                            
-                            <div class="pt-6 border-t border-white/5">
-                                <a href="${course.enrollLink}" 
-                                   onclick="cacheCourseId('${course.id}')"
-                                   target="_blank"
-                                   class="block w-full py-4 bg-white/5 border border-white/10 group-hover:bg-pink-600 group-hover:border-pink-600 group-hover:text-white text-center font-bold text-xs uppercase tracking-[0.2em] rounded-xl transition-all duration-300">
-                                    Enroll Now
-                                </a>
+                            <div class="p-8 flex flex-col flex-grow">
+                                <h3 class="text-2xl font-black mb-1 leading-tight group-hover:text-pink-500 transition-colors">
+                                    ${course.name}
+                                </h3>
+                                <p class="mono text-[11px] text-gray-500 uppercase tracking-widest mb-4">
+                                    By ${course.instructor || 'Nexus Faculty'}
+                                </p>
+                                
+                                <p class="text-gray-400 text-sm leading-relaxed mb-8 flex-grow">
+                                    ${course.description || 'No description available.'}
+                                </p>
+                                
+                                <div class="pt-6 border-t border-white/5">
+                                    <a href="${course.enroll_link || '#'}" 
+                                       target="_blank"
+                                       class="block w-full py-4 bg-white/5 border border-white/10 group-hover:bg-pink-600 group-hover:border-pink-600 group-hover:text-white text-center font-bold text-xs uppercase tracking-[0.2em] rounded-xl transition-all duration-300">
+                                         Enroll Now
+                                    </a>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                `).join('');
+                    `).join('');
+                }
 
                 loader.classList.add('hidden');
                 container.classList.remove('hidden');
@@ -331,7 +300,6 @@
             document.addEventListener('DOMContentLoaded', () => {
                 lucide.createIcons();
                 initScene();
-                // Start Auth Check first
                 checkAuth();
             });
         })();
