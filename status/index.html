@@ -15,10 +15,15 @@
         .table-row { transition: all 0.2s ease; border-bottom: 1px solid rgba(255, 255, 255, 0.02); }
         .table-row:hover { background: rgba(255, 255, 255, 0.02); }
         .glow { position: fixed; width: 600px; height: 600px; border-radius: 50%; background: radial-gradient(circle, rgba(236, 72, 153, 0.04) 0%, transparent 70%); z-index: -1; pointer-events: none; }
+        
+        /* Custom scrollbar for the glass panel */
+        .overflow-x-auto::-webkit-scrollbar { height: 4px; }
+        .overflow-x-auto::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
     </style>
 </head>
 <body class="p-6 md:p-12">
     <div class="glow top-[-20%] left-[-10%]"></div>
+    <div class="glow bottom-[-20%] right-[-10%]" style="background: radial-gradient(circle, rgba(168, 85, 247, 0.04) 0%, transparent 70%);"></div>
 
     <main class="max-w-6xl mx-auto w-full">
         <header class="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-12">
@@ -27,17 +32,19 @@
                     <div class="w-2 h-2 rounded-full bg-pink-500 animate-pulse"></div>
                     <span class="mono text-[10px] text-pink-500 uppercase font-black tracking-[0.3em]">Central Registry</span>
                 </div>
-                <h1 class="text-4xl font-black tracking-tighter text-white">Enrollment Status</h1>
+                <h1 class="text-4xl font-black tracking-tighter text-white uppercase">Enrollment Status</h1>
             </div>
             <div class="flex items-center gap-4">
-                <p id="user-email" class="mono text-[10px] text-gray-500 uppercase border-r border-white/10 pr-4">Identifying...</p>
-                <a href="courses.html" class="text-xs font-bold hover:text-pink-500 transition flex items-center gap-2">
-                    <i data-lucide="plus-circle" class="w-4 h-4"></i> New Application
+                <div class="text-right">
+                    <p id="user-email" class="mono text-[10px] text-gray-500 uppercase tracking-widest">Verifying Session...</p>
+                </div>
+                <a href="courses.html" class="bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2">
+                    <i data-lucide="plus" class="w-4 h-4"></i> New Course
                 </a>
             </div>
         </header>
 
-        <div class="glass-panel rounded-3xl overflow-hidden">
+        <div class="glass-panel rounded-3xl overflow-hidden shadow-2xl">
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
                     <thead>
@@ -50,13 +57,14 @@
                     </thead>
                     <tbody id="course-table-body">
                         <tr>
-                            <td colspan="4" class="px-8 py-20 text-center">
+                            <td colspan="4" class="px-8 py-24 text-center">
                                 <div id="loading-spinner" class="flex flex-col items-center gap-4">
                                     <div class="w-8 h-8 border-2 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
-                                    <p class="mono text-[10px] text-gray-500 uppercase tracking-widest">Accessing Mainframe...</p>
+                                    <p class="mono text-[10px] text-pink-500 uppercase tracking-widest animate-pulse">Syncing with Mainframe</p>
                                 </div>
                                 <div id="empty-msg" class="hidden">
-                                    <p class="text-gray-500 italic">No applications found in your history.</p>
+                                    <i data-lucide="archive" class="w-8 h-8 text-gray-700 mx-auto mb-4"></i>
+                                    <p class="text-gray-500 italic">No applications found in registry.</p>
                                 </div>
                             </td>
                         </tr>
@@ -78,8 +86,8 @@
             document.getElementById('user-email').textContent = session.user.email;
             fetchEnrollments(session.user.id);
 
-            // Subscribe to real-time updates
-            sb.channel('db-changes')
+            // Subscribe to real-time updates for any changes to user's courses
+            sb.channel('registry-updates')
                 .on('postgres_changes', { 
                     event: '*', 
                     schema: 'public', 
@@ -93,6 +101,7 @@
             const { data, error } = await sb
                 .from('course_status')
                 .select('*')
+                .eq('user_id', userId)
                 .order('created_at', { ascending: false });
 
             const tbody = document.getElementById('course-table-body');
@@ -100,6 +109,7 @@
             if (error || !data || data.length === 0) {
                 document.getElementById('loading-spinner').classList.add('hidden');
                 document.getElementById('empty-msg').classList.remove('hidden');
+                lucide.createIcons();
                 return;
             }
 
@@ -110,22 +120,36 @@
             lucide.createIcons();
         }
 
+        /**
+         * Cache course ID and redirect
+         */
+        function handleAccess(courseId) {
+            // Save to localStorage as requested
+            localStorage.setItem('active_session_id', courseId);
+            
+            // Visual feedback before redirect
+            console.log(`Setting active_session_id to: ${courseId}`);
+            
+            // Redirect to curriculum
+            window.location.href = '/curriculum';
+        }
+
         function renderRow(item) {
             const tr = document.createElement('tr');
             tr.className = 'table-row';
 
-            // Format Date
+            // Format timestamp
             const date = new Date(item.created_at).toLocaleDateString('en-US', {
                 month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
             });
 
-            // Status Config
+            // Status configuration
             const states = {
                 approved: { 
                     color: 'text-green-400', 
                     bg: 'bg-green-400/10', 
                     icon: 'shield-check',
-                    btn: 'opacity-100 pointer-events-auto bg-pink-500 hover:bg-pink-600'
+                    btn: 'opacity-100 pointer-events-auto bg-pink-500 hover:bg-pink-600 shadow-lg shadow-pink-500/20'
                 },
                 rejected: { 
                     color: 'text-red-400', 
@@ -145,7 +169,7 @@
 
             tr.innerHTML = `
                 <td class="px-8 py-6">
-                    <div class="font-bold text-white">${item.course_name || 'System Module'}</div>
+                    <div class="font-bold text-white text-sm tracking-tight">${item.course_name || 'Technical Module'}</div>
                     <div class="mono text-[9px] text-gray-600 tracking-tighter uppercase mt-1">Ref: ${item.course_id}</div>
                 </td>
                 <td class="px-8 py-6 mono text-xs text-gray-400">
@@ -158,7 +182,7 @@
                     </div>
                 </td>
                 <td class="px-8 py-6 text-right">
-                    <button onclick="window.location.href='/curriculum?id=${item.course_id}'" 
+                    <button onclick="handleAccess('${item.course_id}')" 
                             class="px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${s.btn} text-white">
                         Access
                     </button>
