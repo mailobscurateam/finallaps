@@ -49,7 +49,7 @@
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         async function init() {
-            const courseId = sessionStorage.getItem('selected_course_id');
+            const courseId = sessionStorage.getItem('active_course_id');
             if (!courseId) {
                 window.location.href = '/courses';
                 return;
