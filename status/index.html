@@ -16,7 +16,6 @@
         .table-row:hover { background: rgba(255, 255, 255, 0.02); }
         .glow { position: fixed; width: 600px; height: 600px; border-radius: 50%; background: radial-gradient(circle, rgba(236, 72, 153, 0.04) 0%, transparent 70%); z-index: -1; pointer-events: none; }
         
-        /* Custom scrollbar for the glass panel */
         .overflow-x-auto::-webkit-scrollbar { height: 4px; }
         .overflow-x-auto::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
     </style>
@@ -35,11 +34,12 @@
                 <h1 class="text-4xl font-black tracking-tighter text-white uppercase">Enrollment Status</h1>
             </div>
             <div class="flex items-center gap-4">
-                <div class="text-right">
+                <div class="text-right hidden sm:block">
                     <p id="user-email" class="mono text-[10px] text-gray-500 uppercase tracking-widest">Verifying Session...</p>
                 </div>
-                <a href="courses.html" class="bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2">
-                    <i data-lucide="plus" class="w-4 h-4"></i> New Course
+                <a href="/dashboard" class="bg-white/5 hover:bg-white/10 border border-white/10 px-5 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 group">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4 text-gray-400 group-hover:text-white transition"></i> 
+                    <span>Back to Dashboard</span>
                 </a>
             </div>
         </header>
@@ -86,7 +86,6 @@
             document.getElementById('user-email').textContent = session.user.email;
             fetchEnrollments(session.user.id);
 
-            // Subscribe to real-time updates for any changes to user's courses
             sb.channel('registry-updates')
                 .on('postgres_changes', { 
                     event: '*', 
@@ -120,17 +119,8 @@
             lucide.createIcons();
         }
 
-        /**
-         * Cache course ID and redirect
-         */
         function handleAccess(courseId) {
-            // Save to localStorage as requested
             localStorage.setItem('active_session_id', courseId);
-            
-            // Visual feedback before redirect
-            console.log(`Setting active_session_id to: ${courseId}`);
-            
-            // Redirect to curriculum
             window.location.href = '/curriculum';
         }
 
@@ -138,12 +128,10 @@
             const tr = document.createElement('tr');
             tr.className = 'table-row';
 
-            // Format timestamp
             const date = new Date(item.created_at).toLocaleDateString('en-US', {
                 month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
             });
 
-            // Status configuration
             const states = {
                 approved: { 
                     color: 'text-green-400', 
