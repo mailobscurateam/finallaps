@@ -111,7 +111,8 @@
         async function init() {
             const { data: { session } } = await sb.auth.getSession();
             if (!session) {
-                window.location.href = 'index.html';
+                // Ensure index.html exists in the same directory
+                window.location.href = './index.html';
                 return;
             }
 
@@ -178,7 +179,11 @@
 
                     const card = document.createElement('div');
                     card.className = 'glass-card p-8 rounded-[2.5rem] flex items-center space-x-8 group hover:border-pink-500/30 transition-all cursor-pointer';
-                    card.onclick = () => window.location.href = `curriculum.html?course=${course.id}`;
+                    
+                    // Fixed href with relative path to avoid invalid URL error
+                    card.onclick = () => {
+                        window.location.href = `./curriculum.html?course=${course.id}`;
+                    };
                     
                     card.innerHTML = `
                         <div class="relative flex-shrink-0 w-24 h-24">
@@ -229,7 +234,7 @@
 
         document.getElementById('btn-signout').onclick = async () => {
             await sb.auth.signOut();
-            window.location.href = 'index.html';
+            window.location.href = './index.html';
         };
 
         window.onload = init;
