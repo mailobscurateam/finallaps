@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,106 +9,92 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Outfit', sans-serif; background-color: #09090b; color: #f4f4f5; min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; }
+        :root { --math-primary: #ec4899; --math-dark: #09090b; }
+        body { font-family: 'Outfit', sans-serif; background-color: var(--math-dark); color: #f4f4f5; min-height: 100vh; overflow-x: hidden; }
         .mono { font-family: 'JetBrains Mono', monospace; }
-        .glass-card { background: rgba(24, 24, 27, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
-        .glow { position: fixed; width: 400px; height: 400px; border-radius: 50%; background: radial-gradient(circle, rgba(236, 72, 153, 0.08) 0%, transparent 70%); z-index: -1; pointer-events: none; }
-        @keyframes pulse-ring { 0% { transform: scale(0.8); opacity: 0.5; } 100% { transform: scale(1.5); opacity: 0; } }
-        .status-dot { position: relative; }
-        .status-dot::before { content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid currentColor; animation: pulse-ring 2s infinite; }
+        .glass-card { background: rgba(24, 24, 27, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); transition: all 0.3s ease; }
+        .glow { position: fixed; width: 600px; height: 600px; border-radius: 50%; background: radial-gradient(circle, rgba(236, 72, 153, 0.05) 0%, transparent 70%); z-index: -1; pointer-events: none; }
         
-        /* Auto-redirect Overlay */
-        #redirect-overlay {
-            position: fixed; inset: 0; background: rgba(9, 9, 11, 0.9);
-            z-index: 100; display: none; flex-direction: column;
-            align-items: center; justify-content: center; backdrop-filter: blur(20px);
-        }
+        @keyframes pulse-soft { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .animate-pulse-slow { animation: pulse-soft 3s infinite; }
+
+        .status-pill { padding: 4px 12px; border-radius: 99px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid transparent; }
+        .status-approved { background: rgba(34, 197, 94, 0.1); color: #22c55e; border-color: rgba(34, 197, 94, 0.2); }
+        .status-pending { background: rgba(234, 179, 8, 0.1); color: #eab308; border-color: rgba(234, 179, 8, 0.2); }
+        .status-rejected { background: rgba(239, 68, 68, 0.1); color: #ef4444; border-color: rgba(239, 68, 68, 0.2); }
+
+        .course-item { border-bottom: 1px solid rgba(255, 255, 255, 0.03); }
+        .course-item:last-child { border-bottom: none; }
     </style>
 </head>
-<body class="p-6 md:p-12">
-    <!-- Redirect UI -->
-    <div id="redirect-overlay">
-        <div class="w-16 h-16 border-4 border-pink-500 border-t-transparent rounded-full animate-spin mb-6"></div>
-        <h2 class="text-2xl font-black tracking-tighter">ACCESS GRANTED</h2>
-        <p class="mono text-[10px] text-pink-500 uppercase tracking-[0.3em] mt-2">Redirecting to Curriculum...</p>
-    </div>
-
+<body class="p-6 md:p-12 flex flex-col items-center">
     <div class="glow top-[-10%] left-[-10%]"></div>
-    <div class="glow bottom-[-10%] right-[-10%]" style="background: radial-gradient(circle, rgba(168, 85, 247, 0.08) 0%, transparent 70%);"></div>
+    <div class="glow bottom-[-10%] right-[-10%]" style="background: radial-gradient(circle, rgba(168, 85, 247, 0.05) 0%, transparent 70%);"></div>
 
-    <nav class="max-w-4xl mx-auto w-full flex justify-between items-center mb-16">
-        <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-lg bg-pink-500/20 flex items-center justify-center text-pink-500"><i data-lucide="shield-check" class="w-4 h-4"></i></div>
-            <span class="mono text-[10px] text-pink-500 uppercase font-black tracking-[0.3em]">Verification Protocol</span>
-        </div>
-        <a href="courses.html" class="text-xs text-gray-500 hover:text-white transition mono flex items-center gap-2">
-            <i data-lucide="arrow-left" class="w-3 h-3"></i> Change Course
+    <nav class="max-w-4xl mx-auto w-full flex justify-between items-center mb-16 relative z-10">
+        <a href="index.html" class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-pink-500 flex items-center justify-center text-white font-black">Σ</div>
+            <span class="mono text-[10px] text-pink-500 uppercase font-black tracking-[0.3em]">Verification Hub</span>
         </a>
+        <div class="flex items-center gap-6">
+            <a href="courses.html" class="text-[10px] text-gray-500 hover:text-white transition mono uppercase font-bold tracking-widest flex items-center gap-2">
+                <i data-lucide="layout-grid" class="w-3 h-3"></i> Catalog
+            </a>
+            <a href="dashboard.html" class="text-[10px] text-pink-500 hover:text-white transition mono uppercase font-bold tracking-widest flex items-center gap-2">
+                <i data-lucide="user" class="w-3 h-3"></i> My Learning
+            </a>
+        </div>
     </nav>
 
-    <main class="max-w-2xl mx-auto w-full flex-1 flex flex-col justify-center">
-        <div class="text-center mb-10">
-            <h1 class="text-4xl md:text-5xl font-black mb-4 tracking-tighter text-white">Application Status</h1>
-            <p id="user-email" class="mono text-[10px] text-gray-500 uppercase tracking-widest">Identifying Session...</p>
-        </div>
+    <main class="max-w-3xl mx-auto w-full relative z-10">
+        <header class="mb-10">
+            <h1 class="text-4xl md:text-5xl font-black mb-4 tracking-tighter text-white">Application <span class="text-pink-500">History</span></h1>
+            <p id="user-display" class="mono text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                <i data-lucide="fingerprint" class="w-3 h-3"></i> Authenticating...
+            </p>
+        </header>
 
-        <div id="status-card" class="glass-card rounded-3xl p-8 md:p-12 relative overflow-hidden">
-            <div id="loading-state" class="py-12 flex flex-col items-center justify-center space-y-4">
-                <div class="w-10 h-10 border-2 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
-                <p class="mono text-[10px] text-pink-500 tracking-[0.2em] uppercase">Syncing with Mainframe</p>
-            </div>
-
-            <div id="content-state" class="hidden space-y-10">
-                <div class="flex items-center justify-between p-4 bg-white/5 rounded-2xl">
-                    <div class="flex items-center gap-4">
-                        <div id="status-icon-container" class="w-12 h-12 rounded-full flex items-center justify-center"></div>
-                        <div>
-                            <p class="mono text-[9px] text-gray-500 uppercase font-bold tracking-widest">Enrollment Phase</p>
-                            <h2 id="status-text" class="text-xl font-bold text-white uppercase tracking-tight">Processing</h2>
-                        </div>
-                    </div>
-                    <div id="status-badge" class="px-3 py-1 rounded-full mono text-[9px] font-bold uppercase tracking-widest">--</div>
-                </div>
-
-                <div class="space-y-6">
-                    <div class="flex gap-4 group">
-                        <div class="flex flex-col items-center">
-                            <div class="w-6 h-6 rounded-full border-2 border-pink-500 flex items-center justify-center text-pink-500 bg-pink-500/10"><i data-lucide="check" class="w-3 h-3"></i></div>
-                            <div class="w-0.5 h-10 bg-pink-500/20"></div>
-                        </div>
-                        <div>
-                            <h3 class="text-white font-bold text-sm">Request Logged</h3>
-                            <p class="text-gray-500 text-xs mt-1">Course ID: <span id="display-course-id" class="text-pink-400 font-bold">---</span></p>
-                        </div>
-                    </div>
-
-                    <div class="flex gap-4">
-                        <div class="flex flex-col items-center">
-                            <div id="step-2-icon" class="w-6 h-6 rounded-full border-2 border-zinc-700 flex items-center justify-center text-zinc-700"></div>
-                            <div class="w-0.5 h-10 bg-zinc-800"></div>
-                        </div>
-                        <div>
-                            <h3 id="step-2-title" class="text-zinc-500 font-bold text-sm">Security Clearance</h3>
-                            <p id="step-2-desc" class="text-zinc-600 text-xs mt-1">Administrator review for enrollment authentication.</p>
-                        </div>
-                    </div>
-
-                    <div class="flex gap-4">
-                        <div class="flex flex-col items-center">
-                            <div id="step-3-icon" class="w-6 h-6 rounded-full border-2 border-zinc-700 flex items-center justify-center text-zinc-700"><i data-lucide="video" class="w-3 h-3"></i></div>
-                        </div>
-                        <div>
-                            <h3 id="step-3-title" class="text-zinc-500 font-bold text-sm">Content Unlocked</h3>
-                            <p id="step-3-desc" class="text-zinc-600 text-xs mt-1">Direct access to premium video lessons.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="action-container" class="pt-6 border-t border-white/5 text-center">
-                    <p class="text-[10px] text-gray-500 mono uppercase tracking-widest animate-pulse">Waiting for Clearance...</p>
+        <div class="glass-card rounded-[2.5rem] overflow-hidden">
+            <div class="p-8 border-b border-white/5 bg-white/5 flex justify-between items-center">
+                <h2 class="mono text-[11px] uppercase font-bold text-gray-400 tracking-[0.2em]">Module Requests</h2>
+                <div class="flex gap-2">
+                    <div class="w-2 h-2 rounded-full bg-pink-500 animate-pulse"></div>
+                    <div class="w-2 h-2 rounded-full bg-purple-500 animate-pulse" style="animation-delay: 0.5s"></div>
                 </div>
             </div>
+
+            <div id="status-list" class="divide-y divide-white/5">
+                <!-- Loading State -->
+                <div id="loading-spinner" class="p-20 flex flex-col items-center justify-center gap-4">
+                    <div class="w-10 h-10 border-2 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
+                    <p class="mono text-[9px] text-pink-500 uppercase tracking-[0.3em]">Syncing Status</p>
+                </div>
+                <!-- Rows injected here -->
+            </div>
+
+            <div id="empty-state" class="hidden p-20 text-center">
+                <div class="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6 text-gray-600">
+                    <i data-lucide="clipboard-list" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-xl font-bold mb-2">No Applications Found</h3>
+                <p class="text-gray-500 text-sm mb-8">You haven't requested access to any modules yet.</p>
+                <a href="courses.html" class="inline-flex items-center gap-2 px-6 py-3 bg-white text-black rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-pink-500 hover:text-white transition-all">
+                    Explore Modules <i data-lucide="arrow-right" class="w-3 h-3"></i>
+                </a>
+            </div>
         </div>
+
+        <footer class="mt-12 p-8 glass-card rounded-3xl border-dashed border-pink-500/20">
+            <div class="flex gap-6 items-start">
+                <div class="p-3 bg-pink-500/10 rounded-2xl text-pink-500">
+                    <i data-lucide="info" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h4 class="font-bold text-sm text-white mb-1">Approval Protocol</h4>
+                    <p class="text-xs text-gray-500 leading-relaxed">Verification requests are typically processed within 12-24 hours. Once approved, modules will automatically appear in your main learning dashboard.</p>
+                </div>
+            </div>
+        </footer>
     </main>
 
     <script>
@@ -120,117 +106,104 @@
             const { data: { session } } = await sb.auth.getSession();
             if (!session) return window.location.href = 'login.html';
             
-            document.getElementById('user-email').textContent = session.user.email;
+            document.getElementById('user-display').innerHTML = `<i data-lucide="user" class="w-3 h-3"></i> ${session.user.email}`;
             
-            // Retrieve the ID of the course they just enrolled in
-            const courseId = sessionStorage.getItem('pending_course_id');
-            
-            if (!courseId) {
-                // If no specific course ID is found, they might have come here manually
-                // We'll show their general status or redirect back
-                document.getElementById('display-course-id').textContent = "None Selected";
-            } else {
-                document.getElementById('display-course-id').textContent = courseId;
-            }
+            loadStatusList(session.user.id);
 
-            // Initial status check
-            fetchStatus(session.user.id, courseId);
-
-            // Subscribe to real-time updates for THIS user's enrollment record
-            sb.channel('realtime-approval')
+            // Real-time subscription for updates
+            sb.channel('status-updates')
                 .on('postgres_changes', { 
-                    event: 'UPDATE', 
+                    event: '*', 
                     schema: 'public', 
-                    table: 'course_status', 
-                    filter: `user_id=eq.${session.user.id}` 
-                }, payload => {
-                    // Check if the specific course they are waiting for was updated
-                    if (payload.new.course_id === courseId) {
-                        updateUI(payload.new.status);
-                    }
-                })
+                    table: 'course_status',
+                    filter: `user_id=eq.${session.user.id}`
+                }, () => loadStatusList(session.user.id))
                 .subscribe();
         }
 
-        async function fetchStatus(userId, courseId) {
-            if (!courseId) {
-                document.getElementById('loading-state').classList.add('hidden');
-                document.getElementById('content-state').classList.remove('hidden');
-                return;
-            }
+        async function loadStatusList(userId) {
+            try {
+                const { data, error } = await sb
+                    .from('course_status')
+                    .select(`
+                        id,
+                        status,
+                        created_at,
+                        courses (
+                            id,
+                            name,
+                            instructor
+                        )
+                    `)
+                    .eq('user_id', userId)
+                    .order('created_at', { ascending: false });
 
-            const { data, error } = await sb
-                .from('course_status')
-                .select('*')
-                .eq('user_id', userId)
-                .eq('course_id', courseId)
-                .single();
+                if (error) throw error;
 
-            if (data) {
-                updateUI(data.status);
-            } else {
-                // No record found? Might need to enroll first
-                document.getElementById('loading-state').classList.add('hidden');
-                document.getElementById('content-state').classList.remove('hidden');
+                const container = document.getElementById('status-list');
+                const empty = document.getElementById('empty-state');
+                const loading = document.getElementById('loading-spinner');
+
+                loading.classList.add('hidden');
+
+                if (!data || data.length === 0) {
+                    container.classList.add('hidden');
+                    empty.classList.remove('hidden');
+                    return;
+                }
+
+                container.classList.remove('hidden');
+                empty.classList.add('hidden');
+
+                container.innerHTML = data.map(item => {
+                    const statusClass = `status-${item.status}`;
+                    const date = new Date(item.created_at).toLocaleDateString('en-US', {
+                        month: 'short', day: 'numeric', year: 'numeric'
+                    });
+
+                    return `
+                        <div class="p-6 md:p-8 flex items-center justify-between group hover:bg-white/[0.02] transition-colors">
+                            <div class="flex items-center gap-6">
+                                <div class="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 group-hover:text-pink-500 group-hover:border-pink-500/30 transition-all">
+                                    <i data-lucide="book-open" class="w-6 h-6"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-white font-bold text-lg tracking-tight group-hover:text-pink-500 transition-colors">${item.courses?.name || 'Unknown Module'}</h3>
+                                    <div class="flex items-center gap-3 mt-1">
+                                        <span class="mono text-[9px] text-gray-500 uppercase tracking-widest">${item.courses?.instructor || 'Nexus Faculty'}</span>
+                                        <span class="w-1 h-1 rounded-full bg-zinc-800"></span>
+                                        <span class="mono text-[9px] text-gray-500 uppercase tracking-widest">${date}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-col items-end gap-3">
+                                <span class="status-pill ${statusClass}">${item.status}</span>
+                                ${item.status === 'approved' ? `
+                                    <button onclick="enterCurriculum('${item.courses.id}')" class="text-[9px] mono font-bold text-pink-500 uppercase tracking-tighter hover:text-white transition flex items-center gap-1">
+                                        Enter <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                                    </button>
+                                ` : `
+                                    <span class="text-[9px] mono font-bold text-zinc-600 uppercase tracking-tighter">
+                                        ${item.status === 'pending' ? 'Verifying...' : 'Access Denied'}
+                                    </span>
+                                `}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                lucide.createIcons();
+
+            } catch (err) {
+                console.error("Fetch error:", err);
             }
         }
 
-        function updateUI(status) {
-            const loading = document.getElementById('loading-state');
-            const content = document.getElementById('content-state');
-            const statusText = document.getElementById('status-text');
-            const statusBadge = document.getElementById('status-badge');
-            const iconContainer = document.getElementById('status-icon-container');
-            const overlay = document.getElementById('redirect-overlay');
-
-            loading.classList.add('hidden');
-            content.classList.remove('hidden');
-
-            if (status === 'approved') {
-                // Show Approved UI
-                statusText.textContent = "Access Granted";
-                statusBadge.textContent = "Active";
-                statusBadge.className = "px-3 py-1 rounded-full mono text-[9px] font-bold uppercase tracking-widest bg-pink-500/10 text-pink-500 border border-pink-500/20";
-                iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center bg-pink-500/10 text-pink-500 status-dot";
-                iconContainer.innerHTML = '<i data-lucide="check-circle" class="w-6 h-6"></i>';
-
-                ['step-2', 'step-3'].forEach(id => {
-                    document.getElementById(`${id}-icon`).className = "w-6 h-6 rounded-full border-2 border-pink-500 flex items-center justify-center text-pink-500 bg-pink-500/10";
-                    document.getElementById(`${id}-icon`).innerHTML = '<i data-lucide="check" class="w-3 h-3"></i>';
-                    document.getElementById(`${id}-title`).className = "text-white font-bold text-sm";
-                    document.getElementById(`${id}-desc`).className = "text-gray-500 text-xs mt-1";
-                });
-
-                // --- AUTOMATIC REDIRECT LOGIC ---
-                overlay.style.display = 'flex';
-                setTimeout(() => {
-                    window.location.href = '/curriculum';
-                }, 2000); 
-                // 2 second delay to let the user feel the "Success"
-            } 
-            else if (status === 'rejected') {
-                statusText.textContent = "Access Denied";
-                statusBadge.textContent = "Rejected";
-                statusBadge.className = "px-3 py-1 rounded-full mono text-[9px] font-bold uppercase tracking-widest bg-red-500/10 text-red-500 border border-red-500/20";
-                iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center bg-red-500/10 text-red-500";
-                iconContainer.innerHTML = '<i data-lucide="x-circle" class="w-6 h-6"></i>';
-                document.getElementById('action-container').innerHTML = `<p class="text-[10px] text-red-400 mono uppercase tracking-widest">Enrollment unsuccessful. Please contact administration.</p>`;
-            }
-            else {
-                // Pending State
-                statusText.textContent = "Under Review";
-                statusBadge.textContent = "Pending";
-                statusBadge.className = "px-3 py-1 rounded-full mono text-[9px] font-bold uppercase tracking-widest bg-yellow-500/10 text-yellow-500 border border-yellow-500/20";
-                iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center bg-zinc-800 text-zinc-500";
-                iconContainer.innerHTML = '<i data-lucide="clock" class="w-6 h-6 animate-pulse"></i>';
-                
-                document.getElementById('step-2-icon').className = "w-6 h-6 rounded-full border-2 border-yellow-500 flex items-center justify-center text-yellow-500 bg-yellow-500/10";
-                document.getElementById('step-2-icon').innerHTML = '<i data-lucide="loader" class="w-3 h-3 animate-spin"></i>';
-                document.getElementById('step-2-title').className = "text-white font-bold text-sm";
-            }
-            
-            lucide.createIcons();
-        }
+        window.enterCurriculum = (courseId) => {
+            sessionStorage.setItem('active_course_id', courseId);
+            window.location.href = 'curriculum.html';
+        };
 
         window.onload = init;
     </script>
