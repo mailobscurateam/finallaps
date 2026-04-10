@@ -93,12 +93,13 @@
                     .maybeSingle();
 
                 if (existing && existing.status === 'approved') {
+                    // Cache the course ID even for already approved users before redirect
+                    sessionStorage.setItem('active_course_id', courseId);
                     window.location.href = '/curriculum';
                     return;
                 }
 
                 // Insert/Update status to pending
-                // Note: Ensure your course_status table has a unique index on (user_id, course_id)
                 const { error } = await sb
                     .from('course_status')
                     .upsert({ 
