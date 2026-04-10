@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 - Driver Access</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Supabase JS Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Orbitron', sans-serif;
+            background-color: #000;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Dynamic Gradient Background */
+        .gradient-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, #0b0b0b, #1a1a1a, #e10600, #000000);
+            background-size: 400% 400%;
+            animation: f1Gradient 15s ease infinite;
+            z-index: -1;
+        }
+
+        @keyframes f1Gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Card Container with Skew */
+        .access-card {
+            background: rgba(0, 0, 0, 0.85);
+            padding: 2.5rem;
+            border-left: 5px solid #e10600;
+            backdrop-filter: blur(10px);
+            width: 95%;
+            max-width: 450px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            position: relative;
+            transform: skewX(-2deg);
+            border-radius: 4px;
+        }
+
+        .unskew {
+            transform: skewX(2deg);
+        }
+
+        /* Tab Styling */
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.4);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding-bottom: 0.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab-btn.active {
+            color: #e10600;
+            border-bottom: 2px solid #e10600;
+        }
+
+        /* Input Styling */
+        .f1-input {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 0.8rem 1rem;
+            width: 100%;
+            margin-bottom: 1.25rem;
+            transition: all 0.3s ease;
+            outline: none;
+            font-family: sans-serif;
+        }
+
+        .f1-input:focus {
+            border-color: #e10600;
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 10px rgba(225, 6, 0, 0.3);
+        }
+
+        /* F1 Button Style */
+        .f1-btn {
+            background-color: #e10600;
+            color: white;
+            padding: 1rem;
+            width: 100%;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border: none;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            clip-path: polygon(5% 0, 100% 0, 95% 100%, 0% 100%);
+            margin-top: 0.5rem;
+        }
+
+        .f1-btn:hover:not(:disabled) {
+            background-color: #ff0800;
+            transform: scale(1.02);
+            box-shadow: 0 0 20px rgba(225, 6, 0, 0.6);
+        }
+
+        .f1-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .label-text {
+            display: block;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 0.4rem;
+            letter-spacing: 1px;
+        }
+
+        .form-section {
+            display: none;
+            animation: fadeIn 0.4s ease forwards;
+        }
+
+        .form-section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 1.5rem;
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: color 0.3s;
+        }
+
+        .back-link:hover {
+            color: #fff;
+        }
+
+        #status-msg {
+            margin-top: 1rem;
+            font-size: 0.8rem;
+            text-align: center;
+            min-height: 1.2rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="gradient-bg"></div>
+
+    <div class="access-card">
+        <div class="unskew">
+            <h2 class="text-2xl font-black text-white italic mb-6">PIT STOP</h2>
+            
+            <!-- Tabs -->
+            <div class="flex space-x-6 mb-8 border-b border-white/10">
+                <button class="tab-btn active" onclick="switchTab('login')">Login</button>
+                <button class="tab-btn" onclick="switchTab('register')">Register</button>
+            </div>
+
+            <!-- Status Message -->
+            <div id="status-msg"></div>
+
+            <!-- Login Form -->
+            <div id="login-form" class="form-section active">
+                <form id="auth-login">
+                    <div>
+                        <span class="label-text">Email Address</span>
+                        <input type="email" id="login-email" class="f1-input" placeholder="driver@team.com" required>
+                    </div>
+
+                    <div>
+                        <span class="label-text">Security Code</span>
+                        <input type="password" id="login-password" class="f1-input" placeholder="••••••••" required>
+                    </div>
+
+                    <button type="submit" class="f1-btn" id="login-btn">
+                        Login to Cockpit
+                    </button>
+                </form>
+            </div>
+
+            <!-- Registration Form -->
+            <div id="register-form" class="form-section">
+                <form id="auth-register">
+                    <div>
+                        <span class="label-text">Full Name</span>
+                        <input type="text" id="reg-name" class="f1-input" placeholder="Your Name" required>
+                    </div>
+
+                    <div>
+                        <span class="label-text">Email Address</span>
+                        <input type="email" id="reg-email" class="f1-input" placeholder="driver@team.com" required>
+                    </div>
+
+                    <div>
+                        <span class="label-text">Create Password</span>
+                        <input type="password" id="reg-password" class="f1-input" placeholder="••••••••" required>
+                    </div>
+
+                    <button type="submit" class="f1-btn" id="register-btn">
+                        Join the Grid
+                    </button>
+                </form>
+            </div>
+
+            <div class="text-center">
+                <a href="index.html" class="back-link">
+                    ← Return to Track
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://ogfmimplmjzhqzeeexae.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9nZm1pbXBsbWp6aHF6ZWVleGFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNTgzNzcsImV4cCI6MjA4NjYzNDM3N30.l8j1VC7-Zt88UGRkclBd-dNyLZsHg2DuY_9FRRW311o';
+        
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const statusMsg = document.getElementById('status-msg');
+
+        function showStatus(msg, isError = false) {
+            statusMsg.innerText = msg;
+            statusMsg.style.color = isError ? '#e10600' : '#4ade80';
+        }
+
+        function switchTab(tab) {
+            statusMsg.innerText = '';
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.form-section').forEach(section => section.classList.remove('active'));
+
+            if (tab === 'login') {
+                document.querySelectorAll('.tab-btn')[0].classList.add('active');
+                document.getElementById('login-form').classList.add('active');
+            } else {
+                document.querySelectorAll('.tab-btn')[1].classList.add('active');
+                document.getElementById('register-form').classList.add('active');
+            }
+        }
+
+        // Handle Registration
+        document.getElementById('auth-register').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('reg-email').value;
+            const password = document.getElementById('reg-password').value;
+            const name = document.getElementById('reg-name').value;
+            const btn = document.getElementById('register-btn');
+
+            btn.disabled = true;
+            btn.innerText = 'PROCESSING...';
+
+            const { data, error } = await supabaseClient.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: {
+                        full_name: name
+                    }
+                }
+            });
+
+            if (error) {
+                showStatus(error.message, true);
+            } else {
+                showStatus('Success! Redirecting to Dashboard...');
+                setTimeout(() => {
+                    window.location.href = 'dashboard.html'; 
+                }, 1500);
+            }
+            btn.disabled = false;
+            btn.innerText = 'JOIN THE GRID';
+        });
+
+        // Handle Login
+        document.getElementById('auth-login').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            const btn = document.getElementById('login-btn');
+
+            btn.disabled = true;
+            btn.innerText = 'AUTHENTICATING...';
+
+            const { data, error } = await supabaseClient.auth.signInWithPassword({
+                email,
+                password,
+            });
+
+            if (error) {
+                showStatus(error.message, true);
+            } else {
+                showStatus('Access Granted! Redirecting...');
+                setTimeout(() => {
+                    window.location.href = 'dashboard.html'; 
+                }, 1500);
+            }
+            btn.disabled = false;
+            btn.innerText = 'LOGIN TO COCKPIT';
+        });
+    </script>
+
+</body>
+</html>
