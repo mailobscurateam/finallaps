@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulation Room | Nexus Prime</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Outfit', sans-serif; background-color: #09090b; color: #f4f4f5; opacity: 0; transition: opacity 0.5s ease-in-out; }
+        body.auth-ready { opacity: 1; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .glass-card { background: rgba(24, 24, 27, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: #000;
+            border-radius: 1.5rem;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .interaction-shield { position: absolute; inset: 0; z-index: 10; background: transparent; cursor: pointer; }
+
+        #moving-watermark {
+            position: absolute;
+            z-index: 20;
+            pointer-events: none;
+            font-size: 10px;
+            font-weight: 700;
+            white-space: nowrap;
+            text-transform: lowercase;
+            mix-blend-mode: difference;
+            color: rgba(255, 255, 255, 0.4);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .custom-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+            z-index: 30;
+            padding: 20px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .video-wrapper:hover .custom-controls { opacity: 1; }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            margin-bottom: 12px;
+            cursor: pointer;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .progress-fill { height: 100%; background: #ec4899; width: 0%; transition: width 0.1s linear; }
+
+        .limit-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(9, 9, 11, 0.98);
+            z-index: 100;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            backdrop-filter: blur(20px);
+        }
+
+        input[type="range"] { accent-color: #ec4899; }
+        
+        select {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #f4f4f5;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 10px;
+            outline: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <nav class="p-4 md:p-6 flex justify-between items-center border-b border-white/5 bg-black/20 sticky top-0 z-50 backdrop-blur-md">
+        <div id="nav-back" class="flex items-center space-x-2 text-gray-400 hover:text-white transition group cursor-pointer">
+            <i data-lucide="arrow-left" class="w-4 h-4 group-hover:-translate-x-1 transition-transform"></i>
+            <span class="mono text-[10px] uppercase font-bold tracking-widest">Exit Simulation</span>
+        </div>
+        
+        <div class="flex items-center space-x-6">
+            <div id="limit-telemetry" class="hidden flex flex-col items-end">
+                <span class="mono text-[8px] text-gray-500 uppercase tracking-widest">Airtime Remaining</span>
+                <span id="time-remaining" class="mono text-sm font-bold text-pink-500">--:--:--</span>
+            </div>
+            <button id="btn-signout" class="mono text-[10px] text-gray-500 hover:text-pink-500 uppercase font-bold tracking-widest transition-colors">Terminate</button>
+        </div>
+    </nav>
+
+    <main class="max-w-[1600px] mx-auto p-6 md:p-10 lg:grid lg:grid-cols-4 lg:gap-10">
+        
+        <!-- Center Content: Video -->
+        <div class="lg:col-span-3 space-y-8">
+            <div>
+                <div class="flex items-center space-x-3 mb-3">
+                    <span id="lesson-type-badge" class="px-3 py-0.5 rounded-full bg-pink-500/10 border border-pink-500/20 text-pink-500 mono text-[9px] uppercase font-bold tracking-widest">Simulation</span>
+                    <span id="lesson-id-label" class="mono text-[9px] text-gray-500 uppercase tracking-widest">SID: 0000</span>
+                </div>
+                <h1 id="lesson-title" class="text-3xl md:text-5xl font-black tracking-tighter italic uppercase">Initializing...</h1>
+            </div>
+
+            <div class="video-wrapper glass-card" id="master-wrapper">
+                <!-- Limit Error -->
+                <div id="limit-error" class="limit-overlay">
+                    <div class="w-20 h-20 bg-pink-500/10 rounded-full flex items-center justify-center mb-6">
+                        <i data-lucide="lock" class="text-pink-500 w-10 h-10"></i>
+                    </div>
+                    <h2 class="text-2xl font-black italic uppercase tracking-tighter mb-2">Access Terminated</h2>
+                    <p id="limit-error-msg" class="mono text-xs text-gray-500 uppercase tracking-widest mb-8">Session Duration Exceeded</p>
+                    <button onclick="window.history.back()" class="px-8 py-3 bg-white text-black mono text-[10px] font-black uppercase tracking-widest rounded-full hover:bg-pink-500 hover:text-white transition-all">Return to Deck</button>
+                </div>
+
+                <div id="moving-watermark">nexus-prime-secure-stream</div>
+                <div class="interaction-shield" id="interaction-shield"></div>
+                <div id="yt-player" class="w-full h-full"></div>
+                
+                <!-- Controls -->
+                <div id="custom-controls-ui" class="custom-controls">
+                    <div class="progress-bar-container" id="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-6">
+                            <button class="text-white hover:text-pink-500 transition" id="btn-play">
+                                <i data-lucide="play" id="play-icon" class="w-6 h-6 fill-current"></i>
+                            </button>
+                            <div class="flex items-center space-x-3">
+                                <i data-lucide="volume-2" class="w-4 h-4 text-gray-500"></i>
+                                <input type="range" id="volume-slider" class="w-20 h-1 rounded-lg" min="0" max="100" value="100">
+                            </div>
+                            <span class="mono text-[10px] font-bold tracking-tighter text-gray-400" id="time-display">00:00 / 00:00</span>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <select id="speed-selector" class="mono">
+                                <option value="0.5">0.5x</option>
+                                <option value="1" selected>1.0x</option>
+                                <option value="1.5">1.5x</option>
+                                <option value="2">2.0x</option>
+                            </select>
+                            <button class="text-gray-400 hover:text-white" id="btn-fullscreen">
+                                <i data-lucide="maximize" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resource Section -->
+            <div id="resource-area" class="hidden">
+                <a id="resource-link" href="#" target="_blank" class="glass-card p-6 rounded-2xl flex items-center justify-between group hover:border-pink-500/50 transition-all">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 bg-pink-500/10 rounded-xl flex items-center justify-center text-pink-500">
+                            <i data-lucide="file-text" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-lg">Resource Materials</h4>
+                            <p class="text-xs text-gray-500 mono uppercase tracking-widest">Download documentation for this session</p>
+                        </div>
+                    </div>
+                    <i data-lucide="external-link" class="w-5 h-5 text-gray-700 group-hover:text-pink-500 transition-colors"></i>
+                </a>
+            </div>
+
+            <!-- Description -->
+            <div class="border-t border-white/5 pt-8">
+                <h3 class="mono text-[10px] font-black text-pink-500 uppercase tracking-[0.3em] mb-4">Briefing Notes</h3>
+                <p id="lesson-description" class="text-gray-400 leading-relaxed max-w-4xl text-lg">
+                    Connecting to encrypted briefing data...
+                </p>
+            </div>
+        </div>
+
+        <!-- Right Sidebar: Telemetry -->
+        <aside class="space-y-6">
+            <div class="glass-card p-8 rounded-[2rem] space-y-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="mono text-[11px] uppercase text-gray-500 font-bold tracking-widest">Telemetry</h2>
+                    <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="mono text-[9px] text-gray-600 uppercase tracking-widest block mb-1">Active User</label>
+                        <div id="user-name" class="font-bold text-white uppercase truncate">Verifying...</div>
+                    </div>
+                    <div>
+                        <label class="mono text-[9px] text-gray-600 uppercase tracking-widest block mb-1">Session ID</label>
+                        <div id="user-id" class="mono text-[10px] text-pink-500 truncate">---</div>
+                    </div>
+                    <div>
+                        <label class="mono text-[9px] text-gray-600 uppercase tracking-widest block mb-1">Module Path</label>
+                        <div id="section-val" class="font-bold text-gray-300">---</div>
+                    </div>
+                    <div>
+                        <label class="mono text-[9px] text-gray-600 uppercase tracking-widest block mb-1">Signal Status</label>
+                        <div id="session-status" class="mono text-[10px] text-green-500 font-bold">STABLE</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <script>
+        const SUPABASE_URL = 'https://tsaoxjzvhxiggntibpui.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzYW94anp2aHhpZ2dudGlicHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDQ2OTAsImV4cCI6MjA5MTQyMDY5MH0.Q5Iu51O3NK4k2kcc_GoegnyAYIFIs2SUkQOV10qp2jI';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Constants from your logic
+        const GOOGLE_SHEET_ID = '1HLQxJv32eo-EloTtdZhw5ZhEWIXuhMOI7OAKsqG-dfI';
+        const GOOGLE_API_KEY = 'AIzaSyD3sts8y_s8M8L2Y66Gz0ICY_9SY-VmoEo';
+        const LESSONS_SHEET = 'lessons';
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const courseId = urlParams.get('course') || sessionStorage.getItem('selected_course_id');
+        const lessonId = urlParams.get('lesson');
+
+        let player, currentUser = null;
+        let allowedSeconds = 0, watchedSeconds = 0;
+        let sessionTimer = null, dbSyncTimer = null;
+        let watermarkData = { x: 50, y: 50, dx: 1, dy: 1 };
+
+        async function checkAuth() {
+            const { data: { session } } = await sb.auth.getSession();
+            if (!session) { window.location.href = 'index.html'; return; }
+
+            currentUser = session.user;
+            document.getElementById('user-name').innerText = currentUser.email.split('@')[0];
+            document.getElementById('user-id').innerText = currentUser.id;
+            document.getElementById('moving-watermark').innerText = currentUser.email;
+            document.body.classList.add('auth-ready');
+            
+            startWatermarkAnimation();
+            fetchLessonData();
+            lucide.createIcons();
+        }
+
+        function startWatermarkAnimation() {
+            const el = document.getElementById('moving-watermark');
+            const wrapper = document.getElementById('master-wrapper');
+            function animate() {
+                const rect = wrapper.getBoundingClientRect();
+                const elRect = el.getBoundingClientRect();
+                watermarkData.x += watermarkData.dx * 0.4;
+                watermarkData.y += watermarkData.dy * 0.4;
+                if (watermarkData.x <= 0 || watermarkData.x + elRect.width >= rect.width) watermarkData.dx *= -1;
+                if (watermarkData.y <= 0 || watermarkData.y + elRect.height >= rect.height) watermarkData.dy *= -1;
+                el.style.left = watermarkData.x + 'px';
+                el.style.top = watermarkData.y + 'px';
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        async function fetchLessonData() {
+            try {
+                const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${LESSONS_SHEET}!A2:L500?key=${GOOGLE_API_KEY}`);
+                const data = await response.json();
+                
+                if (data.values) {
+                    const row = data.values.find(r => r[0] == courseId && r[1] == lessonId);
+                    if (row) {
+                        const hours = parseInt(row[10]) || 0;
+                        const minutes = parseInt(row[11]) || 0;
+                        allowedSeconds = (hours * 3600) + (minutes * 60);
+
+                        const resourceLink = row[6];
+                        if (resourceLink && resourceLink.startsWith('http')) {
+                            document.getElementById('resource-link').href = resourceLink;
+                            document.getElementById('resource-area').classList.remove('hidden');
+                        }
+
+                        document.getElementById('lesson-description').innerText = row[7] || "No additional briefing notes provided.";
+
+                        await syncProgressFromDB();
+                        
+                        if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) {
+                            showLimitError("PROTOCOL LOCK: SESSION TIME DEPLETED");
+                            return;
+                        }
+
+                        initVideo(row);
+                        startSessionClock();
+                    }
+                }
+            } catch (err) { console.error("Data Sync Error", err); }
+        }
+
+        async function syncProgressFromDB() {
+            const { data, error } = await sb
+                .from('watch_sessions')
+                .select('total_seconds_watched')
+                .eq('user_id', currentUser.id)
+                .eq('lesson_id', lessonId)
+                .maybeSingle();
+
+            if (data) {
+                watchedSeconds = data.total_seconds_watched;
+            } else {
+                await sb.from('watch_sessions').insert({
+                    user_id: currentUser.id,
+                    course_id: courseId,
+                    lesson_id: lessonId,
+                    total_seconds_watched: 0
+                });
+            }
+        }
+
+        function startSessionClock() {
+            if (sessionTimer) clearInterval(sessionTimer);
+            sessionTimer = setInterval(() => {
+                watchedSeconds += 1;
+                updateRemainingUI();
+
+                if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) {
+                    if (player && player.pauseVideo) player.pauseVideo();
+                    showLimitError("TIME EXPIRED: SESSION TERMINATED");
+                    syncWithDB();
+                }
+            }, 1000);
+
+            if (dbSyncTimer) clearInterval(dbSyncTimer);
+            dbSyncTimer = setInterval(syncWithDB, 15000);
+        }
+
+        async function syncWithDB() {
+            if (!currentUser) return;
+            await sb
+                .from('watch_sessions')
+                .update({ 
+                    total_seconds_watched: watchedSeconds,
+                    last_watched_at: new Date().toISOString()
+                })
+                .eq('user_id', currentUser.id)
+                .eq('lesson_id', lessonId);
+        }
+
+        function updateRemainingUI() {
+            if (allowedSeconds > 0) {
+                const telemetry = document.getElementById('limit-telemetry');
+                const display = document.getElementById('time-remaining');
+                telemetry.classList.remove('hidden');
+                const remaining = Math.max(0, allowedSeconds - watchedSeconds);
+                const h = Math.floor(remaining / 3600);
+                const m = Math.floor((remaining % 3600) / 60);
+                const s = remaining % 60;
+                display.innerText = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                if (remaining < 60) display.classList.replace('text-pink-500', 'text-red-500');
+            }
+        }
+
+        function showLimitError(msg) {
+            if (sessionTimer) clearInterval(sessionTimer);
+            if (dbSyncTimer) clearInterval(dbSyncTimer);
+            document.getElementById('limit-error').style.display = 'flex';
+            document.getElementById('limit-error-msg').innerText = msg;
+            document.getElementById('session-status').innerText = "TERMINATED";
+            document.getElementById('session-status').className = "mono text-[10px] text-red-500 font-bold";
+        }
+
+        function initVideo(data) {
+            document.getElementById('lesson-title').innerText = data[3];
+            document.getElementById('lesson-id-label').innerText = `SID: ${data[1]}`;
+            document.getElementById('lesson-type-badge').innerText = data[4];
+            document.getElementById('section-val').innerText = data[2];
+
+            const videoUrl = data[5];
+            let vidId = "";
+
+            if (videoUrl && (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be'))) {
+                vidId = videoUrl.includes('v=') ? videoUrl.split('v=')[1].split('&')[0] : videoUrl.split('/').pop();
+                player = new YT.Player('yt-player', {
+                    videoId: vidId,
+                    playerVars: { 'autoplay': 0, 'controls': 0, 'disablekb': 1, 'modestbranding': 1, 'rel': 0, 'showinfo': 0, 'iv_load_policy': 3 },
+                    events: { 'onReady': onPlayerReady, 'onStateChange': onPlayerStateChange }
+                });
+            }
+        }
+
+        function onPlayerReady() { setupCustomControls(); updateRemainingUI(); }
+
+        function onPlayerStateChange(event) {
+            const icon = document.getElementById('play-icon');
+            if (event.data === YT.PlayerState.PLAYING) {
+                if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) { player.pauseVideo(); return; }
+                icon.setAttribute('data-lucide', 'pause');
+            } else {
+                icon.setAttribute('data-lucide', 'play');
+            }
+            lucide.createIcons();
+        }
+
+        function setupCustomControls() {
+            const btnPlay = document.getElementById('btn-play');
+            const shield = document.getElementById('interaction-shield');
+            const progressBar = document.getElementById('progress-bar');
+            const progressFill = document.getElementById('progress-fill');
+            const timeDisplay = document.getElementById('time-display');
+            const wrapper = document.getElementById('master-wrapper');
+
+            const togglePlay = () => {
+                if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) return;
+                const state = player.getPlayerState();
+                if (state === YT.PlayerState.PLAYING) player.pauseVideo();
+                else player.playVideo();
+            };
+
+            btnPlay.onclick = togglePlay;
+            shield.onclick = togglePlay;
+
+            setInterval(() => {
+                if (player && player.getCurrentTime) {
+                    const current = player.getCurrentTime();
+                    const total = player.getDuration();
+                    progressFill.style.width = ((current / total) * 100) + '%';
+                    timeDisplay.innerText = `${formatTime(current)} / ${formatTime(total)}`;
+                }
+            }, 500);
+
+            progressBar.onclick = (e) => {
+                const rect = progressBar.getBoundingClientRect();
+                const pos = (e.clientX - rect.left) / rect.width;
+                player.seekTo(pos * player.getDuration());
+            };
+
+            document.getElementById('speed-selector').onchange = (e) => player.setPlaybackRate(parseFloat(e.target.value));
+            document.getElementById('volume-slider').oninput = (e) => player.setVolume(e.target.value);
+            document.getElementById('btn-fullscreen').onclick = () => { if (!document.fullscreenElement) wrapper.requestFullscreen(); else document.exitFullscreen(); };
+        }
+
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+        document.getElementById('btn-signout').onclick = async () => {
+            await syncWithDB();
+            await sb.auth.signOut();
+            window.location.href = 'index.html';
+        };
+
+        document.getElementById('nav-back').onclick = () => { window.location.href = `curriculum.html`; };
+
+        window.onload = checkAuth;
+    </script>
+</body>
+</html>
