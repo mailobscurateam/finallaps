@@ -16,9 +16,23 @@
         @keyframes pulse-ring { 0% { transform: scale(0.8); opacity: 0.5; } 100% { transform: scale(1.5); opacity: 0; } }
         .status-dot { position: relative; }
         .status-dot::before { content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid currentColor; animation: pulse-ring 2s infinite; }
+        
+        /* Auto-redirect Overlay */
+        #redirect-overlay {
+            position: fixed; inset: 0; background: rgba(9, 9, 11, 0.9);
+            z-index: 100; display: none; flex-direction: column;
+            align-items: center; justify-content: center; backdrop-filter: blur(20px);
+        }
     </style>
 </head>
 <body class="p-6 md:p-12">
+    <!-- Redirect UI -->
+    <div id="redirect-overlay">
+        <div class="w-16 h-16 border-4 border-pink-500 border-t-transparent rounded-full animate-spin mb-6"></div>
+        <h2 class="text-2xl font-black tracking-tighter">ACCESS GRANTED</h2>
+        <p class="mono text-[10px] text-pink-500 uppercase tracking-[0.3em] mt-2">Redirecting to Curriculum...</p>
+    </div>
+
     <div class="glow top-[-10%] left-[-10%]"></div>
     <div class="glow bottom-[-10%] right-[-10%]" style="background: radial-gradient(circle, rgba(168, 85, 247, 0.08) 0%, transparent 70%);"></div>
 
@@ -27,8 +41,8 @@
             <div class="w-8 h-8 rounded-lg bg-pink-500/20 flex items-center justify-center text-pink-500"><i data-lucide="shield-check" class="w-4 h-4"></i></div>
             <span class="mono text-[10px] text-pink-500 uppercase font-black tracking-[0.3em]">Verification Protocol</span>
         </div>
-        <a href="/courses" class="text-xs text-gray-500 hover:text-white transition mono flex items-center gap-2">
-            <i data-lucide="arrow-left" class="w-3 h-3"></i> Return
+        <a href="courses.html" class="text-xs text-gray-500 hover:text-white transition mono flex items-center gap-2">
+            <i data-lucide="arrow-left" class="w-3 h-3"></i> Change Course
         </a>
     </nav>
 
@@ -64,7 +78,7 @@
                         </div>
                         <div>
                             <h3 class="text-white font-bold text-sm">Request Logged</h3>
-                            <p class="text-gray-500 text-xs mt-1">Course ID: <span id="display-course-id" class="text-pink-400">---</span></p>
+                            <p class="text-gray-500 text-xs mt-1">Course ID: <span id="display-course-id" class="text-pink-400 font-bold">---</span></p>
                         </div>
                     </div>
 
@@ -85,12 +99,14 @@
                         </div>
                         <div>
                             <h3 id="step-3-title" class="text-zinc-500 font-bold text-sm">Content Unlocked</h3>
-                            <p id="step-3-desc" class="text-zinc-600 text-xs mt-1">Access to premium math curriculum and tutorials.</p>
+                            <p id="step-3-desc" class="text-zinc-600 text-xs mt-1">Direct access to premium video lessons.</p>
                         </div>
                     </div>
                 </div>
 
-                <div id="action-container" class="pt-6 border-t border-white/5 text-center"></div>
+                <div id="action-container" class="pt-6 border-t border-white/5 text-center">
+                    <p class="text-[10px] text-gray-500 mono uppercase tracking-widest animate-pulse">Waiting for Clearance...</p>
+                </div>
             </div>
         </div>
     </main>
@@ -105,33 +121,73 @@
             if (!session) return window.location.href = 'login.html';
             
             document.getElementById('user-email').textContent = session.user.email;
+            
+            // Retrieve the ID of the course they just enrolled in
             const courseId = sessionStorage.getItem('pending_course_id');
-            document.getElementById('display-course-id').textContent = courseId || 'System Wide';
+            
+            if (!courseId) {
+                // If no specific course ID is found, they might have come here manually
+                // We'll show their general status or redirect back
+                document.getElementById('display-course-id').textContent = "None Selected";
+            } else {
+                document.getElementById('display-course-id').textContent = courseId;
+            }
 
-            // Initial fetch
+            // Initial status check
             fetchStatus(session.user.id, courseId);
 
-            // Subscribe to live changes
-            sb.channel('status-updates')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'course_status', filter: `user_id=eq.${session.user.id}` }, 
-                payload => { fetchStatus(session.user.id, courseId); })
+            // Subscribe to real-time updates for THIS user's enrollment record
+            sb.channel('realtime-approval')
+                .on('postgres_changes', { 
+                    event: 'UPDATE', 
+                    schema: 'public', 
+                    table: 'course_status', 
+                    filter: `user_id=eq.${session.user.id}` 
+                }, payload => {
+                    // Check if the specific course they are waiting for was updated
+                    if (payload.new.course_id === courseId) {
+                        updateUI(payload.new.status);
+                    }
+                })
                 .subscribe();
         }
 
         async function fetchStatus(userId, courseId) {
-            const { data } = await sb.from('course_status').select('*').eq('user_id', userId).eq('course_id', courseId).single();
-            updateUI(data?.status || 'pending');
+            if (!courseId) {
+                document.getElementById('loading-state').classList.add('hidden');
+                document.getElementById('content-state').classList.remove('hidden');
+                return;
+            }
+
+            const { data, error } = await sb
+                .from('course_status')
+                .select('*')
+                .eq('user_id', userId)
+                .eq('course_id', courseId)
+                .single();
+
+            if (data) {
+                updateUI(data.status);
+            } else {
+                // No record found? Might need to enroll first
+                document.getElementById('loading-state').classList.add('hidden');
+                document.getElementById('content-state').classList.remove('hidden');
+            }
         }
 
         function updateUI(status) {
-            document.getElementById('loading-state').classList.add('hidden');
-            document.getElementById('content-state').classList.remove('hidden');
+            const loading = document.getElementById('loading-state');
+            const content = document.getElementById('content-state');
             const statusText = document.getElementById('status-text');
             const statusBadge = document.getElementById('status-badge');
             const iconContainer = document.getElementById('status-icon-container');
-            const actionContainer = document.getElementById('action-container');
+            const overlay = document.getElementById('redirect-overlay');
+
+            loading.classList.add('hidden');
+            content.classList.remove('hidden');
 
             if (status === 'approved') {
+                // Show Approved UI
                 statusText.textContent = "Access Granted";
                 statusBadge.textContent = "Active";
                 statusBadge.className = "px-3 py-1 rounded-full mono text-[9px] font-bold uppercase tracking-widest bg-pink-500/10 text-pink-500 border border-pink-500/20";
@@ -145,20 +201,34 @@
                     document.getElementById(`${id}-desc`).className = "text-gray-500 text-xs mt-1";
                 });
 
-                actionContainer.innerHTML = `<a href="/curriculum" class="inline-block px-8 py-3 bg-pink-600 hover:bg-pink-500 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all">Start Learning Now</a>`;
-            } else {
-                statusText.textContent = status === 'rejected' ? "Access Denied" : "Under Review";
-                statusBadge.textContent = status.toUpperCase();
-                statusBadge.className = `px-3 py-1 rounded-full mono text-[9px] font-bold uppercase tracking-widest ${status === 'rejected' ? 'bg-red-500/10 text-red-500' : 'bg-yellow-500/10 text-yellow-500'}`;
+                // --- AUTOMATIC REDIRECT LOGIC ---
+                overlay.style.display = 'flex';
+                setTimeout(() => {
+                    window.location.href = '/curriculum';
+                }, 2000); 
+                // 2 second delay to let the user feel the "Success"
+            } 
+            else if (status === 'rejected') {
+                statusText.textContent = "Access Denied";
+                statusBadge.textContent = "Rejected";
+                statusBadge.className = "px-3 py-1 rounded-full mono text-[9px] font-bold uppercase tracking-widest bg-red-500/10 text-red-500 border border-red-500/20";
+                iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center bg-red-500/10 text-red-500";
+                iconContainer.innerHTML = '<i data-lucide="x-circle" class="w-6 h-6"></i>';
+                document.getElementById('action-container').innerHTML = `<p class="text-[10px] text-red-400 mono uppercase tracking-widest">Enrollment unsuccessful. Please contact administration.</p>`;
+            }
+            else {
+                // Pending State
+                statusText.textContent = "Under Review";
+                statusBadge.textContent = "Pending";
+                statusBadge.className = "px-3 py-1 rounded-full mono text-[9px] font-bold uppercase tracking-widest bg-yellow-500/10 text-yellow-500 border border-yellow-500/20";
                 iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center bg-zinc-800 text-zinc-500";
-                iconContainer.innerHTML = `<i data-lucide="${status === 'rejected' ? 'x-circle' : 'clock'}" class="w-6 h-6 ${status !== 'rejected' ? 'animate-pulse' : ''}"></i>`;
+                iconContainer.innerHTML = '<i data-lucide="clock" class="w-6 h-6 animate-pulse"></i>';
                 
                 document.getElementById('step-2-icon').className = "w-6 h-6 rounded-full border-2 border-yellow-500 flex items-center justify-center text-yellow-500 bg-yellow-500/10";
                 document.getElementById('step-2-icon').innerHTML = '<i data-lucide="loader" class="w-3 h-3 animate-spin"></i>';
                 document.getElementById('step-2-title').className = "text-white font-bold text-sm";
-                
-                actionContainer.innerHTML = `<p class="text-[10px] text-gray-500 mono uppercase tracking-widest">${status === 'rejected' ? 'Verification failed. Contact support.' : 'Usually approved within 24 hours.'}</p>`;
             }
+            
             lucide.createIcons();
         }
 
