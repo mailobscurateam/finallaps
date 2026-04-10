@@ -3,34 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Courses | Nexus Prime | Tharaka B Jayathilaka</title>
-    <!-- Tailwind CSS -->
+    <title>Courses | Nexus Prime</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Three.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-    <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-    
     <style>
         :root {
             --math-primary: #ec4899; 
             --math-secondary: #f43f5e;
             --math-dark: #09090b;
         }
-
         body {
             font-family: 'Outfit', sans-serif;
             background-color: var(--math-dark);
             color: #f4f4f5;
             overflow-x: hidden; 
+            opacity: 0;
+            transition: opacity 0.5s ease;
         }
-
+        body.auth-ready { opacity: 1; }
         .mono { font-family: 'JetBrains Mono', monospace; }
-
         #math-canvas {
             position: fixed;
             top: 0;
@@ -39,7 +33,6 @@
             height: 100%;
             z-index: -10;
         }
-
         .glass-card {
             background: rgba(24, 24, 27, 0.4);
             backdrop-filter: blur(12px);
@@ -47,26 +40,22 @@
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             overflow: hidden;
         }
-
         .glass-card:hover {
             border-color: rgba(236, 72, 153, 0.5);
             transform: translateY(-10px);
             background: rgba(24, 24, 27, 0.6);
             box-shadow: 0 20px 40px -20px rgba(236, 72, 153, 0.2);
         }
-
         .gradient-text {
             background: linear-gradient(to bottom right, #fff 30%, #ec4899 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
-
         .course-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
             gap: 2rem;
         }
-
         .course-image-container {
             width: 100%;
             height: 180px;
@@ -74,29 +63,21 @@
             position: relative;
             overflow: hidden;
         }
-
         .course-image {
             width: 100%;
             height: 100%;
             object-fit: cover;
             transition: transform 0.5s ease;
         }
-
         .glass-card:hover .course-image {
             transform: scale(1.1);
         }
-
-        body { opacity: 0; transition: opacity 0.5s ease; }
-        body.auth-ready { opacity: 1; }
     </style>
 </head>
 <body class="bg-[#09090b]">
-
-    <!-- BACKGROUND -->
     <div id="math-canvas"></div>
 
     <main class="relative z-10 min-h-screen">
-        <!-- Navigation -->
         <nav class="fixed top-0 w-full z-50 p-6 flex justify-between items-center backdrop-blur-md bg-black/20 border-b border-white/5">
             <a href="index.html" class="flex items-center space-x-3 group">
                 <div class="w-10 h-10 bg-pink-600 rounded-lg flex items-center justify-center font-black text-xl transition-transform group-hover:rotate-12">Σ</div>
@@ -112,7 +93,6 @@
             </div>
         </nav>
 
-        <!-- Header Section -->
         <section class="pt-40 pb-20 px-6">
             <div class="max-w-6xl mx-auto text-center">
                 <div class="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-pink-500/10 border border-pink-500/30 text-pink-400 text-[10px] font-black uppercase tracking-[0.3em] mb-8">
@@ -128,7 +108,6 @@
             </div>
         </section>
 
-        <!-- Courses Section -->
         <section class="pb-32 px-6">
             <div class="max-w-6xl mx-auto">
                 <div id="course-loader" class="flex flex-col items-center py-20">
@@ -136,174 +115,120 @@
                     <p class="mono text-xs text-gray-500 uppercase tracking-widest animate-pulse">Querying Nexus DB...</p>
                 </div>
 
-                <div id="courses-container" class="course-grid hidden">
-                    <!-- Cards injected here -->
-                </div>
+                <div id="courses-container" class="course-grid hidden"></div>
 
                 <div id="error-state" class="hidden text-center py-20 glass-card rounded-[2rem] border-red-500/20 max-w-lg mx-auto">
                     <i data-lucide="alert-circle" class="w-12 h-12 text-red-500 mx-auto mb-4"></i>
                     <h3 class="text-xl font-bold mb-2">Sync Interrupted</h3>
-                    <p id="error-message" class="text-gray-400 text-sm mb-6">Could not retrieve courses from Supabase. Check table permissions or RLS policies.</p>
-                    <button onclick="window.location.reload()" class="px-6 py-2 bg-white/5 border border-white/10 hover:bg-white/10 rounded-full text-[10px] font-bold uppercase tracking-widest transition">
-                        Retry Connection
-                    </button>
+                    <p id="error-message" class="text-gray-400 text-sm mb-6">Database error.</p>
+                    <button onclick="window.location.reload()" class="px-6 py-2 bg-white/5 border border-white/10 hover:bg-white/10 rounded-full text-[10px] font-bold uppercase tracking-widest transition">Retry Connection</button>
                 </div>
             </div>
         </section>
 
         <footer class="p-20 border-t border-white/5 text-center bg-black/40">
-            <div class="mono text-[10px] text-gray-600 tracking-widest uppercase mb-4">
-                Authorized Session &copy; 2026 Nexus Prime Education
-            </div>
+            <div class="mono text-[10px] text-gray-600 tracking-widest uppercase mb-4">Authorized Session &copy; 2026 Nexus Prime Education</div>
         </footer>
     </main>
 
     <script>
-        (function() {
-            // SUPABASE CONFIG
-            const SUPABASE_URL = 'https://tsaoxjzvhxiggntibpui.supabase.co';
-            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzYW94anp2aHhpZ2dudGlicHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDQ2OTAsImV4cCI6MjA5MTQyMDY5MH0.Q5Iu51O3NK4k2kcc_GoegnyAYIFIs2SUkQOV10qp2jI';
+        const SUPABASE_URL = 'https://tsaoxjzvhxiggntibpui.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzYW94anp2aHhpZ2dudGlicHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDQ2OTAsImV4cCI6MjA5MTQyMDY5MH0.Q5Iu51O3NK4k2kcc_GoegnyAYIFIs2SUkQOV10qp2jI';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-            // Initialize Supabase
-            if (!window.supabaseClient) {
-                window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            }
-            const sb = window.supabaseClient;
+        window.enrollInCourse = async function(courseId) {
+            const { data: { session } } = await sb.auth.getSession();
+            if (!session) return window.location.href = 'login.html';
 
-            // --- REDIRECT LOGIC ---
-            window.enrollInCourse = function(courseId) {
-                // Store selected course ID in session storage
-                sessionStorage.setItem('selected_course_id', courseId);
-                // Redirect to curriculum page
-                window.location.href = '/curriculum';
-            };
+            const user = session.user;
+            
+            // Create pending entry in course_status
+            // Use upsert to handle case where they click enroll again
+            const { error } = await sb
+                .from('course_status')
+                .upsert({ 
+                    user_id: user.id, 
+                    course_id: courseId,
+                    status: 'pending' 
+                }, { onConflict: 'user_id,course_id' });
 
-            // --- AUTH LOGIC ---
-            async function checkAuth() {
-                try {
-                    const { data: { session }, error } = await sb.auth.getSession();
-                    
-                    if (error || !session) {
-                        console.warn("No active session. Redirecting to login...");
-                        window.location.href = 'login.html'; 
-                        return;
-                    }
-
-                    document.body.classList.add('auth-ready');
-                    document.getElementById('user-display').classList.remove('hidden');
-                    document.getElementById('user-email').textContent = session.user.email;
-                    
-                    fetchCourses();
-                } catch (e) {
-                    console.error("Auth Exception:", e);
-                    window.location.href = 'login.html';
-                }
+            if (error) {
+                console.error("Enrollment failed:", error);
+                return;
             }
 
-            window.handleLogout = async function() {
-                await sb.auth.signOut();
-                window.location.href = 'login.html';
-            };
+            sessionStorage.setItem('pending_course_id', courseId);
+            window.location.href = 'approvestatus.html';
+        };
 
-            // --- DATA FETCHING ---
-            async function fetchCourses() {
-                const loader = document.getElementById('course-loader');
-                const container = document.getElementById('courses-container');
-                const errorState = document.getElementById('error-state');
-                const errorMsg = document.getElementById('error-message');
+        async function checkAuth() {
+            const { data: { session } } = await sb.auth.getSession();
+            if (!session) return window.location.href = 'login.html';
+            document.body.classList.add('auth-ready');
+            document.getElementById('user-display').classList.remove('hidden');
+            document.getElementById('user-email').textContent = session.user.email;
+            fetchCourses();
+        }
 
-                try {
-                    errorState.classList.add('hidden');
-                    
-                    const { data: courses, error } = await sb
-                        .from('courses')
-                        .select('*');
+        window.handleLogout = async () => { await sb.auth.signOut(); window.location.href = 'login.html'; };
 
-                    if (error) throw new Error(error.message);
-                    if (!courses) throw new Error('No data returned.');
-
-                    renderCourses(courses);
-                } catch (error) {
-                    console.error('Database fetch failed:', error);
-                    loader.classList.add('hidden');
-                    errorState.classList.remove('hidden');
-                    errorMsg.textContent = `Error: ${error.message}.`;
-                }
+        async function fetchCourses() {
+            const loader = document.getElementById('course-loader');
+            const container = document.getElementById('courses-container');
+            const errorState = document.getElementById('error-state');
+            
+            try {
+                const { data: courses, error } = await sb.from('courses').select('*');
+                if (error) throw error;
+                renderCourses(courses);
+            } catch (err) {
+                loader.classList.add('hidden');
+                errorState.classList.remove('hidden');
             }
+        }
 
-            function renderCourses(courses) {
-                const container = document.getElementById('courses-container');
-                const loader = document.getElementById('course-loader');
-                
-                container.innerHTML = courses.map((course) => `
-                    <div class="glass-card rounded-[2rem] flex flex-col h-full group">
-                        <div class="course-image-container">
-                            <img src="${course.image_url || 'https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&q=80&w=800'}" 
-                                 alt="${course.name}" 
-                                 class="course-image">
-                            <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
-                            <div class="absolute bottom-4 left-6 flex items-center space-x-2">
-                                <span class="mono text-[9px] font-bold text-pink-400 bg-pink-500/10 border border-pink-500/20 px-3 py-1 rounded-full uppercase tracking-widest">
-                                    ID: ${course.id}
-                                </span>
-                            </div>
-                        </div>
-
-                        <div class="p-8 flex flex-col flex-grow">
-                            <h3 class="text-2xl font-black mb-1 leading-tight group-hover:text-pink-500 transition-colors">
-                                ${course.name}
-                            </h3>
-                            <p class="mono text-[11px] text-gray-500 uppercase tracking-widest mb-4">
-                                By ${course.instructor || 'Nexus Faculty'}
-                            </p>
-                            
-                            <p class="text-gray-400 text-sm leading-relaxed mb-8 flex-grow">
-                                ${course.description || 'No description available.'}
-                            </p>
-                            
-                            <div class="pt-6 border-t border-white/5">
-                                <button onclick="enrollInCourse('${course.id}')" 
-                                   class="block w-full py-4 bg-white/5 border border-white/10 group-hover:bg-pink-600 group-hover:border-pink-600 group-hover:text-white text-center font-bold text-xs uppercase tracking-[0.2em] rounded-xl transition-all duration-300">
-                                     Enroll Now
-                                </button>
-                            </div>
+        function renderCourses(courses) {
+            const container = document.getElementById('courses-container');
+            container.innerHTML = courses.map(c => `
+                <div class="glass-card rounded-[2rem] flex flex-col h-full group">
+                    <div class="course-image-container">
+                        <img src="${c.image_url || 'https://images.unsplash.com/photo-1509228468518-180dd4864904?w=800'}" class="course-image">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+                    </div>
+                    <div class="p-8 flex flex-col flex-grow">
+                        <h3 class="text-2xl font-black mb-1 leading-tight group-hover:text-pink-500 transition-colors">${c.name}</h3>
+                        <p class="mono text-[11px] text-gray-500 uppercase tracking-widest mb-4">By ${c.instructor || 'Nexus Faculty'}</p>
+                        <p class="text-gray-400 text-sm leading-relaxed mb-8 flex-grow">${c.description || ''}</p>
+                        <div class="pt-6 border-t border-white/5">
+                            <button onclick="enrollInCourse('${c.id}')" class="block w-full py-4 bg-white/5 border border-white/10 group-hover:bg-pink-600 group-hover:border-pink-600 text-center font-bold text-xs uppercase tracking-[0.2em] rounded-xl transition-all">Enroll Now</button>
                         </div>
                     </div>
-                `).join('');
+                </div>
+            `).join('');
+            document.getElementById('course-loader').classList.add('hidden');
+            container.classList.remove('hidden');
+            lucide.createIcons();
+        }
 
-                loader.classList.add('hidden');
-                container.classList.remove('hidden');
-                lucide.createIcons();
-            }
+        const initScene = () => {
+            const container = document.getElementById('math-canvas');
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 100;
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+            const particles = new THREE.BufferGeometry();
+            const posArr = new Float32Array(1000 * 3);
+            for(let i=0; i<3000; i++) posArr[i] = (Math.random() - 0.5) * 400;
+            particles.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
+            const pSystem = new THREE.Points(particles, new THREE.PointsMaterial({ size: 0.5, color: 0xec4899, transparent: true, opacity: 0.2 }));
+            scene.add(pSystem);
+            const animate = () => { requestAnimationFrame(animate); pSystem.rotation.y += 0.0002; renderer.render(scene, camera); };
+            animate();
+        };
 
-            const initScene = () => {
-                const container = document.getElementById('math-canvas');
-                if (!container) return;
-                const scene = new THREE.Scene();
-                const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-                camera.position.z = 100;
-                const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-                renderer.setSize(window.innerWidth, window.innerHeight);
-                container.appendChild(renderer.domElement);
-                const particles = new THREE.BufferGeometry();
-                const posArr = new Float32Array(1000 * 3);
-                for(let i=0; i<3000; i++) posArr[i] = (Math.random() - 0.5) * 400;
-                particles.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
-                const pSystem = new THREE.Points(particles, new THREE.PointsMaterial({ size: 0.5, color: 0xec4899, transparent: true, opacity: 0.2 }));
-                scene.add(pSystem);
-                const animate = () => {
-                    requestAnimationFrame(animate);
-                    pSystem.rotation.y += 0.0002;
-                    renderer.render(scene, camera);
-                };
-                animate();
-            };
-
-            document.addEventListener('DOMContentLoaded', () => {
-                initScene();
-                checkAuth();
-            });
-        })();
+        document.addEventListener('DOMContentLoaded', () => { initScene(); checkAuth(); });
     </script>
 </body>
 </html>
