@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | Nexus Prime | Tharaka B Jayathilaka</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --math-primary: #ec4899; 
+            --math-dark: #09090b;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--math-dark);
+            color: #f4f4f5;
+            overflow: hidden; 
+        }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        #math-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -10;
+        }
+
+        .glass-panel {
+            background: rgba(24, 24, 27, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .input-field {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .input-field:focus {
+            border-color: var(--math-primary);
+            background: rgba(236, 72, 153, 0.05);
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(236, 72, 153, 0.1);
+        }
+
+        .gradient-btn {
+            background: linear-gradient(135deg, #ec4899 0%, #be185d 100%);
+            transition: all 0.3s ease;
+        }
+
+        .gradient-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -10px rgba(236, 72, 153, 0.5);
+        }
+
+        .gradient-text {
+            background: linear-gradient(to bottom right, #fff 30%, #ec4899 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-6">
+
+    <!-- BACKGROUND ANIMATION -->
+    <div id="math-canvas"></div>
+
+    <div class="w-full max-w-md relative z-10">
+        <!-- Logo -->
+        <div class="text-center mb-10">
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-pink-600 rounded-2xl mb-6 shadow-lg shadow-pink-500/20 rotate-3">
+                <span class="text-3xl font-black">Σ</span>
+            </div>
+            <h1 class="text-4xl font-black tracking-tighter mb-2">NEXUS<span class="text-pink-500">PRIME</span></h1>
+            <p class="mono text-[10px] uppercase tracking-[0.3em] text-gray-500">Mathematics Excellence Portal</p>
+        </div>
+
+        <!-- Login Form -->
+        <div class="glass-panel rounded-[2.5rem] p-10">
+            <h2 class="text-2xl font-bold mb-8 text-center">Student <span class="gradient-text">Sign In</span></h2>
+            
+            <form id="login-form" class="space-y-6">
+                <div>
+                    <label class="block mono text-[10px] uppercase tracking-widest text-gray-400 mb-2 ml-1">Email Address</label>
+                    <div class="relative">
+                        <i data-lucide="mail" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500"></i>
+                        <input type="email" id="email" required placeholder="name@student.com" 
+                            class="input-field w-full py-4 pl-12 pr-4 rounded-2xl text-sm">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block mono text-[10px] uppercase tracking-widest text-gray-400 mb-2 ml-1">Secure Password</label>
+                    <div class="relative">
+                        <i data-lucide="lock" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500"></i>
+                        <input type="password" id="password" required placeholder="••••••••" 
+                            class="input-field w-full py-4 pl-12 pr-4 rounded-2xl text-sm">
+                    </div>
+                </div>
+
+                <div id="error-msg" class="hidden flex items-start space-x-2 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs">
+                    <i data-lucide="alert-circle" class="w-4 h-4 flex-shrink-0"></i>
+                    <span id="error-text">Invalid credentials provided.</span>
+                </div>
+
+                <button type="submit" id="submit-btn" class="gradient-btn w-full py-4 rounded-2xl font-bold text-xs uppercase tracking-[0.2em] flex items-center justify-center space-x-3">
+                    <span>Access Portal</span>
+                    <div class="spinner" id="btn-spinner"></div>
+                </button>
+            </form>
+
+            <div class="mt-8 pt-8 border-t border-white/5 text-center">
+                <p class="text-gray-500 text-xs">Trouble accessing your account?</p>
+                <a href="#" class="text-pink-500 font-bold text-xs mt-2 inline-block hover:underline">Contact Administrator</a>
+            </div>
+        </div>
+
+        <p class="text-center mt-10 mono text-[10px] text-gray-600 uppercase tracking-widest">
+            &copy; 2026 Tharaka B Jayathilaka
+        </p>
+    </div>
+
+    <script>
+        (function() {
+            const SUPABASE_URL = 'https://ogfmimplmjzhqzeeexae.supabase.co';
+            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9nZm1pbXBsbWp6aHF6ZWVleGFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNTgzNzcsImV4cCI6MjA4NjYzNDM3N30.l8j1VC7-Zt88UGRkclBd-dNyLZsHg2DuY_9FRRW311o';
+
+            // Initialize Supabase
+            if (!window.supabaseClient) {
+                window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            }
+            const supabaseInstance = window.supabaseClient;
+
+            const form = document.getElementById('login-form');
+            const errorMsg = document.getElementById('error-msg');
+            const errorText = document.getElementById('error-text');
+            const spinner = document.getElementById('btn-spinner');
+            const submitBtn = document.getElementById('submit-btn');
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                // UI States
+                errorMsg.classList.add('hidden');
+                spinner.style.display = 'block';
+                submitBtn.disabled = true;
+                submitBtn.style.opacity = '0.7';
+
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+
+                try {
+                    const { data, error } = await supabaseInstance.auth.signInWithPassword({
+                        email,
+                        password
+                    });
+
+                    if (error) throw error;
+
+                    // Success - Redirect to courses
+                    window.location.href = 'courses.html';
+
+                } catch (err) {
+                    errorText.textContent = err.message;
+                    errorMsg.classList.remove('hidden');
+                } finally {
+                    spinner.style.display = 'none';
+                    submitBtn.disabled = false;
+                    submitBtn.style.opacity = '1';
+                }
+            });
+
+            // Check if already logged in
+            async function checkSession() {
+                const { data: { session } } = await supabaseInstance.auth.getSession();
+                if (session) {
+                    window.location.href = 'courses.html';
+                }
+            }
+            checkSession();
+
+            // --- THREE.JS BACKGROUND ---
+            const initScene = () => {
+                const container = document.getElementById('math-canvas');
+                const scene = new THREE.Scene();
+                const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                camera.position.z = 100;
+
+                const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                container.appendChild(renderer.domElement);
+
+                const particles = new THREE.BufferGeometry();
+                const pCount = 1500;
+                const posArr = new Float32Array(pCount * 3);
+                for(let i=0; i<pCount*3; i++) posArr[i] = (Math.random() - 0.5) * 400;
+                particles.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
+                const pMat = new THREE.PointsMaterial({ size: 0.6, color: 0xec4899, transparent: true, opacity: 0.2 });
+                const pSystem = new THREE.Points(particles, pMat);
+                scene.add(pSystem);
+
+                const animate = () => {
+                    requestAnimationFrame(animate);
+                    pSystem.rotation.y += 0.0003;
+                    pSystem.rotation.x += 0.0001;
+                    renderer.render(scene, camera);
+                };
+                animate();
+
+                window.addEventListener('resize', () => {
+                    camera.aspect = window.innerWidth / window.innerHeight;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(window.innerWidth, window.innerHeight);
+                });
+            };
+
+            document.addEventListener('DOMContentLoaded', () => {
+                lucide.createIcons();
+                initScene();
+            });
+        })();
+    </script>
+</body>
+</html>
