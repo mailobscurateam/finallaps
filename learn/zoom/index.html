@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 Hub | Zoom Simulation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --f1-red: #e10600;
+            --f1-black: #050505;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Orbitron', sans-serif;
+            background-color: var(--f1-black);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        body.ready { opacity: 1; }
+
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+            height: 0;
+            overflow: hidden;
+            background: #000;
+            border: 1px solid #222;
+        }
+
+        .video-container iframe {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            border: 0; opacity: 0; transition: opacity 0.8s ease-in;
+            background: #000;
+        }
+
+        .video-container iframe.visible { opacity: 1; }
+
+        .watermark {
+            position: absolute;
+            z-index: 30;
+            pointer-events: none;
+            user-select: none;
+            font-family: sans-serif;
+            font-weight: bold;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.2);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+            text-transform: lowercase;
+            white-space: nowrap;
+            mix-blend-mode: difference;
+        }
+
+        .status-bar { height: 4px; background: #111; position: relative; overflow: hidden; }
+        .status-progress { position: absolute; height: 100%; background: var(--f1-red); width: 0%; transition: width 0.3s; }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 10px 20px; font-size: 0.7rem; font-weight: 900;
+            text-transform: uppercase; letter-spacing: 2px; transition: all 0.3s;
+        }
+        .nav-btn:hover { background: var(--f1-red); border-color: var(--f1-red); color: white; }
+
+        .telemetry-box {
+            border-left: 2px solid var(--f1-red);
+            background: linear-gradient(90deg, rgba(225, 6, 0, 0.05), transparent);
+            padding: 1rem;
+        }
+
+        .preloader-overlay {
+            position: absolute; inset: 0; background: #0a0a0a;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 20;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="p-6 border-b border-white/10 flex justify-between items-center bg-black/50 backdrop-blur-md sticky top-0 z-50">
+        <div>
+            <h1 class="text-lg font-black italic tracking-tighter">
+                ZOOM <span class="text-red-600">FEED</span>
+            </h1>
+            <p id="lesson-title" class="text-[10px] text-gray-500 tracking-[3px] uppercase mt-1">Authenticating Data Stream...</p>
+        </div>
+        <div class="flex items-center gap-6">
+            <div id="timer-display" class="hidden text-right">
+                <p class="text-[8px] text-gray-500 uppercase font-bold tracking-widest">Airtime Remaining</p>
+                <p id="time-left" class="text-sm font-black text-red-500 tracking-tighter">--:--:--</p>
+            </div>
+            <button id="btn-exit" class="nav-btn">Exit Simulation</button>
+        </div>
+    </header>
+
+    <div class="status-bar">
+        <div id="loading-bar" class="status-progress"></div>
+    </div>
+
+    <main class="flex-1 p-4 md:p-8 max-w-6xl mx-auto w-full">
+        <div id="telemetry-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="telemetry-box">
+                <p class="text-[9px] text-gray-500 uppercase font-bold">Signal Origin</p>
+                <p id="info-id" class="text-sm font-bold italic">REDACTED</p>
+            </div>
+            <div class="telemetry-box">
+                <p class="text-[9px] text-gray-500 uppercase font-bold">Authorized Limit</p>
+                <p id="info-limit" class="text-sm font-bold tracking-widest">--</p>
+            </div>
+            <div class="telemetry-box">
+                <p class="text-[9px] text-gray-500 uppercase font-bold">Signal Status</p>
+                <p id="info-status" class="text-sm font-bold text-yellow-500 italic uppercase">Syncing...</p>
+            </div>
+        </div>
+
+        <div id="video-wrapper" class="video-container shadow-2xl rounded-sm">
+            <div id="preloader" class="preloader-overlay">
+                <div class="w-12 h-12 border-2 border-red-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p id="loader-text" class="text-[10px] font-bold tracking-[4px] text-gray-600 uppercase text-center">Establishing Secure Link...</p>
+            </div>
+            
+            <div id="moving-watermark" class="watermark">initializing_secure_layer</div>
+            <div id="iframe-holder"></div>
+        </div>
+    </main>
+
+    <script>
+        const SUPABASE_URL = 'https://tsaoxjzvhxiggntibpui.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzYW94anp2aHhpZ2dudGlicHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDQ2OTAsImV4cCI6MjA5MTQyMDY5MH0.Q5Iu51O3NK4k2kcc_GoegnyAYIFIs2SUkQOV10qp2jI';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const lessonId = urlParams.get('id');
+
+        let currentUser = null;
+        let allowedSeconds = 0;
+        let watchedSeconds = 0;
+        let sessionTimer = null;
+        let watermarkData = { x: 10, y: 10, dx: 0.5, dy: 0.5 };
+
+        async function checkAuth() {
+            const { data: { session } } = await sb.auth.getSession();
+            if (!session) { window.location.href = 'index.html'; return; }
+
+            currentUser = session.user;
+            document.getElementById('moving-watermark').innerText = currentUser.email;
+            document.body.classList.add('ready');
+            
+            fetchLessonData();
+            startWatermark();
+        }
+
+        async function fetchLessonData() {
+            if (!lessonId) { window.location.href = '/curriculum'; return; }
+
+            const { data: lesson, error } = await sb
+                .from('lessons')
+                .select('*')
+                .eq('id', lessonId)
+                .single();
+
+            if (error || !lesson) { showError("LINK FAILED: DATA NOT FOUND"); return; }
+
+            const hours = parseInt(lesson.watchtime_hours) || 0;
+            const minutes = parseInt(lesson.watchtime_minutes) || 0;
+            allowedSeconds = (hours * 3600) + (minutes * 60);
+
+            document.getElementById('lesson-title').innerText = lesson.title.toUpperCase();
+            document.getElementById('info-id').innerText = `SID-${lesson.order_index || '000'}`;
+            document.getElementById('info-limit').innerText = `${hours}H ${minutes}M`;
+
+            await syncProgress();
+
+            if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) {
+                showError("PROTOCOL LOCK: AIRTIME DEPLETED");
+                return;
+            }
+
+            initStream(lesson.video_url);
+        }
+
+        async function syncProgress() {
+            const { data } = await sb
+                .from('watch_sessions')
+                .select('total_seconds_watched')
+                .eq('user_id', currentUser.id)
+                .eq('lesson_id', lessonId)
+                .maybeSingle();
+
+            if (data) {
+                watchedSeconds = data.total_seconds_watched;
+            } else {
+                await sb.from('watch_sessions').insert({
+                    user_id: currentUser.id,
+                    lesson_id: lessonId,
+                    total_seconds_watched: 0
+                });
+            }
+        }
+
+        function initStream(url) {
+            const holder = document.getElementById('iframe-holder');
+            const iframe = document.createElement('iframe');
+            iframe.src = url;
+            iframe.allow = "autoplay; fullscreen; microphone; camera; display-capture";
+            
+            iframe.onload = () => {
+                document.getElementById('loading-bar').style.width = '100%';
+                document.getElementById('info-status').innerText = "LIVE FEED";
+                document.getElementById('info-status').className = "text-sm font-bold text-green-500 italic uppercase";
+                document.getElementById('preloader').style.display = 'none';
+                iframe.classList.add('visible');
+                
+                document.getElementById('timer-display').classList.remove('hidden');
+                startClock();
+            };
+
+            holder.appendChild(iframe);
+        }
+
+        function startClock() {
+            sessionTimer = setInterval(async () => {
+                watchedSeconds += 1;
+                updateUI();
+
+                if (watchedSeconds % 10 === 0) { // Sync every 10s
+                    await sb.from('watch_sessions')
+                        .update({ total_seconds_watched: watchedSeconds, last_watched_at: new Date().toISOString() })
+                        .eq('user_id', currentUser.id)
+                        .eq('lesson_id', lessonId);
+                }
+
+                if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) {
+                    clearInterval(sessionTimer);
+                    showError("WATCH LIMIT REACHED");
+                }
+            }, 1000);
+        }
+
+        function updateUI() {
+            const remaining = Math.max(0, allowedSeconds - watchedSeconds);
+            const h = Math.floor(remaining / 3600);
+            const m = Math.floor((remaining % 3600) / 60);
+            const s = remaining % 60;
+            document.getElementById('time-left').innerText = 
+                `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+
+        function startWatermark() {
+            const el = document.getElementById('moving-watermark');
+            const wrapper = document.getElementById('video-wrapper');
+            function animate() {
+                const rect = wrapper.getBoundingClientRect();
+                const elRect = el.getBoundingClientRect();
+                watermarkData.x += watermarkData.dx;
+                watermarkData.y += watermarkData.dy;
+                if (watermarkData.x <= 0 || watermarkData.x + elRect.width >= rect.width) watermarkData.dx *= -1;
+                if (watermarkData.y <= 0 || watermarkData.y + elRect.height >= rect.height) watermarkData.dy *= -1;
+                el.style.left = watermarkData.x + 'px';
+                el.style.top = watermarkData.y + 'px';
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        function showError(msg) {
+            document.getElementById('preloader').style.display = 'flex';
+            document.getElementById('preloader').innerHTML = `
+                <div class="text-center p-6">
+                    <p class="text-red-600 font-black tracking-widest uppercase mb-2">Protocol Locked</p>
+                    <p class="text-[10px] text-gray-500 uppercase tracking-[4px]">${msg}</p>
+                    <button onclick="window.location.href='/curriculum'" class="mt-8 nav-btn">Return to Deck</button>
+                </div>
+            `;
+            document.getElementById('info-status').innerText = "TERMINATED";
+            document.getElementById('info-status').className = "text-sm font-bold text-red-600 uppercase";
+        }
+
+        document.getElementById('btn-exit').onclick = () => window.location.href = '/curriculum';
+        window.onload = checkAuth;
+    </script>
+</body>
+</html>
