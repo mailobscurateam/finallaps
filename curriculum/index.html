@@ -90,20 +90,38 @@
             }
 
             container.innerHTML = lessons.map(lesson => {
+                const type = (lesson.lesson_type || 'youtube').toLowerCase();
+                
                 // Determine the Icon based on lesson type
                 let iconName = 'play';
-                if (lesson.lesson_type === 'pdf') iconName = 'file-text';
-                if (lesson.lesson_type === 'zoom' || lesson.lesson_type === 'live') iconName = 'video';
+                if (type === 'pdf') iconName = 'file-text';
+                if (type === 'zoom' || type === 'live') iconName = 'video';
 
-                // Determine the Link logic
-                let targetUrl = lesson.video_url || '#';
-                let isExternal = true;
+                // Construct Duration string
+                const hrs = lesson.watchtime_hours || 0;
+                const mins = lesson.watchtime_minutes || 0;
+                let durationText = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
 
-                if (lesson.lesson_type === 'youtube') {
-                    // Redirect to your internal YouTube player path
-                    targetUrl = `/learn/yt?id=${lesson.id}`; 
-                    // Note: You can also pass the URL directly: `/learn/yt?v=${encodeURIComponent(lesson.video_url)}`
-                    isExternal = false;
+                // Internal Redirect Routing Logic
+                let targetUrl = '#';
+                let isExternal = false;
+
+                switch(type) {
+                    case 'youtube':
+                        targetUrl = `learnyt.html?id=${lesson.id}`; 
+                        break;
+                    case 'zoom':
+                        targetUrl = `zoomlearn.html?id=${lesson.id}`;
+                        break;
+                    case 'pdf':
+                        targetUrl = `pdflearn.html?id=${lesson.id}`;
+                        break;
+                    case 'live':
+                        targetUrl = lesson.video_url || '#';
+                        isExternal = true;
+                        break;
+                    default:
+                        targetUrl = `learnyt.html?id=${lesson.id}`;
                 }
 
                 return `
@@ -116,10 +134,13 @@
                                 <div class="flex items-center space-x-3 mb-1">
                                     <h4 class="font-bold text-lg text-white">${lesson.title}</h4>
                                     <span class="type-badge mono uppercase text-gray-400 font-bold">
-                                        ${lesson.lesson_type || 'youtube'}
+                                        ${type}
                                     </span>
                                 </div>
-                                <p class="text-xs text-gray-500 mono uppercase tracking-widest">${lesson.duration || '00:00'}</p>
+                                <p class="text-xs text-gray-500 mono uppercase tracking-widest flex items-center gap-2">
+                                    <i data-lucide="clock" class="w-3 h-3"></i>
+                                    ${durationText}
+                                </p>
                             </div>
                         </div>
                         <a href="${targetUrl}" 
@@ -131,7 +152,6 @@
                 `;
             }).join('');
             
-            // Re-initialize Lucide icons for the new HTML
             lucide.createIcons();
         }
 
