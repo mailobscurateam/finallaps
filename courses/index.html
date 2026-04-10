@@ -10,6 +10,8 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Three.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     
@@ -83,6 +85,10 @@
         .glass-card:hover .course-image {
             transform: scale(1.1);
         }
+
+        /* Initial Hide for Auth Check */
+        body { opacity: 0; transition: opacity 0.5s ease; }
+        body.auth-ready { opacity: 1; }
     </style>
 </head>
 <body class="bg-[#09090b]">
@@ -98,9 +104,12 @@
                 <div class="font-black text-xl tracking-tighter">NEXUS<span class="text-pink-500">PRIME</span></div>
             </a>
             <div class="flex items-center space-x-6">
-                <a href="index.html" class="hidden md:block text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 hover:text-white transition">Home</a>
+                <div id="user-display" class="hidden md:flex items-center space-x-3">
+                    <span id="user-email" class="mono text-[10px] text-gray-400">...</span>
+                    <button onclick="handleLogout()" class="text-[10px] font-bold uppercase tracking-[0.2em] text-pink-500 hover:text-white transition">Logout</button>
+                </div>
                 <div class="h-4 w-[1px] bg-white/10 hidden md:block"></div>
-                <div class="mono text-xs text-pink-500 font-bold uppercase tracking-widest">Enrollment Open</div>
+                <div class="mono text-xs text-pink-500 font-bold uppercase tracking-widest">Nexus Student Portal</div>
             </div>
         </nav>
 
@@ -108,14 +117,14 @@
         <section class="pt-40 pb-20 px-6">
             <div class="max-w-6xl mx-auto text-center">
                 <div class="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-pink-500/10 border border-pink-500/30 text-pink-400 text-[10px] font-black uppercase tracking-[0.3em] mb-8">
-                    <i data-lucide="layout-grid" class="w-3 h-3"></i>
-                    <span>Knowledge Repository</span>
+                    <i data-lucide="shield-check" class="w-3 h-3"></i>
+                    <span>Authenticated Access</span>
                 </div>
                 <h1 class="text-6xl md:text-7xl font-black mb-6 tracking-tighter">
                     Available <span class="gradient-text">Modules</span>
                 </h1>
                 <p class="text-gray-400 max-w-2xl mx-auto text-lg leading-relaxed">
-                    Browse through our specialized Combined Mathematics courses curated for elite performance.
+                    Welcome back. Access your specialized Combined Mathematics curriculum below.
                 </p>
             </div>
         </section>
@@ -125,7 +134,7 @@
             <div class="max-w-6xl mx-auto">
                 <div id="course-loader" class="flex flex-col items-center py-20">
                     <div class="w-12 h-12 border-4 border-pink-500/20 border-t-pink-500 rounded-full animate-spin mb-4"></div>
-                    <p class="mono text-xs text-gray-500 uppercase tracking-widest animate-pulse">Syncing Columns B, C, D, E...</p>
+                    <p class="mono text-xs text-gray-500 uppercase tracking-widest animate-pulse">Syncing Cloud Database...</p>
                 </div>
 
                 <div id="courses-container" class="course-grid hidden">
@@ -143,19 +152,59 @@
         <!-- Footer -->
         <footer class="p-20 border-t border-white/5 text-center bg-black/40">
             <div class="mono text-[10px] text-gray-600 tracking-widest uppercase mb-4">
-                Powered by Google Cloud Integration &copy; 2026 Nexus Prime Education
+                Authorized Session &copy; 2026 Nexus Prime Education
             </div>
         </footer>
     </main>
 
     <script>
+        // CONFIGURATIONS
         const GOOGLE_SHEET_ID = '1HLQxJv32eo-EloTtdZhw5ZhEWIXuhMOI7OAKsqG-dfI';
         const GOOGLE_API_KEY = 'AIzaSyD3sts8y_s8M8L2Y66Gz0ICY_9SY-VmoEo';
         const COURSES_SHEET = 'courses';
 
+        const SUPABASE_URL = 'https://ogfmimplmjzhqzeeexae.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9nZm1pbXBsbWp6aHF6ZWVleGFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNTgzNzcsImV4cCI6MjA4NjYzNDM3N30.l8j1VC7-Zt88UGRkclBd-dNyLZsHg2DuY_9FRRW311o';
+
+        // Initialize Supabase
+        const supabase = Object.create(supabasejs).createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // --- AUTH LOGIC ---
+        async function checkAuth() {
+            const { data: { session }, error } = await supabase.auth.getSession();
+            
+            if (error || !session) {
+                console.log("No active session found. Redirecting to login...");
+                window.location.href = '/login';
+                return;
+            }
+
+            // User is logged in
+            document.body.classList.add('auth-ready');
+            document.getElementById('user-display').classList.remove('hidden');
+            document.getElementById('user-email').textContent = session.user.email;
+            
+            // Proceed to load data
+            fetchCourses();
+        }
+
+        async function handleLogout() {
+            await supabase.auth.signOut();
+            window.location.href = '/login';
+        }
+
+        // --- DATA FETCHING ---
+        function cacheCourseId(id) {
+            if (!id) return;
+            const d = new Date();
+            d.setTime(d.getTime() + (7*24*60*60*1000));
+            let expires = "expires="+ d.toUTCString();
+            document.cookie = `last_viewed_course=${id}; ${expires}; path=/`;
+            localStorage.setItem('nexus_last_course_id', id);
+        }
+
         async function fetchCourses() {
-            // Fetching specifically B through E range to ensure column consistency
-            const url = `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${COURSES_SHEET}!B2:E?key=${GOOGLE_API_KEY}`;
+            const url = `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${COURSES_SHEET}!A2:F?key=${GOOGLE_API_KEY}`;
             
             try {
                 const response = await fetch(url);
@@ -163,16 +212,13 @@
                 
                 if (!data.values || data.values.length === 0) throw new Error('No data found');
 
-                // Mapping based on your request:
-                // Column B (Index 0) -> Course Name
-                // Column C (Index 1) -> Instructor
-                // Column D (Index 2) -> Description
-                // Column E (Index 3) -> Course Image
                 const courses = data.values.map(row => ({
-                    name: row[0] || 'Untitled Course',
-                    instructor: row[1] || 'Expert Educator',
-                    description: row[2] || 'Comprehensive module overview.',
-                    image: row[3] || 'https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&q=80&w=800'
+                    id: row[0] || 'N/A',
+                    name: row[1] || 'Untitled Course',
+                    instructor: row[2] || 'Expert Educator',
+                    description: row[3] || 'Comprehensive module overview.',
+                    image: row[4] || 'https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&q=80&w=800',
+                    enrollLink: row[5] || '#'
                 }));
 
                 renderCourses(courses);
@@ -192,9 +238,9 @@
                     <div class="course-image-container">
                         <img src="${course.image}" alt="${course.name}" class="course-image" onerror="this.src='https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&q=80&w=800'">
                         <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
-                        <div class="absolute bottom-4 left-6">
+                        <div class="absolute bottom-4 left-6 flex items-center space-x-2">
                             <span class="mono text-[9px] font-bold text-pink-400 bg-pink-500/10 border border-pink-500/20 px-3 py-1 rounded-full uppercase tracking-widest">
-                                Premium Module
+                                ID: ${course.id}
                             </span>
                         </div>
                     </div>
@@ -212,9 +258,12 @@
                         </p>
                         
                         <div class="pt-6 border-t border-white/5">
-                            <button class="w-full py-4 bg-white/5 border border-white/10 group-hover:bg-pink-600 group-hover:border-pink-600 group-hover:text-white text-center font-bold text-xs uppercase tracking-[0.2em] rounded-xl transition-all duration-300">
+                            <a href="${course.enrollLink}" 
+                               onclick="cacheCourseId('${course.id}')"
+                               target="_blank"
+                               class="block w-full py-4 bg-white/5 border border-white/10 group-hover:bg-pink-600 group-hover:border-pink-600 group-hover:text-white text-center font-bold text-xs uppercase tracking-[0.2em] rounded-xl transition-all duration-300">
                                 Enroll Now
-                            </button>
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -262,7 +311,8 @@
         document.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
             initScene();
-            fetchCourses();
+            // Start Auth Check first
+            checkAuth();
         });
     </script>
 </body>
