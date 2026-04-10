@@ -127,7 +127,7 @@
                     </div>
                     <h2 class="text-2xl font-black italic uppercase tracking-tighter mb-2">Access Terminated</h2>
                     <p id="limit-error-msg" class="mono text-xs text-gray-500 uppercase tracking-widest mb-8">Session Duration Exceeded</p>
-                    <button onclick="window.location.href='curriculum.html'" class="px-8 py-3 bg-white text-black mono text-[10px] font-black uppercase tracking-widest rounded-full hover:bg-pink-500 hover:text-white transition-all">Return to Deck</button>
+                    <button onclick="window.location.href='/curriculum'" class="px-8 py-3 bg-white text-black mono text-[10px] font-black uppercase tracking-widest rounded-full hover:bg-pink-500 hover:text-white transition-all">Return to Deck</button>
                 </div>
 
                 <div id="moving-watermark">nexus-prime-secure-stream</div>
@@ -246,7 +246,7 @@
 
         async function fetchLessonFromSupabase() {
             if (!lessonId) {
-                window.location.href = 'curriculum.html';
+                window.location.href = '/curriculum';
                 return;
             }
 
@@ -462,7 +462,7 @@
             window.location.href = 'index.html';
         };
 
-        document.getElementById('nav-back').onclick = () => { window.location.href = `curriculum.html`; };
+        document.getElementById('nav-back').onclick = () => { window.location.href = `/curriculum`; };
 
         window.onload = checkAuth;
     </script>
