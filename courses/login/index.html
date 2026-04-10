@@ -75,7 +75,6 @@
             -webkit-text-fill-color: transparent;
         }
 
-        /* Loading Spinner */
         .spinner {
             width: 20px;
             height: 20px;
@@ -87,15 +86,26 @@
         }
 
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Animation for the Character (Eye) */
+        .eye-icon {
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .showing-password .eye-icon {
+            transform: scale(1.2) rotate(10deg);
+            color: var(--math-primary);
+        }
+        .showing-password .shield-char {
+            transform: translateY(-2px);
+            filter: drop-shadow(0 0 5px var(--math-primary));
+        }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-6">
 
-    <!-- BACKGROUND ANIMATION -->
     <div id="math-canvas"></div>
 
     <div class="w-full max-w-md relative z-10">
-        <!-- Logo -->
         <div class="text-center mb-10">
             <div class="inline-flex items-center justify-center w-16 h-16 bg-pink-600 rounded-2xl mb-6 shadow-lg shadow-pink-500/20 rotate-3">
                 <span class="text-3xl font-black">Σ</span>
@@ -104,8 +114,7 @@
             <p class="mono text-[10px] uppercase tracking-[0.3em] text-gray-500">Mathematics Excellence Portal</p>
         </div>
 
-        <!-- Login Form -->
-        <div class="glass-panel rounded-[2.5rem] p-10">
+        <div class="glass-panel rounded-[2.5rem] p-10" id="login-container">
             <h2 class="text-2xl font-bold mb-8 text-center">Student <span class="gradient-text">Sign In</span></h2>
             
             <form id="login-form" class="space-y-6">
@@ -119,11 +128,21 @@
                 </div>
 
                 <div>
-                    <label class="block mono text-[10px] uppercase tracking-widest text-gray-400 mb-2 ml-1">Secure Password</label>
+                    <div class="flex justify-between items-end mb-2 ml-1">
+                        <label class="block mono text-[10px] uppercase tracking-widest text-gray-400">Secure Password</label>
+                        <!-- Animated Character Helper -->
+                        <div class="shield-char transition-all duration-300">
+                             <i data-lucide="shield-check" class="w-4 h-4 text-pink-500/50" id="guard-icon"></i>
+                        </div>
+                    </div>
                     <div class="relative">
                         <i data-lucide="lock" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500"></i>
                         <input type="password" id="password" required placeholder="••••••••" 
-                            class="input-field w-full py-4 pl-12 pr-4 rounded-2xl text-sm">
+                            class="input-field w-full py-4 pl-12 pr-12 rounded-2xl text-sm">
+                        
+                        <button type="button" id="toggle-password" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors">
+                            <i data-lucide="eye" class="w-4 h-4 eye-icon" id="eye-icon"></i>
+                        </button>
                     </div>
                 </div>
 
@@ -143,10 +162,6 @@
                 <a href="#" class="text-pink-500 font-bold text-xs mt-2 inline-block hover:underline">Contact Administrator</a>
             </div>
         </div>
-
-        <p class="text-center mt-10 mono text-[10px] text-gray-600 uppercase tracking-widest">
-            &copy; 2026 Tharaka B Jayathilaka
-        </p>
     </div>
 
     <script>
@@ -154,93 +169,83 @@
             const SUPABASE_URL = 'https://ogfmimplmjzhqzeeexae.supabase.co';
             const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9nZm1pbXBsbWp6aHF6ZWVleGFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNTgzNzcsImV4cCI6MjA4NjYzNDM3N30.l8j1VC7-Zt88UGRkclBd-dNyLZsHg2DuY_9FRRW311o';
 
-            // Initialize Supabase
             if (!window.supabaseClient) {
                 window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             }
             const supabaseInstance = window.supabaseClient;
 
             const form = document.getElementById('login-form');
-            const errorMsg = document.getElementById('error-msg');
-            const errorText = document.getElementById('error-text');
-            const spinner = document.getElementById('btn-spinner');
-            const submitBtn = document.getElementById('submit-btn');
+            const togglePass = document.getElementById('toggle-password');
+            const passInput = document.getElementById('password');
+            const loginContainer = document.getElementById('login-container');
+            const eyeIcon = document.getElementById('eye-icon');
+            const guardIcon = document.getElementById('guard-icon');
+
+            // Show/Hide Password Logic
+            togglePass.addEventListener('click', () => {
+                const isPassword = passInput.type === 'password';
+                passInput.type = isPassword ? 'text' : 'password';
+                
+                if (isPassword) {
+                    loginContainer.classList.add('showing-password');
+                    eyeIcon.setAttribute('data-lucide', 'eye-off');
+                    guardIcon.setAttribute('data-lucide', 'shield-alert');
+                } else {
+                    loginContainer.classList.remove('showing-password');
+                    eyeIcon.setAttribute('data-lucide', 'eye');
+                    guardIcon.setAttribute('data-lucide', 'shield-check');
+                }
+                lucide.createIcons();
+            });
 
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
+                const spinner = document.getElementById('btn-spinner');
+                const submitBtn = document.getElementById('submit-btn');
+                const errorMsg = document.getElementById('error-msg');
                 
-                // UI States
                 errorMsg.classList.add('hidden');
                 spinner.style.display = 'block';
                 submitBtn.disabled = true;
-                submitBtn.style.opacity = '0.7';
-
-                const email = document.getElementById('email').value;
-                const password = document.getElementById('password').value;
 
                 try {
-                    const { data, error } = await supabaseInstance.auth.signInWithPassword({
-                        email,
-                        password
+                    const { error } = await supabaseInstance.auth.signInWithPassword({
+                        email: document.getElementById('email').value,
+                        password: passInput.value
                     });
-
                     if (error) throw error;
-
-                    // Success - Redirect to courses
                     window.location.href = 'courses.html';
-
                 } catch (err) {
-                    errorText.textContent = err.message;
+                    document.getElementById('error-text').textContent = err.message;
                     errorMsg.classList.remove('hidden');
+                    lucide.createIcons();
                 } finally {
                     spinner.style.display = 'none';
                     submitBtn.disabled = false;
-                    submitBtn.style.opacity = '1';
                 }
             });
 
-            // Check if already logged in
-            async function checkSession() {
-                const { data: { session } } = await supabaseInstance.auth.getSession();
-                if (session) {
-                    window.location.href = 'courses.html';
-                }
-            }
-            checkSession();
-
-            // --- THREE.JS BACKGROUND ---
+            // Three.js Background
             const initScene = () => {
                 const container = document.getElementById('math-canvas');
                 const scene = new THREE.Scene();
                 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
                 camera.position.z = 100;
-
                 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
                 renderer.setSize(window.innerWidth, window.innerHeight);
                 container.appendChild(renderer.domElement);
-
                 const particles = new THREE.BufferGeometry();
-                const pCount = 1500;
-                const posArr = new Float32Array(pCount * 3);
-                for(let i=0; i<pCount*3; i++) posArr[i] = (Math.random() - 0.5) * 400;
+                const posArr = new Float32Array(1500 * 3);
+                for(let i=0; i<4500; i++) posArr[i] = (Math.random() - 0.5) * 400;
                 particles.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
-                const pMat = new THREE.PointsMaterial({ size: 0.6, color: 0xec4899, transparent: true, opacity: 0.2 });
-                const pSystem = new THREE.Points(particles, pMat);
+                const pSystem = new THREE.Points(particles, new THREE.PointsMaterial({ size: 0.6, color: 0xec4899, transparent: true, opacity: 0.2 }));
                 scene.add(pSystem);
-
                 const animate = () => {
                     requestAnimationFrame(animate);
                     pSystem.rotation.y += 0.0003;
-                    pSystem.rotation.x += 0.0001;
                     renderer.render(scene, camera);
                 };
                 animate();
-
-                window.addEventListener('resize', () => {
-                    camera.aspect = window.innerWidth / window.innerHeight;
-                    camera.updateProjectionMatrix();
-                    renderer.setSize(window.innerWidth, window.innerHeight);
-                });
             };
 
             document.addEventListener('DOMContentLoaded', () => {
