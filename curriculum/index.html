@@ -13,6 +13,7 @@
         .mono { font-family: 'JetBrains Mono', monospace; }
         .glass-card { background: rgba(24, 24, 27, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
         .lesson-item:hover { background: rgba(236, 72, 153, 0.05); border-left-color: #ec4899; }
+        .type-badge { font-size: 9px; letter-spacing: 0.05em; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); }
     </style>
 </head>
 <body class="p-6 md:p-12">
@@ -26,14 +27,14 @@
 
     <main class="max-w-4xl mx-auto">
         <header id="course-header" class="mb-12">
-            <h1 id="course-title" class="text-4xl md:text-5xl font-black mb-4 tracking-tighter">Loading Course...</h1>
-            <p id="course-desc" class="text-gray-400 leading-relaxed"></p>
+            <h1 id="course-title" class="text-4xl md:text-5xl font-black mb-4 tracking-tighter text-white">Loading Course...</h1>
+            <p id="course-desc" class="text-gray-400 leading-relaxed max-w-2xl"></p>
         </header>
 
         <section class="space-y-4">
             <h2 class="mono text-[11px] uppercase text-gray-500 font-bold tracking-widest mb-6">Course Lessons</h2>
             <div id="lessons-container" class="space-y-3">
-                <!-- Lessons injected here -->
+                <!-- Skeleton Loader -->
                 <div class="animate-pulse space-y-4">
                     <div class="h-20 bg-white/5 rounded-2xl w-full"></div>
                     <div class="h-20 bg-white/5 rounded-2xl w-full"></div>
@@ -73,7 +74,11 @@
                 renderLessons(lessons);
             } catch (err) {
                 console.error(err);
-                document.getElementById('lessons-container').innerHTML = `<p class="text-red-400 mono text-xs">Error loading lessons: ${err.message}</p>`;
+                document.getElementById('lessons-container').innerHTML = `
+                    <div class="p-6 border border-red-500/20 bg-red-500/5 rounded-2xl">
+                        <p class="text-red-400 mono text-xs">Error loading lessons: ${err.message}</p>
+                    </div>
+                `;
             }
         }
 
@@ -84,22 +89,49 @@
                 return;
             }
 
-            container.innerHTML = lessons.map(lesson => `
-                <div class="glass-card p-6 rounded-2xl border-l-4 border-l-transparent transition-all lesson-item flex items-center justify-between group">
-                    <div class="flex items-center space-x-6">
-                        <div class="w-10 h-10 rounded-full bg-pink-500/10 flex items-center justify-center text-pink-500 font-black text-sm">
-                            ${lesson.order_index || '#'}
+            container.innerHTML = lessons.map(lesson => {
+                // Determine the Icon based on lesson type
+                let iconName = 'play';
+                if (lesson.lesson_type === 'pdf') iconName = 'file-text';
+                if (lesson.lesson_type === 'zoom' || lesson.lesson_type === 'live') iconName = 'video';
+
+                // Determine the Link logic
+                let targetUrl = lesson.video_url || '#';
+                let isExternal = true;
+
+                if (lesson.lesson_type === 'youtube') {
+                    // Redirect to your internal YouTube player path
+                    targetUrl = `/learn/yt?id=${lesson.id}`; 
+                    // Note: You can also pass the URL directly: `/learn/yt?v=${encodeURIComponent(lesson.video_url)}`
+                    isExternal = false;
+                }
+
+                return `
+                    <div class="glass-card p-6 rounded-2xl border-l-4 border-l-transparent transition-all lesson-item flex items-center justify-between group">
+                        <div class="flex items-center space-x-6">
+                            <div class="w-10 h-10 rounded-full bg-pink-500/10 flex items-center justify-center text-pink-500 font-black text-sm">
+                                ${lesson.order_index || '#'}
+                            </div>
+                            <div>
+                                <div class="flex items-center space-x-3 mb-1">
+                                    <h4 class="font-bold text-lg text-white">${lesson.title}</h4>
+                                    <span class="type-badge mono uppercase text-gray-400 font-bold">
+                                        ${lesson.lesson_type || 'youtube'}
+                                    </span>
+                                </div>
+                                <p class="text-xs text-gray-500 mono uppercase tracking-widest">${lesson.duration || '00:00'}</p>
+                            </div>
                         </div>
-                        <div>
-                            <h4 class="font-bold text-lg">${lesson.title}</h4>
-                            <p class="text-xs text-gray-500 mono uppercase tracking-widest">${lesson.duration || '00:00'}</p>
-                        </div>
+                        <a href="${targetUrl}" 
+                           ${isExternal ? 'target="_blank"' : ''} 
+                           class="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-gray-400 group-hover:bg-pink-600 group-hover:text-white transition-all">
+                            <i data-lucide="${iconName}" class="w-4 h-4 ${iconName === 'play' ? 'fill-current' : ''}"></i>
+                        </a>
                     </div>
-                    <a href="${lesson.video_url || '#'}" target="_blank" class="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-gray-400 group-hover:bg-pink-600 group-hover:text-white transition-all">
-                        <i data-lucide="play" class="w-4 h-4 fill-current"></i>
-                    </a>
-                </div>
-            `).join('');
+                `;
+            }).join('');
+            
+            // Re-initialize Lucide icons for the new HTML
             lucide.createIcons();
         }
 
