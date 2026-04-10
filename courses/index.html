@@ -174,17 +174,15 @@
             async function checkAuth() {
                 try {
                     const { data: { session }, error } = await sb.auth.getSession();
+                    
+                    // IF NO SESSION OR ERROR: Redirect to Login
                     if (error || !session) {
-                        // In a real environment, this redirects to login. 
-                        // For testing inside Canvas, we log the status.
-                        console.warn("No session found.");
-                        // window.location.href = '/login'; 
-                        
-                        // For demonstration if login page doesn't exist yet:
-                        document.body.classList.add('auth-ready');
-                        fetchCourses();
+                        console.warn("No active session. Redirecting to login...");
+                        window.location.href = '/login'; 
                         return;
                     }
+
+                    // SESSION VALID: Setup UI and Load Data
                     document.body.classList.add('auth-ready');
                     document.getElementById('user-display').classList.remove('hidden');
                     document.getElementById('user-email').textContent = session.user.email;
@@ -192,8 +190,7 @@
                     fetchCourses();
                 } catch (e) {
                     console.error("Auth Exception:", e);
-                    document.body.classList.add('auth-ready');
-                    fetchCourses();
+                    window.location.href = '/login';
                 }
             }
 
@@ -210,10 +207,8 @@
                 const errorMsg = document.getElementById('error-message');
 
                 try {
-                    // Reset UI states
                     errorState.classList.add('hidden');
                     
-                    // Fetching from 'courses' table
                     const { data: courses, error } = await sb
                         .from('courses')
                         .select('*');
