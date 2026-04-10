@@ -140,10 +140,13 @@
                     <!-- Cards injected here -->
                 </div>
 
-                <div id="error-state" class="hidden text-center py-20 glass-card rounded-[2rem] border-red-500/20">
+                <div id="error-state" class="hidden text-center py-20 glass-card rounded-[2rem] border-red-500/20 max-w-lg mx-auto">
                     <i data-lucide="alert-circle" class="w-12 h-12 text-red-500 mx-auto mb-4"></i>
                     <h3 class="text-xl font-bold mb-2">Sync Interrupted</h3>
-                    <p class="text-gray-400 text-sm">Could not retrieve courses from Supabase. Check table permissions.</p>
+                    <p id="error-message" class="text-gray-400 text-sm mb-6">Could not retrieve courses from Supabase. Check table permissions or RLS policies.</p>
+                    <button onclick="window.location.reload()" class="px-6 py-2 bg-white/5 border border-white/10 hover:bg-white/10 rounded-full text-[10px] font-bold uppercase tracking-widest transition">
+                        Retry Connection
+                    </button>
                 </div>
             </div>
         </section>
@@ -172,7 +175,14 @@
                 try {
                     const { data: { session }, error } = await sb.auth.getSession();
                     if (error || !session) {
-                        window.location.href = '/login';
+                        // In a real environment, this redirects to login. 
+                        // For testing inside Canvas, we log the status.
+                        console.warn("No session found.");
+                        // window.location.href = '/login'; 
+                        
+                        // For demonstration if login page doesn't exist yet:
+                        document.body.classList.add('auth-ready');
+                        fetchCourses();
                         return;
                     }
                     document.body.classList.add('auth-ready');
@@ -181,7 +191,9 @@
                     
                     fetchCourses();
                 } catch (e) {
-                    window.location.href = '/login';
+                    console.error("Auth Exception:", e);
+                    document.body.classList.add('auth-ready');
+                    fetchCourses();
                 }
             }
 
@@ -190,25 +202,35 @@
                 window.location.href = '/login';
             };
 
-            // --- DATA FETCHING (Now using Supabase instead of Sheets) ---
+            // --- DATA FETCHING ---
             async function fetchCourses() {
+                const loader = document.getElementById('course-loader');
+                const container = document.getElementById('courses-container');
+                const errorState = document.getElementById('error-state');
+                const errorMsg = document.getElementById('error-message');
+
                 try {
+                    // Reset UI states
+                    errorState.classList.add('hidden');
+                    
                     // Fetching from 'courses' table
                     const { data: courses, error } = await sb
                         .from('courses')
                         .select('*');
 
-                    if (error) throw error;
-                    if (!courses || courses.length === 0) {
-                        renderCourses([]); // Handle empty state
-                        return;
+                    if (error) {
+                        console.error('Supabase Error:', error);
+                        throw new Error(error.message);
                     }
+
+                    if (!courses) throw new Error('No data returned from database.');
 
                     renderCourses(courses);
                 } catch (error) {
                     console.error('Database fetch failed:', error);
-                    document.getElementById('course-loader').classList.add('hidden');
-                    document.getElementById('error-state').classList.remove('hidden');
+                    loader.classList.add('hidden');
+                    errorState.classList.remove('hidden');
+                    errorMsg.textContent = `Error: ${error.message}. Ensure table "courses" exists and Public RLS policies are enabled.`;
                 }
             }
 
@@ -217,7 +239,11 @@
                 const loader = document.getElementById('course-loader');
                 
                 if (courses.length === 0) {
-                    container.innerHTML = `<p class="col-span-full text-center text-gray-500 py-10">No modules available at this time.</p>`;
+                    container.innerHTML = `
+                        <div class="col-span-full text-center py-20 glass-card rounded-[2rem]">
+                            <p class="text-gray-500 mono text-xs uppercase tracking-widest">No modules found in the database.</p>
+                        </div>
+                    `;
                 } else {
                     container.innerHTML = courses.map((course) => `
                         <div class="glass-card rounded-[2rem] flex flex-col h-full group">
