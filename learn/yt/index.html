@@ -89,6 +89,11 @@
             font-size: 10px;
             outline: none;
         }
+
+        .btn-complete-active {
+            background: #22c55e !important;
+            color: white !important;
+        }
     </style>
 </head>
 <body class="min-h-screen">
@@ -175,6 +180,21 @@
         </div>
 
         <aside class="space-y-6">
+            <!-- Progress Section -->
+            <div class="glass-card p-8 rounded-[2rem] space-y-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="mono text-[11px] uppercase text-gray-500 font-bold tracking-widest">Simulation Log</h2>
+                    <i data-lucide="shield-check" class="w-4 h-4 text-pink-500"></i>
+                </div>
+                
+                <button id="btn-mark-complete" class="w-full py-4 bg-white/5 border border-white/10 hover:border-pink-500/50 hover:bg-pink-500/5 mono text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl transition-all flex items-center justify-center space-x-3 group">
+                    <i data-lucide="check-circle" class="w-4 h-4 group-hover:scale-110 transition-transform"></i>
+                    <span>Mark as Completed</span>
+                </button>
+                <p class="mono text-[8px] text-center text-gray-600 uppercase tracking-widest">Finalize record to update trajectory</p>
+            </div>
+
+            <!-- Telemetry Section -->
             <div class="glass-card p-8 rounded-[2rem] space-y-6">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="mono text-[11px] uppercase text-gray-500 font-bold tracking-widest">Telemetry</h2>
@@ -205,12 +225,13 @@
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const urlParams = new URLSearchParams(window.location.search);
-        const lessonId = urlParams.get('id'); // Get Lesson UUID from URL
+        const lessonId = urlParams.get('id'); 
 
         let player, currentUser = null;
         let allowedSeconds = 0, watchedSeconds = 0;
         let sessionTimer = null, dbSyncTimer = null;
         let watermarkData = { x: 50, y: 50, dx: 1, dy: 1 };
+        let isCompleted = false;
 
         async function checkAuth() {
             const { data: { session } } = await sb.auth.getSession();
@@ -251,7 +272,6 @@
             }
 
             try {
-                // 1. Fetch Lesson Data from 'lessons' table
                 const { data: lesson, error } = await sb
                     .from('lessons')
                     .select('*')
@@ -260,24 +280,20 @@
 
                 if (error || !lesson) throw new Error("Lesson not found");
 
-                // 2. Fetch Duration Columns
                 const hours = parseInt(lesson.watchtime_hours) || 0;
                 const minutes = parseInt(lesson.watchtime_minutes) || 0;
                 allowedSeconds = (hours * 3600) + (minutes * 60);
 
-                // Check if watch time is exactly 0
                 if (allowedSeconds === 0) {
                     showLimitError("PROTOCOL LOCK: WATCH TIME IS OVER");
                     return;
                 }
 
-                // 3. UI Updates
                 document.getElementById('lesson-title').innerText = lesson.title;
                 document.getElementById('lesson-id-label').innerText = `SID: ${lesson.order_index || 'N/A'}`;
                 document.getElementById('lesson-type-badge').innerText = lesson.lesson_type;
                 document.getElementById('lesson-description').innerText = lesson.description || "No briefing notes provided.";
 
-                // 4. Check user's specific progress in 'watch_sessions'
                 await syncProgressFromDB();
                 
                 if (watchedSeconds >= allowedSeconds) {
@@ -287,6 +303,7 @@
 
                 initVideo(lesson.video_url);
                 startSessionClock();
+                setupCompletionHandler();
 
             } catch (err) {
                 console.error(err);
@@ -297,21 +314,59 @@
         async function syncProgressFromDB() {
             const { data, error } = await sb
                 .from('watch_sessions')
-                .select('total_seconds_watched')
+                .select('total_seconds_watched, is_completed')
                 .eq('user_id', currentUser.id)
                 .eq('lesson_id', lessonId)
                 .maybeSingle();
 
             if (data) {
                 watchedSeconds = data.total_seconds_watched;
+                isCompleted = data.is_completed || false;
+                updateCompletionUI();
             } else {
-                // Create session if it doesn't exist
                 await sb.from('watch_sessions').insert({
                     user_id: currentUser.id,
                     lesson_id: lessonId,
-                    total_seconds_watched: 0
+                    total_seconds_watched: 0,
+                    is_completed: false
                 });
             }
+        }
+
+        function setupCompletionHandler() {
+            const btn = document.getElementById('btn-mark-complete');
+            btn.onclick = async () => {
+                if (isCompleted) return;
+
+                btn.disabled = true;
+                btn.innerHTML = `<span class="animate-pulse">UPDATING LOG...</span>`;
+
+                const { error } = await sb
+                    .from('watch_sessions')
+                    .update({ is_completed: true })
+                    .eq('user_id', currentUser.id)
+                    .eq('lesson_id', lessonId);
+
+                if (!error) {
+                    isCompleted = true;
+                    updateCompletionUI();
+                } else {
+                    btn.disabled = false;
+                    btn.innerHTML = `<i data-lucide="alert-triangle" class="w-4 h-4 mr-2"></i> ERROR`;
+                    lucide.createIcons();
+                }
+            };
+        }
+
+        function updateCompletionUI() {
+            const btn = document.getElementById('btn-mark-complete');
+            if (isCompleted) {
+                btn.classList.add('btn-complete-active');
+                btn.innerHTML = `<i data-lucide="check-circle-2" class="w-4 h-4 text-white"></i> <span>Simulation Completed</span>`;
+                btn.onclick = null;
+                btn.style.cursor = 'default';
+            }
+            lucide.createIcons();
         }
 
         function startSessionClock() {
@@ -328,7 +383,7 @@
             }, 1000);
 
             if (dbSyncTimer) clearInterval(dbSyncTimer);
-            dbSyncTimer = setInterval(syncWithDB, 10000); // Sync every 10 seconds
+            dbSyncTimer = setInterval(syncWithDB, 10000); 
         }
 
         async function syncWithDB() {
