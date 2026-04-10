@@ -14,6 +14,8 @@
         .glass-card { background: rgba(24, 24, 27, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
         .lesson-item:hover { background: rgba(236, 72, 153, 0.05); border-left-color: #ec4899; }
         .type-badge { font-size: 9px; letter-spacing: 0.05em; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); }
+        /* New Category Badge Style */
+        .category-pill { font-size: 10px; padding: 2px 8px; border-radius: 99px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
     </style>
 </head>
 <body class="p-6 md:p-12">
@@ -34,7 +36,6 @@
         <section class="space-y-4">
             <h2 class="mono text-[11px] uppercase text-gray-500 font-bold tracking-widest mb-6">Course Lessons</h2>
             <div id="lessons-container" class="space-y-3">
-                <!-- Skeleton Loader -->
                 <div class="animate-pulse space-y-4">
                     <div class="h-20 bg-white/5 rounded-2xl w-full"></div>
                     <div class="h-20 bg-white/5 rounded-2xl w-full"></div>
@@ -56,17 +57,16 @@
             }
 
             try {
-                // 1. Fetch Course Details
-                const { data: course, error: cErr } = await sb.from('courses').select('*').eq('id', courseId).single();
+                const { data: course } = await sb.from('courses').select('*').eq('id', courseId).single();
                 if (course) {
                     document.getElementById('course-title').textContent = course.name;
                     document.getElementById('course-desc').textContent = course.description;
                 }
 
-                // 2. Fetch Lessons for this course
+                // UPDATED: Added category join
                 const { data: lessons, error: lErr } = await sb
                     .from('lessons')
-                    .select('*')
+                    .select('*, lesson_categories(*)')
                     .eq('course_id', courseId)
                     .order('order_index', { ascending: true });
 
@@ -74,55 +74,28 @@
                 renderLessons(lessons);
             } catch (err) {
                 console.error(err);
-                document.getElementById('lessons-container').innerHTML = `
-                    <div class="p-6 border border-red-500/20 bg-red-500/5 rounded-2xl">
-                        <p class="text-red-400 mono text-xs">Error loading lessons: ${err.message}</p>
-                    </div>
-                `;
+                document.getElementById('lessons-container').innerHTML = `<p class="text-red-400">Error: ${err.message}</p>`;
             }
         }
 
         function renderLessons(lessons) {
             const container = document.getElementById('lessons-container');
             if (!lessons || lessons.length === 0) {
-                container.innerHTML = `<div class="p-12 text-center glass-card rounded-[2rem] text-gray-500 mono text-xs uppercase tracking-widest">No lessons found for this module yet.</div>`;
+                container.innerHTML = `<div class="p-12 text-center glass-card rounded-[2rem] text-gray-500 mono text-xs">No lessons found.</div>`;
                 return;
             }
 
             container.innerHTML = lessons.map(lesson => {
                 const type = (lesson.lesson_type || 'youtube').toLowerCase();
+                const category = lesson.lesson_categories; // Joined data
                 
-                // Determine the Icon based on lesson type
                 let iconName = 'play';
                 if (type === 'pdf') iconName = 'file-text';
                 if (type === 'zoom' || type === 'live') iconName = 'video';
 
-                // Construct Duration string
                 const hrs = lesson.watchtime_hours || 0;
                 const mins = lesson.watchtime_minutes || 0;
                 let durationText = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
-
-                // Internal Redirect Routing Logic
-                let targetUrl = '#';
-                let isExternal = false;
-
-                switch(type) {
-                    case 'youtube':
-                        targetUrl = `/learn/yt?id=${lesson.id}`; 
-                        break;
-                    case 'zoom':
-                        targetUrl = `/learn/zoom?id=${lesson.id}`;
-                        break;
-                    case 'pdf':
-                        targetUrl = `/learn/pdf?id=${lesson.id}`;
-                        break;
-                    case 'live':
-                        targetUrl = lesson.video_url || '#';
-                        isExternal = true;
-                        break;
-                    default:
-                        targetUrl = `/learn/yt?id=${lesson.id}`;
-                }
 
                 return `
                     <div class="glass-card p-6 rounded-2xl border-l-4 border-l-transparent transition-all lesson-item flex items-center justify-between group">
@@ -131,11 +104,16 @@
                                 ${lesson.order_index || '#'}
                             </div>
                             <div>
-                                <div class="flex items-center space-x-3 mb-1">
+                                <div class="flex items-center gap-3 mb-1 flex-wrap">
                                     <h4 class="font-bold text-lg text-white">${lesson.title}</h4>
-                                    <span class="type-badge mono uppercase text-gray-400 font-bold">
-                                        ${type}
-                                    </span>
+                                    
+                                    ${category ? `
+                                        <span class="category-pill text-black" style="background-color: ${category.color_hex}">
+                                            ${category.name}
+                                        </span>
+                                    ` : ''}
+
+                                    <span class="type-badge mono uppercase text-gray-400 font-bold">${type}</span>
                                 </div>
                                 <p class="text-xs text-gray-500 mono uppercase tracking-widest flex items-center gap-2">
                                     <i data-lucide="clock" class="w-3 h-3"></i>
@@ -143,10 +121,8 @@
                                 </p>
                             </div>
                         </div>
-                        <a href="${targetUrl}" 
-                           ${isExternal ? 'target="_blank"' : ''} 
-                           class="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-gray-400 group-hover:bg-pink-600 group-hover:text-white transition-all">
-                            <i data-lucide="${iconName}" class="w-4 h-4 ${iconName === 'play' ? 'fill-current' : ''}"></i>
+                        <a href="#" class="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-gray-400 group-hover:bg-pink-600 group-hover:text-white transition-all">
+                            <i data-lucide="${iconName}" class="w-4 h-4"></i>
                         </a>
                     </div>
                 `;
