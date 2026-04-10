@@ -47,62 +47,46 @@
 
         async function init() {
             const courseId = sessionStorage.getItem('active_course_id');
-            if (!courseId) {
-                window.location.href = '/courses';
-                return;
-            }
+            if (!courseId) { window.location.href = '/courses'; return; }
 
             try {
-                // 1. Fetch Course Data
+                // Fetch Course Details
                 const { data: course } = await sb.from('courses').select('*').eq('id', courseId).single();
                 if (course) {
                     document.getElementById('course-title').textContent = course.name;
                     document.getElementById('course-desc').textContent = course.description;
                 }
 
-                // 2. Fetch Lessons with Category JOIN
-                // Note: We select lesson_categories(*)
+                // FETCH WITH EXPLICIT RELATIONSHIP (The Fix for your Error)
                 const { data: lessons, error: lErr } = await sb
                     .from('lessons')
-                    .select('*, lesson_categories(*)')
+                    .select('*, lesson_categories!category_id(*)') 
                     .eq('course_id', courseId)
                     .order('order_index', { ascending: true });
 
                 if (lErr) throw lErr;
-                
-                // DEBUG: Check your console (F12) to see if lesson_categories is null or exists
-                console.log("Supabase Data:", lessons);
-
                 renderCategorizedLessons(lessons);
             } catch (err) {
-                console.error("Initialization Error:", err);
-                document.getElementById('lessons-container').innerHTML = `
-                    <div class="p-6 border border-red-500/20 bg-red-500/5 rounded-2xl">
-                        <p class="text-red-400 mono text-xs">Error: ${err.message}</p>
-                    </div>
-                `;
+                console.error("Init Error:", err);
+                document.getElementById('lessons-container').innerHTML = `<p class="text-red-400 mono text-xs">Error: ${err.message}</p>`;
             }
         }
 
         function renderCategorizedLessons(lessons) {
             const container = document.getElementById('lessons-container');
-            
             if (!lessons || lessons.length === 0) {
-                container.innerHTML = `<div class="p-12 text-center glass-card rounded-[2rem] text-gray-500 mono text-xs uppercase tracking-widest">No lessons assigned.</div>`;
+                container.innerHTML = `<div class="p-12 text-center glass-card rounded-[2rem] text-gray-500 mono text-xs uppercase tracking-widest">No lessons found.</div>`;
                 return;
             }
 
-            // Grouping logic: Improved to find the category object even if name differs slightly
             const grouped = lessons.reduce((acc, lesson) => {
-                // Try to find the category object inside the lesson
-                const category = lesson.lesson_categories || lesson.categories || lesson.category;
-                const catName = (category && category.name) ? category.name : 'General Resources';
+                // Handle the data whether it comes back as the table name or the column name
+                const category = lesson.lesson_categories || lesson.category_id_info; 
+                const catName = (category && category.name) ? category.name : 'Uncategorized';
                 
                 if (!acc[catName]) {
                     acc[catName] = {
-                        details: {
-                            color: (category && category.color_hex) ? category.color_hex : '#ec4899'
-                        },
+                        color: (category && category.color_hex) ? category.color_hex : '#6366f1',
                         items: []
                     };
                 }
@@ -110,56 +94,46 @@
                 return acc;
             }, {});
 
-            container.innerHTML = Object.entries(grouped).map(([name, data]) => {
-                return `
-                    <section class="category-group">
-                        <div class="flex items-center gap-4 mb-6">
-                            <h3 class="mono text-[11px] font-black uppercase tracking-[0.3em]" style="color: ${data.details.color}">
-                                ${name}
-                            </h3>
-                            <div class="cat-line"></div>
-                            <span class="mono text-[9px] text-gray-600 font-bold">${data.items.length} UNITS</span>
-                        </div>
-                        
-                        <div class="grid gap-3">
-                            ${data.items.map(lesson => renderLessonItem(lesson)).join('')}
-                        </div>
-                    </section>
-                `;
-            }).join('');
+            container.innerHTML = Object.entries(grouped).map(([name, data]) => `
+                <section>
+                    <div class="flex items-center gap-4 mb-6">
+                        <h3 class="mono text-[11px] font-black uppercase tracking-[0.3em]" style="color: ${data.color}">
+                            ${name}
+                        </h3>
+                        <div class="cat-line"></div>
+                        <span class="mono text-[9px] text-gray-600">${data.items.length} LESSONS</span>
+                    </div>
+                    <div class="grid gap-3">
+                        ${data.items.map(lesson => renderLessonCard(lesson)).join('')}
+                    </div>
+                </section>
+            `).join('');
 
             lucide.createIcons();
         }
 
-        function renderLessonItem(lesson) {
+        function renderLessonCard(lesson) {
             const type = (lesson.lesson_type || 'youtube').toLowerCase();
-            let icon = 'play';
-            if (type === 'pdf') icon = 'file-text';
-            if (type === 'zoom' || type === 'live') icon = 'video';
-
-            const duration = (lesson.watchtime_hours > 0) 
-                ? `${lesson.watchtime_hours}h ${lesson.watchtime_minutes}m` 
-                : `${lesson.watchtime_minutes || 0}m`;
+            const icon = type === 'pdf' ? 'file-text' : (type === 'zoom' ? 'video' : 'play');
+            const duration = `${lesson.watchtime_hours || 0}h ${lesson.watchtime_minutes || 0}m`;
 
             return `
-                <div class="glass-card p-5 rounded-2xl border-l-4 border-l-transparent transition-all lesson-item flex items-center justify-between group">
+                <div class="glass-card p-5 rounded-2xl border-l-4 border-l-transparent lesson-item flex items-center justify-between group transition-all">
                     <div class="flex items-center space-x-5">
-                        <div class="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center text-white/40 font-black text-[10px] mono border border-white/5">
+                        <div class="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-white/20 font-bold text-[10px] mono">
                             ${lesson.order_index || '0'}
                         </div>
                         <div>
                             <div class="flex items-center space-x-3 mb-1">
-                                <h4 class="font-bold text-white group-hover:text-pink-400 transition-colors">${lesson.title}</h4>
-                                <span class="type-badge mono text-gray-500 font-bold">${type}</span>
+                                <h4 class="font-bold text-white">${lesson.title}</h4>
+                                <span class="type-badge mono text-gray-500">${type}</span>
                             </div>
-                            <p class="text-[10px] text-gray-600 mono uppercase tracking-widest flex items-center gap-2">
-                                <i data-lucide="clock" class="w-3 h-3"></i>
-                                ${duration}
+                            <p class="text-[10px] text-gray-600 mono flex items-center gap-2">
+                                <i data-lucide="clock" class="w-3 h-3"></i> ${duration}
                             </p>
                         </div>
                     </div>
-                    <a href="/learn/${type}?id=${lesson.id}" 
-                       class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 group-hover:bg-pink-600 group-hover:text-white transition-all">
+                    <a href="/learn/${type}?id=${lesson.id}" class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-500 group-hover:bg-pink-600 group-hover:text-white transition-all">
                         <i data-lucide="${icon}" class="w-4 h-4"></i>
                     </a>
                 </div>
