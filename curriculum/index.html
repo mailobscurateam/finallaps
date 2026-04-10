@@ -14,8 +14,7 @@
         .glass-card { background: rgba(24, 24, 27, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
         .lesson-item:hover { background: rgba(236, 72, 153, 0.05); border-left-color: #ec4899; }
         .type-badge { font-size: 9px; letter-spacing: 0.05em; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); }
-        /* New Category Badge Style */
-        .category-pill { font-size: 10px; padding: 2px 8px; border-radius: 99px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
+        .category-header { border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem; margin-top: 2.5rem; }
     </style>
 </head>
 <body class="p-6 md:p-12">
@@ -33,9 +32,8 @@
             <p id="course-desc" class="text-gray-400 leading-relaxed max-w-2xl"></p>
         </header>
 
-        <section class="space-y-4">
-            <h2 class="mono text-[11px] uppercase text-gray-500 font-bold tracking-widest mb-6">Course Lessons</h2>
-            <div id="lessons-container" class="space-y-3">
+        <section id="lessons-wrapper">
+            <div id="lessons-container" class="space-y-8">
                 <div class="animate-pulse space-y-4">
                     <div class="h-20 bg-white/5 rounded-2xl w-full"></div>
                     <div class="h-20 bg-white/5 rounded-2xl w-full"></div>
@@ -51,10 +49,7 @@
 
         async function init() {
             const courseId = sessionStorage.getItem('active_course_id');
-            if (!courseId) {
-                window.location.href = '/courses';
-                return;
-            }
+            if (!courseId) { window.location.href = '/courses'; return; }
 
             try {
                 const { data: course } = await sb.from('courses').select('*').eq('id', courseId).single();
@@ -63,7 +58,6 @@
                     document.getElementById('course-desc').textContent = course.description;
                 }
 
-                // UPDATED: Added category join
                 const { data: lessons, error: lErr } = await sb
                     .from('lessons')
                     .select('*, lesson_categories(*)')
@@ -71,64 +65,86 @@
                     .order('order_index', { ascending: true });
 
                 if (lErr) throw lErr;
-                renderLessons(lessons);
+                renderGroupedLessons(lessons);
             } catch (err) {
                 console.error(err);
-                document.getElementById('lessons-container').innerHTML = `<p class="text-red-400">Error: ${err.message}</p>`;
+                document.getElementById('lessons-container').innerHTML = `<p class="text-red-400 font-mono text-xs">Error: ${err.message}</p>`;
             }
         }
 
-        function renderLessons(lessons) {
+        function renderGroupedLessons(lessons) {
             const container = document.getElementById('lessons-container');
             if (!lessons || lessons.length === 0) {
-                container.innerHTML = `<div class="p-12 text-center glass-card rounded-[2rem] text-gray-500 mono text-xs">No lessons found.</div>`;
+                container.innerHTML = `<div class="p-12 text-center glass-card rounded-[2rem] text-gray-500 mono text-xs uppercase tracking-widest">No lessons found.</div>`;
                 return;
             }
 
-            container.innerHTML = lessons.map(lesson => {
-                const type = (lesson.lesson_type || 'youtube').toLowerCase();
-                const category = lesson.lesson_categories; // Joined data
+            // 1. Group lessons by Category Name
+            const groups = lessons.reduce((acc, lesson) => {
+                const catName = lesson.lesson_categories?.name || 'Uncategorized';
+                if (!acc[catName]) acc[catName] = { 
+                    info: lesson.lesson_categories, 
+                    items: [] 
+                };
+                acc[catName].items.push(lesson);
+                return acc;
+            }, {});
+
+            // 2. Generate HTML for each group
+            container.innerHTML = Object.entries(groups).map(([groupName, groupData]) => {
+                const catColor = groupData.info?.color_hex || '#ec4899';
                 
-                let iconName = 'play';
-                if (type === 'pdf') iconName = 'file-text';
-                if (type === 'zoom' || type === 'live') iconName = 'video';
-
-                const hrs = lesson.watchtime_hours || 0;
-                const mins = lesson.watchtime_minutes || 0;
-                let durationText = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
-
                 return `
-                    <div class="glass-card p-6 rounded-2xl border-l-4 border-l-transparent transition-all lesson-item flex items-center justify-between group">
-                        <div class="flex items-center space-x-6">
-                            <div class="w-10 h-10 rounded-full bg-pink-500/10 flex items-center justify-center text-pink-500 font-black text-sm">
-                                ${lesson.order_index || '#'}
-                            </div>
-                            <div>
-                                <div class="flex items-center gap-3 mb-1 flex-wrap">
-                                    <h4 class="font-bold text-lg text-white">${lesson.title}</h4>
-                                    
-                                    ${category ? `
-                                        <span class="category-pill text-black" style="background-color: ${category.color_hex}">
-                                            ${category.name}
-                                        </span>
-                                    ` : ''}
-
-                                    <span class="type-badge mono uppercase text-gray-400 font-bold">${type}</span>
-                                </div>
-                                <p class="text-xs text-gray-500 mono uppercase tracking-widest flex items-center gap-2">
-                                    <i data-lucide="clock" class="w-3 h-3"></i>
-                                    ${durationText}
-                                </p>
-                            </div>
+                    <div class="category-block">
+                        <div class="category-header mb-6 flex items-center justify-between">
+                            <h3 class="mono text-[11px] uppercase font-bold tracking-[0.2em]" style="color: ${catColor}">
+                                ${groupName}
+                            </h3>
+                            <span class="text-[10px] text-gray-600 mono">${groupData.items.length} LESSONS</span>
                         </div>
-                        <a href="#" class="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-gray-400 group-hover:bg-pink-600 group-hover:text-white transition-all">
-                            <i data-lucide="${iconName}" class="w-4 h-4"></i>
-                        </a>
+                        <div class="space-y-3">
+                            ${groupData.items.map(lesson => renderLessonCard(lesson)).join('')}
+                        </div>
                     </div>
                 `;
             }).join('');
-            
+
             lucide.createIcons();
+        }
+
+        function renderLessonCard(lesson) {
+            const type = (lesson.lesson_type || 'youtube').toLowerCase();
+            let iconName = 'play';
+            if (type === 'pdf') iconName = 'file-text';
+            if (type === 'zoom' || type === 'live') iconName = 'video';
+
+            const hrs = lesson.watchtime_hours || 0;
+            const mins = lesson.watchtime_minutes || 0;
+            let durationText = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+
+            return `
+                <div class="glass-card p-5 rounded-2xl border-l-4 border-l-transparent transition-all lesson-item flex items-center justify-between group">
+                    <div class="flex items-center space-x-5">
+                        <div class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-gray-400 font-bold text-[10px] mono">
+                            ${lesson.order_index || '#'}
+                        </div>
+                        <div>
+                            <div class="flex items-center space-x-3 mb-1">
+                                <h4 class="font-bold text-base text-white">${lesson.title}</h4>
+                                <span class="type-badge mono uppercase text-gray-500 font-bold">${type}</span>
+                            </div>
+                            <p class="text-[10px] text-gray-500 mono uppercase tracking-widest flex items-center gap-2">
+                                <i data-lucide="clock" class="w-3 h-3"></i>
+                                ${durationText}
+                            </p>
+                        </div>
+                    </div>
+                    <a href="/learn/${type === 'pdf' ? 'pdf' : 'yt'}?id=${lesson.id}" 
+                       class="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-gray-400 group-hover:bg-pink-600 group-hover:text-white transition-all">
+                        <i data-lucide="${iconName}" class="w-4 h-4"></i>
+                    </a>
+                </div>
+            `;
         }
 
         window.onload = init;
