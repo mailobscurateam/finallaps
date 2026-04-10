@@ -10,68 +10,18 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --math-primary: #ec4899; 
-            --math-secondary: #f43f5e;
-            --math-dark: #09090b;
-        }
-        body {
-            font-family: 'Outfit', sans-serif;
-            background-color: var(--math-dark);
-            color: #f4f4f5;
-            overflow-x: hidden; 
-            opacity: 0;
-            transition: opacity 0.5s ease;
-        }
+        :root { --math-primary: #ec4899; --math-dark: #09090b; }
+        body { font-family: 'Outfit', sans-serif; background-color: var(--math-dark); color: #f4f4f5; overflow-x: hidden; opacity: 0; transition: opacity 0.5s ease; }
         body.auth-ready { opacity: 1; }
         .mono { font-family: 'JetBrains Mono', monospace; }
-        #math-canvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -10;
-        }
-        .glass-card {
-            background: rgba(24, 24, 27, 0.4);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            overflow: hidden;
-        }
-        .glass-card:hover {
-            border-color: rgba(236, 72, 153, 0.5);
-            transform: translateY(-10px);
-            background: rgba(24, 24, 27, 0.6);
-            box-shadow: 0 20px 40px -20px rgba(236, 72, 153, 0.2);
-        }
-        .gradient-text {
-            background: linear-gradient(to bottom right, #fff 30%, #ec4899 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .course-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 2rem;
-        }
-        .course-image-container {
-            width: 100%;
-            height: 180px;
-            background: #18181b;
-            position: relative;
-            overflow: hidden;
-        }
-        .course-image {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.5s ease;
-        }
-        .glass-card:hover .course-image {
-            transform: scale(1.1);
-        }
+        #math-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -10; }
+        .glass-card { background: rgba(24, 24, 27, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .glass-card:hover { border-color: rgba(236, 72, 153, 0.5); transform: translateY(-10px); background: rgba(24, 24, 27, 0.6); }
+        .gradient-text { background: linear-gradient(to bottom right, #fff 30%, #ec4899 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .course-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 2rem; }
+        .course-image-container { width: 100%; height: 180px; background: #18181b; position: relative; overflow: hidden; }
+        .course-image { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s ease; }
+        .glass-card:hover .course-image { transform: scale(1.1); }
     </style>
 </head>
 <body class="bg-[#09090b]">
@@ -88,8 +38,7 @@
                     <span id="user-email" class="mono text-[10px] text-gray-400">...</span>
                     <button onclick="handleLogout()" class="text-[10px] font-bold uppercase tracking-[0.2em] text-pink-500 hover:text-white transition">Logout</button>
                 </div>
-                <div class="h-4 w-[1px] bg-white/10 hidden md:block"></div>
-                <div class="mono text-xs text-pink-500 font-bold uppercase tracking-widest">Nexus Student Portal</div>
+                <div class="mono text-xs text-pink-500 font-bold uppercase tracking-widest px-4">Student Portal</div>
             </div>
         </nav>
 
@@ -99,12 +48,8 @@
                     <i data-lucide="shield-check" class="w-3 h-3"></i>
                     <span>Authenticated Access</span>
                 </div>
-                <h1 class="text-6xl md:text-7xl font-black mb-6 tracking-tighter">
-                    Available <span class="gradient-text">Modules</span>
-                </h1>
-                <p class="text-gray-400 max-w-2xl mx-auto text-lg leading-relaxed">
-                    Welcome back. Access your specialized Combined Mathematics curriculum directly from the Nexus Database.
-                </p>
+                <h1 class="text-6xl md:text-7xl font-black mb-6 tracking-tighter">Available <span class="gradient-text">Modules</span></h1>
+                <p class="text-gray-400 max-w-2xl mx-auto text-lg leading-relaxed">Enroll in your specialized Combined Mathematics curriculum. Access is granted upon approval.</p>
             </div>
         </section>
 
@@ -114,21 +59,9 @@
                     <div class="w-12 h-12 border-4 border-pink-500/20 border-t-pink-500 rounded-full animate-spin mb-4"></div>
                     <p class="mono text-xs text-gray-500 uppercase tracking-widest animate-pulse">Querying Nexus DB...</p>
                 </div>
-
                 <div id="courses-container" class="course-grid hidden"></div>
-
-                <div id="error-state" class="hidden text-center py-20 glass-card rounded-[2rem] border-red-500/20 max-w-lg mx-auto">
-                    <i data-lucide="alert-circle" class="w-12 h-12 text-red-500 mx-auto mb-4"></i>
-                    <h3 class="text-xl font-bold mb-2">Sync Interrupted</h3>
-                    <p id="error-message" class="text-gray-400 text-sm mb-6">Database error.</p>
-                    <button onclick="window.location.reload()" class="px-6 py-2 bg-white/5 border border-white/10 hover:bg-white/10 rounded-full text-[10px] font-bold uppercase tracking-widest transition">Retry Connection</button>
-                </div>
             </div>
         </section>
-
-        <footer class="p-20 border-t border-white/5 text-center bg-black/40">
-            <div class="mono text-[10px] text-gray-600 tracking-widest uppercase mb-4">Authorized Session &copy; 2026 Nexus Prime Education</div>
-        </footer>
     </main>
 
     <script>
@@ -136,29 +69,44 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzYW94anp2aHhpZ2dudGlicHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDQ2OTAsImV4cCI6MjA5MTQyMDY5MH0.Q5Iu51O3NK4k2kcc_GoegnyAYIFIs2SUkQOV10qp2jI';
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        window.enrollInCourse = async function(courseId) {
-            const { data: { session } } = await sb.auth.getSession();
-            if (!session) return window.location.href = 'login.html';
+        // Core Enrollment Function
+        window.enrollInCourse = async function(btn, courseId) {
+            try {
+                // UI feedback
+                const originalText = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = `<span class="flex items-center justify-center gap-2"><i data-lucide="loader" class="w-3 h-3 animate-spin"></i> Processing...</span>`;
+                lucide.createIcons();
 
-            const user = session.user;
-            
-            // Create pending entry in course_status
-            // Use upsert to handle case where they click enroll again
-            const { error } = await sb
-                .from('course_status')
-                .upsert({ 
-                    user_id: user.id, 
-                    course_id: courseId,
-                    status: 'pending' 
-                }, { onConflict: 'user_id,course_id' });
+                const { data: { session } } = await sb.auth.getSession();
+                if (!session) {
+                    window.location.href = 'login.html';
+                    return;
+                }
 
-            if (error) {
-                console.error("Enrollment failed:", error);
-                return;
+                // Insert/Update status to pending
+                const { error } = await sb
+                    .from('course_status')
+                    .upsert({ 
+                        user_id: session.user.id, 
+                        course_id: courseId,
+                        status: 'pending' 
+                    }, { onConflict: 'user_id,course_id' });
+
+                if (error) throw error;
+
+                // Save to session for the tracking page
+                sessionStorage.setItem('pending_course_id', courseId);
+                
+                // Redirect
+                window.location.href = 'approvestatus.html';
+
+            } catch (err) {
+                console.error("Enrollment error:", err);
+                btn.disabled = false;
+                btn.innerHTML = "Error! Try Again";
+                setTimeout(() => { btn.innerHTML = "Enroll Now"; }, 3000);
             }
-
-            sessionStorage.setItem('pending_course_id', courseId);
-            window.location.href = '/status/';
         };
 
         async function checkAuth() {
@@ -170,27 +118,15 @@
             fetchCourses();
         }
 
-        window.handleLogout = async () => { await sb.auth.signOut(); window.location.href = 'login.html'; };
-
         async function fetchCourses() {
-            const loader = document.getElementById('course-loader');
-            const container = document.getElementById('courses-container');
-            const errorState = document.getElementById('error-state');
-            
-            try {
-                const { data: courses, error } = await sb.from('courses').select('*');
-                if (error) throw error;
-                renderCourses(courses);
-            } catch (err) {
-                loader.classList.add('hidden');
-                errorState.classList.remove('hidden');
+            const { data: courses, error } = await sb.from('courses').select('*');
+            if (error) {
+                console.error(error);
+                return;
             }
-        }
-
-        function renderCourses(courses) {
             const container = document.getElementById('courses-container');
             container.innerHTML = courses.map(c => `
-                <div class="glass-card rounded-[2rem] flex flex-col h-full group">
+                <div class="glass-card rounded-[2rem] flex flex-col h-full group overflow-hidden">
                     <div class="course-image-container">
                         <img src="${c.image_url || 'https://images.unsplash.com/photo-1509228468518-180dd4864904?w=800'}" class="course-image">
                         <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
@@ -200,7 +136,9 @@
                         <p class="mono text-[11px] text-gray-500 uppercase tracking-widest mb-4">By ${c.instructor || 'Nexus Faculty'}</p>
                         <p class="text-gray-400 text-sm leading-relaxed mb-8 flex-grow">${c.description || ''}</p>
                         <div class="pt-6 border-t border-white/5">
-                            <button onclick="enrollInCourse('${c.id}')" class="block w-full py-4 bg-white/5 border border-white/10 group-hover:bg-pink-600 group-hover:border-pink-600 text-center font-bold text-xs uppercase tracking-[0.2em] rounded-xl transition-all">Enroll Now</button>
+                            <button onclick="enrollInCourse(this, '${c.id}')" class="block w-full py-4 bg-white/5 border border-white/10 group-hover:bg-pink-600 group-hover:border-pink-600 text-center font-bold text-xs uppercase tracking-[0.2em] rounded-xl transition-all">
+                                Enroll Now
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -209,6 +147,8 @@
             container.classList.remove('hidden');
             lucide.createIcons();
         }
+
+        window.handleLogout = async () => { await sb.auth.signOut(); window.location.href = 'login.html'; };
 
         const initScene = () => {
             const container = document.getElementById('math-canvas');
@@ -226,6 +166,11 @@
             scene.add(pSystem);
             const animate = () => { requestAnimationFrame(animate); pSystem.rotation.y += 0.0002; renderer.render(scene, camera); };
             animate();
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
         };
 
         document.addEventListener('DOMContentLoaded', () => { initScene(); checkAuth(); });
