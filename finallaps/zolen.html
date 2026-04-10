@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 Hub - Zoom Simulation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+
+        :root {
+            --f1-red: #e10600;
+            --f1-black: #050505;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Orbitron', sans-serif;
+            background-color: var(--f1-black);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            opacity: 1;
+        }
+
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+            height: 0;
+            overflow: hidden;
+            background: #000;
+            border: 1px solid #222;
+        }
+
+        .video-container iframe {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            border: 0; opacity: 0; transition: opacity 0.8s ease-in;
+            background: #000;
+        }
+
+        .video-container iframe.visible { opacity: 1; }
+
+        /* Watermark Styles */
+        .watermark {
+            position: absolute;
+            z-index: 30;
+            pointer-events: none;
+            user-select: none;
+            font-family: sans-serif;
+            font-weight: bold;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.3);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+            text-transform: lowercase;
+            white-space: nowrap;
+            display: none; /* Shown after auth */
+        }
+
+        .status-bar { height: 4px; background: #111; position: relative; overflow: hidden; }
+        .status-progress { position: absolute; height: 100%; background: var(--f1-red); width: 0%; transition: width 0.3s; }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 10px 20px; font-size: 0.7rem; font-weight: 900;
+            text-transform: uppercase; letter-spacing: 2px; transition: all 0.3s;
+        }
+        .nav-btn:hover { background: var(--f1-red); border-color: var(--f1-red); color: white; }
+
+        .telemetry-box {
+            border-left: 2px solid var(--f1-red);
+            background: linear-gradient(90deg, rgba(225, 6, 0, 0.05), transparent);
+            padding: 1rem;
+        }
+
+        .preloader-overlay {
+            position: absolute; inset: 0; background: #0a0a0a;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 20;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="p-6 border-b border-white/10 flex justify-between items-center bg-black/50 backdrop-blur-md sticky top-0 z-50">
+        <div>
+            <h1 class="text-lg font-black italic tracking-tighter">
+                ZOOM <span class="text-red-600">FEED</span>
+            </h1>
+            <p id="lesson-title" class="text-[10px] text-gray-500 tracking-[3px] uppercase mt-1">Authenticating Data Stream...</p>
+        </div>
+        <div class="flex items-center gap-6">
+            <div id="timer-display" class="hidden text-right">
+                <p class="text-[8px] text-gray-500 uppercase font-bold tracking-widest">Remaining</p>
+                <p id="time-left" class="text-sm font-black text-red-500 tracking-tighter">--:--</p>
+            </div>
+            <button onclick="goBack()" class="nav-btn">Exit</button>
+        </div>
+    </header>
+
+    <div class="status-bar">
+        <div id="loading-bar" class="status-progress"></div>
+    </div>
+
+    <main class="flex-1 p-4 md:p-8 max-w-6xl mx-auto w-full">
+        <div id="telemetry-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="telemetry-box">
+                <p class="text-[9px] text-gray-500 uppercase font-bold">Module</p>
+                <p id="info-id" class="text-sm font-bold">--</p>
+            </div>
+            <div class="telemetry-box">
+                <p class="text-[9px] text-gray-500 uppercase font-bold">Limit</p>
+                <p id="info-limit" class="text-sm font-bold tracking-widest">--</p>
+            </div>
+            <div class="telemetry-box">
+                <p class="text-[9px] text-gray-500 uppercase font-bold">Status</p>
+                <p id="info-status" class="text-sm font-bold text-yellow-500 italic uppercase">Initializing...</p>
+            </div>
+        </div>
+
+        <div id="video-wrapper" class="video-container shadow-2xl rounded-sm">
+            <div id="preloader" class="preloader-overlay">
+                <div id="spinner" class="w-12 h-12 border-2 border-red-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p id="loader-text" class="text-[10px] font-bold tracking-[4px] text-gray-600 uppercase text-center">Syncing Stream...</p>
+            </div>
+            
+            <!-- Floating Email Watermark -->
+            <div id="email-watermark" class="watermark">user@example.com</div>
+            
+            <div id="iframe-holder"></div>
+        </div>
+    </main>
+
+    <script>
+        const GOOGLE_SHEET_ID = '1HLQxJv32eo-EloTtdZhw5ZhEWIXuhMOI7OAKsqG-dfI';
+        const GOOGLE_API_KEY = 'AIzaSyD3sts8y_s8M8L2Y66Gz0ICY_9SY-VmoEo';
+        const LESSONS_SHEET = 'lessons';
+        const SUPABASE_URL = 'https://ogfmimplmjzhqzeeexae.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9nZm1pbXBsbWp6aHF6ZWVleGFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNTgzNzcsImV4cCI6MjA4NjYzNDM3N30.l8j1VC7-Zt88UGRkclBd-dNyLZsHg2DuY_9FRRW311o';
+
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const courseId = urlParams.get('course');
+        const lessonId = urlParams.get('lesson');
+        
+        let currentUser = null;
+        let allowedSeconds = 0;
+        let watchedSeconds = 0;
+        let heartbeatInterval = null;
+
+        async function init() {
+            try {
+                const { data: { session }, error } = await supabaseClient.auth.getSession();
+                
+                if (error || !session) {
+                    showError("UNAUTHENTICATED ACCESS");
+                    return;
+                }
+
+                currentUser = session.user;
+                setupWatermark(currentUser.email || currentUser.id);
+                loadLessonAndCheckLimit();
+            } catch (e) {
+                console.error("Init Error:", e);
+                showError("SYSTEM INITIALIZATION FAILED");
+            }
+        }
+
+        function setupWatermark(email) {
+            const wm = document.getElementById('email-watermark');
+            wm.innerText = email;
+            wm.style.display = 'block';
+            
+            // Randomly move the watermark every 30 seconds
+            const moveWatermark = () => {
+                const maxX = 70; // Stay within visible bounds
+                const maxY = 80;
+                wm.style.left = Math.floor(Math.random() * maxX + 5) + '%';
+                wm.style.top = Math.floor(Math.random() * maxY + 5) + '%';
+            };
+            
+            moveWatermark();
+            setInterval(moveWatermark, 30000);
+        }
+
+        async function loadLessonAndCheckLimit() {
+            const loadingBar = document.getElementById('loading-bar');
+            loadingBar.style.width = '30%';
+
+            try {
+                const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${LESSONS_SHEET}!A2:L500?key=${GOOGLE_API_KEY}`);
+                const data = await response.json();
+                
+                if (!data.values) throw new Error("No data in sheet");
+
+                const row = data.values.find(r => r[1] === lessonId && r[0] === courseId);
+                if (!row) {
+                    showError("MODULE NOT FOUND");
+                    return;
+                }
+
+                const hours = parseInt(row[10]) || 0;
+                const minutes = parseInt(row[11]) || 0;
+                allowedSeconds = (hours * 3600) + (minutes * 60);
+                
+                document.getElementById('lesson-title').innerText = (row[3] || 'LESSON').toUpperCase();
+                document.getElementById('info-id').innerText = lessonId.toUpperCase();
+                document.getElementById('info-limit').innerText = allowedSeconds > 0 ? `${hours}H ${minutes}M` : 'UNLIMITED';
+
+                const { data: watchData, error: dbError } = await supabaseClient
+                    .from('watch_sessions')
+                    .select('total_seconds_watched')
+                    .eq('user_id', currentUser.id)
+                    .eq('lesson_id', lessonId)
+                    .single();
+
+                if (dbError && dbError.code !== 'PGRST116') {
+                    console.error("Supabase Fetch Error:", dbError);
+                }
+
+                if (watchData) {
+                    watchedSeconds = watchData.total_seconds_watched || 0;
+                } else {
+                    await supabaseClient
+                        .from('watch_sessions')
+                        .insert({ 
+                            user_id: currentUser.id,
+                            course_id: courseId,
+                            lesson_id: lessonId,
+                            total_seconds_watched: 0
+                        });
+                }
+
+                if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) {
+                    showError("ACCESS EXPIRED: LIMIT REACHED");
+                    return;
+                }
+
+                prepareVideo(row[5]); 
+            } catch (err) {
+                console.error("Fetch Error:", err);
+                showError("NETWORK TIMEOUT");
+            }
+        }
+
+        function prepareVideo(url) {
+            if (!url) {
+                showError("INVALID STREAM URL");
+                return;
+            }
+
+            const holder = document.getElementById('iframe-holder');
+            const iframe = document.createElement('iframe');
+            iframe.id = "video-iframe";
+            iframe.src = url.trim();
+            iframe.allow = "autoplay; fullscreen; picture-in-picture";
+            iframe.setAttribute('sandbox', 'allow-forms allow-scripts allow-pointer-lock allow-same-origin allow-top-navigation allow-presentation');
+            
+            iframe.onload = () => {
+                document.getElementById('loading-bar').style.width = '100%';
+                document.getElementById('info-status').innerText = "ONLINE";
+                document.getElementById('info-status').className = "text-sm font-bold text-green-500 italic uppercase";
+                
+                document.getElementById('preloader').style.display = 'none';
+                iframe.classList.add('visible');
+                
+                if (allowedSeconds > 0) {
+                    document.getElementById('timer-display').classList.remove('hidden');
+                    startHeartbeat();
+                    updateTimerUI();
+                }
+            };
+
+            setTimeout(() => {
+                const loader = document.getElementById('loader-text');
+                if (document.getElementById('preloader').style.display !== 'none') {
+                    loader.innerHTML = "Slow Connection...<br><span class='text-[8px] text-red-500'>Please check if Zoom is blocked</span>";
+                }
+            }, 10000);
+
+            holder.appendChild(iframe);
+        }
+
+        function startHeartbeat() {
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
+            heartbeatInterval = setInterval(async () => {
+                watchedSeconds += 10;
+                updateTimerUI();
+
+                try {
+                    await supabaseClient
+                        .from('watch_sessions')
+                        .update({ 
+                            total_seconds_watched: watchedSeconds,
+                            last_watched_at: new Date().toISOString()
+                        })
+                        .eq('user_id', currentUser.id)
+                        .eq('lesson_id', lessonId);
+
+                    if (watchedSeconds >= allowedSeconds) {
+                        clearInterval(heartbeatInterval);
+                        showError("WATCH LIMIT REACHED");
+                    }
+                } catch (e) {
+                    console.warn("Update Error:", e);
+                }
+            }, 10000);
+        }
+
+        function updateTimerUI() {
+            const remaining = Math.max(0, allowedSeconds - watchedSeconds);
+            const h = Math.floor(remaining / 3600);
+            const m = Math.floor((remaining % 3600) / 60);
+            const s = remaining % 60;
+            document.getElementById('time-left').innerText = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+
+        function showError(msg) {
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
+            document.getElementById('preloader').innerHTML = `
+                <div class="text-center p-6">
+                    <p class="text-red-600 font-black tracking-widest uppercase mb-2">Protocol Error</p>
+                    <p class="text-[10px] text-gray-500 uppercase tracking-widest">${msg}</p>
+                    <button onclick="location.reload()" class="mt-6 text-[9px] border border-red-600/30 px-4 py-2 hover:bg-red-600/10">Re-Initialize</button>
+                </div>
+            `;
+            document.getElementById('info-status').innerText = "LOCKED";
+            document.getElementById('info-status').className = "text-sm font-bold text-red-600 uppercase";
+            // Hide watermark on error
+            document.getElementById('email-watermark').style.display = 'none';
+        }
+
+        function goBack() {
+            window.location.href = `courses.html?id=${courseId}`;
+        }
+
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
