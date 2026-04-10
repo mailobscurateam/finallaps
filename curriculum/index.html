@@ -14,8 +14,6 @@
         .glass-card { background: rgba(24, 24, 27, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
         .lesson-item:hover { background: rgba(236, 72, 153, 0.05); border-left-color: #ec4899; }
         .type-badge { font-size: 9px; letter-spacing: 0.05em; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); }
-        
-        /* Category Header Styling */
         .cat-line { height: 1px; flex-grow: 1; background: linear-gradient(90deg, rgba(236, 72, 153, 0.2) 0%, transparent 100%); }
     </style>
 </head>
@@ -63,6 +61,7 @@
                 }
 
                 // 2. Fetch Lessons with Category JOIN
+                // Note: We select lesson_categories(*)
                 const { data: lessons, error: lErr } = await sb
                     .from('lessons')
                     .select('*, lesson_categories(*)')
@@ -71,6 +70,9 @@
 
                 if (lErr) throw lErr;
                 
+                // DEBUG: Check your console (F12) to see if lesson_categories is null or exists
+                console.log("Supabase Data:", lessons);
+
                 renderCategorizedLessons(lessons);
             } catch (err) {
                 console.error("Initialization Error:", err);
@@ -86,18 +88,21 @@
             const container = document.getElementById('lessons-container');
             
             if (!lessons || lessons.length === 0) {
-                container.innerHTML = `<div class="p-12 text-center glass-card rounded-[2rem] text-gray-500 mono text-xs uppercase tracking-widest">No lessons assigned to this module.</div>`;
+                container.innerHTML = `<div class="p-12 text-center glass-card rounded-[2rem] text-gray-500 mono text-xs uppercase tracking-widest">No lessons assigned.</div>`;
                 return;
             }
 
-            // Grouping logic: Organize lessons by category name
+            // Grouping logic: Improved to find the category object even if name differs slightly
             const grouped = lessons.reduce((acc, lesson) => {
-                const category = lesson.lesson_categories;
-                const catName = category ? category.name : 'General Resources';
+                // Try to find the category object inside the lesson
+                const category = lesson.lesson_categories || lesson.categories || lesson.category;
+                const catName = (category && category.name) ? category.name : 'General Resources';
                 
                 if (!acc[catName]) {
                     acc[catName] = {
-                        details: category || { color_hex: '#6366f1' },
+                        details: {
+                            color: (category && category.color_hex) ? category.color_hex : '#ec4899'
+                        },
                         items: []
                     };
                 }
@@ -105,14 +110,11 @@
                 return acc;
             }, {});
 
-            // Generate HTML
             container.innerHTML = Object.entries(grouped).map(([name, data]) => {
-                const color = data.details.color_hex;
-                
                 return `
                     <section class="category-group">
                         <div class="flex items-center gap-4 mb-6">
-                            <h3 class="mono text-[11px] font-black uppercase tracking-[0.3em]" style="color: ${color}">
+                            <h3 class="mono text-[11px] font-black uppercase tracking-[0.3em]" style="color: ${data.details.color}">
                                 ${name}
                             </h3>
                             <div class="cat-line"></div>
@@ -135,7 +137,7 @@
             if (type === 'pdf') icon = 'file-text';
             if (type === 'zoom' || type === 'live') icon = 'video';
 
-            const duration = lesson.watchtime_hours > 0 
+            const duration = (lesson.watchtime_hours > 0) 
                 ? `${lesson.watchtime_hours}h ${lesson.watchtime_minutes}m` 
                 : `${lesson.watchtime_minutes || 0}m`;
 
@@ -157,8 +159,8 @@
                         </div>
                     </div>
                     <a href="/learn/${type}?id=${lesson.id}" 
-                       class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-500 group-hover:bg-pink-600 group-hover:text-white group-hover:scale-110 transition-all duration-300">
-                        <i data-lucide="${icon}" class="w-4 h-4 ${icon === 'play' ? 'ml-0.5' : ''}"></i>
+                       class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 group-hover:bg-pink-600 group-hover:text-white transition-all">
+                        <i data-lucide="${icon}" class="w-4 h-4"></i>
                     </a>
                 </div>
             `;
