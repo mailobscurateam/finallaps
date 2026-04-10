@@ -196,6 +196,7 @@
         }
 
         window.goToCourse = (id) => {
+            // Updated to use active_course_id based on your usage
             sessionStorage.setItem('active_course_id', id);
             window.location.href = 'curriculum.html';
         };
