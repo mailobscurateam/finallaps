@@ -93,7 +93,7 @@
 
             <div id="courses-container" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <!-- Loading State -->
-                <div class="lg:col-span-2 py-20 flex flex-col items-center justify-center space-y-4">
+                <div id="loading-state" class="lg:col-span-2 py-20 flex flex-col items-center justify-center space-y-4">
                     <div class="w-12 h-12 border-2 border-pink-500/20 border-t-pink-500 rounded-full animate-spin"></div>
                     <span class="mono text-[10px] text-gray-600 uppercase tracking-[0.2em]">Synchronizing local records...</span>
                 </div>
@@ -123,22 +123,41 @@
             fetchDashboardData();
         }
 
-        async function fetchDashboardData() {
+        /**
+         * Exponential backoff wrapper for API calls
+         */
+        async function fetchWithRetry(fn, retries = 5, delay = 1000) {
             try {
-                // 1. Fetch all lessons and courses to build the map
-                const { data: lessons, error: lError } = await sb.from('lessons').select('id, course_id');
-                const { data: courses, error: cError } = await sb.from('courses').select('*');
-                
-                // 2. Fetch user's completion records
-                const { data: sessions, error: sError } = await sb
-                    .from('watch_sessions')
-                    .select('lesson_id, is_completed')
-                    .eq('user_id', currentUser.id)
-                    .eq('is_completed', true);
+                return await fn();
+            } catch (error) {
+                if (retries <= 0) throw error;
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return fetchWithRetry(fn, retries - 1, delay * 2);
+            }
+        }
 
-                if (lError || cError || sError) throw new Error("Data sync failure");
+        async function fetchDashboardData() {
+            const container = document.getElementById('courses-container');
+            
+            try {
+                // 1. Fetch all lessons and courses to build the map using retry logic
+                const [lessonsRes, coursesRes, sessionsRes] = await Promise.all([
+                    fetchWithRetry(() => sb.from('lessons').select('id, course_id')),
+                    fetchWithRetry(() => sb.from('courses').select('*')),
+                    fetchWithRetry(() => sb.from('watch_sessions')
+                        .select('lesson_id, is_completed')
+                        .eq('user_id', currentUser.id)
+                        .eq('is_completed', true))
+                ]);
 
-                const container = document.getElementById('courses-container');
+                if (lessonsRes.error || coursesRes.error || sessionsRes.error) {
+                    throw new Error("Data sync failure");
+                }
+
+                const lessons = lessonsRes.data;
+                const courses = coursesRes.data;
+                const sessions = sessionsRes.data;
+
                 container.innerHTML = '';
 
                 let totalCompleted = sessions.length;
@@ -159,7 +178,7 @@
 
                     const card = document.createElement('div');
                     card.className = 'glass-card p-8 rounded-[2.5rem] flex items-center space-x-8 group hover:border-pink-500/30 transition-all cursor-pointer';
-                    card.onclick = () => window.location.href = `/curriculum?course=${course.id}`;
+                    card.onclick = () => window.location.href = `curriculum.html?course=${course.id}`;
                     
                     card.innerHTML = `
                         <div class="relative flex-shrink-0 w-24 h-24">
@@ -191,11 +210,17 @@
 
                 lucide.createIcons();
             } catch (err) {
-                console.error(err);
-                document.getElementById('courses-container').innerHTML = `
-                    <div class="lg:col-span-2 p-10 glass-card rounded-3xl text-center">
-                        <i data-lucide="alert-octagon" class="w-10 h-10 text-red-500 mx-auto mb-4"></i>
-                        <p class="mono text-xs uppercase tracking-widest text-red-500">Failed to establish data link</p>
+                console.error("Dashboard link failed:", err);
+                container.innerHTML = `
+                    <div class="lg:col-span-2 p-12 glass-card rounded-[2.5rem] text-center border-red-500/20">
+                        <div class="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <i data-lucide="wifi-off" class="w-8 h-8 text-red-500"></i>
+                        </div>
+                        <h3 class="text-2xl font-black italic uppercase tracking-tighter mb-2">Sync Interrupted</h3>
+                        <p class="mono text-[10px] uppercase tracking-widest text-gray-500 mb-6">Failed to establish data link with the main sector</p>
+                        <button onclick="window.location.reload()" class="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full mono text-[10px] uppercase font-bold tracking-[0.2em] transition-all">
+                            Attempt Re-link
+                        </button>
                     </div>
                 `;
                 lucide.createIcons();
