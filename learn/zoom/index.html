@@ -75,11 +75,25 @@
             letter-spacing: 0.1em; 
             transition: all 0.3s;
             border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         .nav-btn:hover { 
             background: rgba(236, 72, 153, 0.1); 
             border-color: #ec4899; 
             color: #ec4899; 
+        }
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            border-color: rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.3);
+        }
+        .nav-btn.complete-active {
+            background: #10b981;
+            border-color: #10b981;
+            color: white;
         }
 
         .telemetry-box {
@@ -112,12 +126,19 @@
             </div>
         </div>
         
-        <div class="flex items-center gap-6">
-            <div id="timer-display" class="hidden text-right">
+        <div class="flex items-center gap-4">
+            <div id="timer-display" class="hidden text-right mr-4">
                 <p class="mono text-[9px] text-gray-500 uppercase font-bold tracking-widest">Time Remaining</p>
                 <p id="time-left" class="text-lg font-black text-white tracking-tighter tabular-nums">--:--:--</p>
             </div>
-            <button id="btn-exit" class="nav-btn flex items-center gap-2">
+            
+            <!-- New Mark as Completed Button -->
+            <button id="btn-complete" class="nav-btn" disabled>
+                <i data-lucide="check-circle" class="w-3 h-3"></i>
+                Mark Complete
+            </button>
+
+            <button id="btn-exit" class="nav-btn">
                 <i data-lucide="x" class="w-3 h-3"></i>
                 Exit
             </button>
@@ -171,6 +192,7 @@
         let watchedSeconds = 0;
         let sessionTimer = null;
         let watermarkData = { x: 10, y: 10, dx: 0.5, dy: 0.5 };
+        let isCompleted = false;
 
         async function checkAuth() {
             const { data: { session } } = await sb.auth.getSession();
@@ -182,6 +204,7 @@
             
             lucide.createIcons();
             fetchLessonData();
+            checkCompletionStatus();
             startWatermark();
         }
 
@@ -212,6 +235,24 @@
             }
 
             initStream(lesson.video_url);
+        }
+
+        async function checkCompletionStatus() {
+            const { data, error } = await sb
+                .from('lesson_completions')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .eq('lesson_id', lessonId)
+                .maybeSingle();
+
+            if (data) {
+                setCompleteUI(true);
+            } else {
+                // Enable button after 5 seconds of session
+                setTimeout(() => {
+                    document.getElementById('btn-complete').disabled = false;
+                }, 5000);
+            }
         }
 
         async function syncProgress() {
@@ -298,6 +339,40 @@
             animate();
         }
 
+        function setCompleteUI(alreadyDone = false) {
+            const btn = document.getElementById('btn-complete');
+            btn.innerHTML = `<i data-lucide="check" class="w-3 h-3"></i> COMPLETED`;
+            btn.classList.add('complete-active');
+            btn.disabled = true;
+            isCompleted = true;
+            lucide.createIcons();
+        }
+
+        async function markAsComplete() {
+            if (isCompleted) return;
+
+            const btn = document.getElementById('btn-complete');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerText = "SYNCING...";
+
+            const { error } = await sb
+                .from('lesson_completions')
+                .insert({
+                    user_id: currentUser.id,
+                    lesson_id: lessonId
+                });
+
+            if (error) {
+                console.error("Completion error:", error);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                return;
+            }
+
+            setCompleteUI();
+        }
+
         function showError(msg) {
             document.getElementById('preloader').style.display = 'flex';
             document.getElementById('preloader').innerHTML = `
@@ -312,6 +387,7 @@
         }
 
         document.getElementById('btn-exit').onclick = () => window.location.href = '/curriculum';
+        document.getElementById('btn-complete').onclick = markAsComplete;
         window.onload = checkAuth;
     </script>
 </body>
