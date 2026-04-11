@@ -52,7 +52,7 @@
 </head>
 <body class="p-6 md:p-12 min-h-screen">
     <nav class="max-w-5xl mx-auto flex justify-between items-center mb-16">
-        <a href="/courses" class="flex items-center space-x-2 text-gray-400 hover:text-white transition-all group">
+        <a href="dashboard.html" class="flex items-center space-x-2 text-gray-400 hover:text-white transition-all group">
             <i data-lucide="arrow-left" class="w-4 h-4 group-hover:-translate-x-1 transition-transform"></i>
             <span class="mono text-[10px] uppercase font-bold tracking-widest">Back to Modules</span>
         </a>
@@ -87,31 +87,59 @@
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         async function init() {
-            // Check for new course ID in URL query parameters first
+            // 1. Auth Check
+            const { data: { session } } = await sb.auth.getSession();
+            if (!session) return window.location.href = 'login.html';
+
             const urlParams = new URLSearchParams(window.location.search);
             const newCourseId = urlParams.get('course_id') || urlParams.get('id');
 
             if (newCourseId) {
-                // If a new ID is found in the URL, replace the old session storage
-                console.log("New session ID detected. Updating storage...");
-                sessionStorage.removeItem('active_course_id');
-                sessionStorage.setItem('active_course_id', newCourseId);
-                
-                // Optional: Clean up URL without refreshing to keep state clean
+                localStorage.setItem('active_session_id', newCourseId);
                 const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
                 window.history.replaceState({path: cleanUrl}, '', cleanUrl);
             }
 
-            const courseId = sessionStorage.getItem('active_course_id');
+            const courseId = localStorage.getItem('active_session_id');
             
             if (!courseId) {
-                // If still no active course, redirect back to courses selection
-                window.location.href = '/courses';
+                window.location.href = 'dashboard.html';
                 return;
             }
 
             try {
-                // 1. Fetch Course Data
+                // 2. Security Gate: Verify if this specific user has an "approved" status for this course
+                const { data: statusCheck, error: sErr } = await sb
+                    .from('course_status')
+                    .select('status')
+                    .eq('user_id', session.user.id)
+                    .eq('course_id', courseId)
+                    .single();
+
+                if (sErr || !statusCheck) {
+                    throw new Error("Authorization record not found. Access denied.");
+                }
+
+                if (statusCheck.status !== 'approved') {
+                    // Access restricted: status might be 'pending' or 'rejected'
+                    document.getElementById('lessons-container').innerHTML = `
+                        <div class="p-16 text-center glass-card rounded-[2.5rem] border-yellow-500/20 bg-yellow-500/5">
+                            <i data-lucide="lock" class="w-12 h-12 text-yellow-500 mx-auto mb-6"></i>
+                            <h3 class="text-xl font-black text-white uppercase mb-2">Access Restricted</h3>
+                            <p class="text-gray-400 text-sm max-w-xs mx-auto mb-8">
+                                Your enrollment status for this module is currently <strong>${statusCheck.status.toUpperCase()}</strong>. 
+                                Please wait for administrator verification.
+                            </p>
+                            <a href="dashboard.html" class="inline-flex items-center gap-2 px-8 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+                                Return to Terminal
+                            </a>
+                        </div>
+                    `;
+                    lucide.createIcons();
+                    return;
+                }
+
+                // 3. Fetch Course Data
                 const { data: course, error: cErr } = await sb
                     .from('courses')
                     .select('*')
@@ -125,7 +153,7 @@
                     document.getElementById('course-desc').textContent = course.description;
                 }
 
-                // 2. Fetch Lessons
+                // 4. Fetch Lessons
                 const { data: lessons, error: lErr } = await sb
                     .from('lessons')
                     .select('*, lesson_categories!category_id(name, color_hex)')
