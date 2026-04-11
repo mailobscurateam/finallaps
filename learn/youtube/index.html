@@ -45,20 +45,60 @@
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
             border: 0; opacity: 0; transition: opacity 0.8s ease-in;
+            z-index: 5;
+            pointer-events: none; /* Block direct interaction to force custom controls */
         }
 
         #youtube-player.visible { opacity: 1; }
 
+        /* Custom Controls Overlay */
+        .controls-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 40%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .video-container:hover .controls-overlay {
+            opacity: 1;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            cursor: pointer;
+            position: relative;
+            margin-bottom: 12px;
+        }
+
+        .progress-filled {
+            height: 100%;
+            background: #ec4899;
+            width: 0%;
+            position: relative;
+        }
+
+        /* Enhanced Inversion Watermark */
         .watermark {
             position: absolute;
-            z-index: 30;
+            z-index: 50; 
             pointer-events: none;
             user-select: none;
             font-family: 'JetBrains Mono', monospace;
-            font-size: 10px;
-            color: rgba(236, 72, 153, 0.25);
+            font-size: 14px;
+            font-weight: 800;
+            color: #ffffff;
+            mix-blend-mode: difference;
             text-transform: lowercase;
             white-space: nowrap;
+            letter-spacing: 1px;
+            opacity: 0.8;
         }
 
         .status-bar { height: 2px; background: rgba(255,255,255,0.05); position: relative; overflow: hidden; }
@@ -105,7 +145,11 @@
         .preloader-overlay {
             position: absolute; inset: 0; background: #09090b;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 20;
+            z-index: 100;
+        }
+
+        input[type=range] {
+            accent-color: #ec4899;
         }
     </style>
 </head>
@@ -173,7 +217,39 @@
             </div>
             
             <div id="moving-watermark" class="watermark">initializing_secure_layer</div>
+            
+            <!-- YouTube Player -->
             <div id="youtube-player"></div>
+
+            <!-- Custom Controls Layer -->
+            <div id="custom-controls" class="controls-overlay p-4">
+                <div id="progress-container" class="progress-bar-container">
+                    <div id="progress-bar" class="progress-filled"></div>
+                </div>
+                
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-6">
+                        <button id="play-pause" class="text-white hover:text-pink-500 transition-colors">
+                            <i data-lucide="play" class="w-6 h-6 fill-current"></i>
+                        </button>
+                        
+                        <div class="flex items-center gap-3">
+                            <button id="mute-toggle" class="text-white hover:text-pink-500 transition-colors">
+                                <i data-lucide="volume-2" class="w-5 h-5"></i>
+                            </button>
+                            <input id="volume-slider" type="range" min="0" max="100" value="100" class="w-20 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer">
+                        </div>
+
+                        <span id="current-timestamp" class="mono text-[11px] text-white/70">0:00 / 0:00</span>
+                    </div>
+
+                    <div class="flex items-center gap-4">
+                        <button id="fullscreen-btn" class="text-white hover:text-pink-500 transition-colors">
+                            <i data-lucide="maximize" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </main>
 
@@ -191,10 +267,10 @@
         let allowedSeconds = 0;
         let watchedSeconds = 0;
         let sessionTimer = null;
-        let watermarkData = { x: 10, y: 10, dx: 0.6, dy: 0.4 };
+        let watermarkData = { x: 50, y: 50, dx: 0.8, dy: 0.6 };
         let isCompleted = false;
+        let updateInterval;
 
-        // Initialize App
         async function init() {
             const { data: { session } } = await sb.auth.getSession();
             if (!session) { window.location.href = 'index.html'; return; }
@@ -207,9 +283,9 @@
             await fetchLessonData();
             await checkCompletionStatus();
             startWatermark();
+            setupControlListeners();
         }
 
-        // Fetch Lesson Info & Timer Logic
         async function fetchLessonData() {
             if (!lessonId) { window.location.href = '/curriculum'; return; }
 
@@ -239,7 +315,6 @@
             loadYouTubeAPI(lesson.video_url);
         }
 
-        // Database: Get existing watch time
         async function syncSessionProgress() {
             const { data } = await sb
                 .from('watch_sessions')
@@ -260,9 +335,7 @@
             updateTimerUI();
         }
 
-        // YouTube API Loader
         function loadYouTubeAPI(videoUrl) {
-            // Extract ID from URL (handles watch?v=, share links, etc)
             let videoId = videoUrl;
             if (videoUrl.includes('v=')) {
                 videoId = videoUrl.split('v=')[1].split('&')[0];
@@ -275,7 +348,8 @@
                     videoId: videoId,
                     playerVars: {
                         'autoplay': 0,
-                        'controls': 1,
+                        'controls': 0, // HIDE NATIVE CONTROLS
+                        'disablekb': 1,
                         'rel': 0,
                         'modestbranding': 1,
                         'origin': window.location.origin
@@ -302,35 +376,105 @@
             document.getElementById('timer-display').classList.remove('hidden');
             
             startTracking();
+            startUpdateLoop();
         }
 
         function onPlayerStateChange(event) {
-            // Optional: Pause tracking if video is paused? 
-            // In high-security simulations, we usually track session time regardless.
+            const btn = document.getElementById('play-pause');
+            if (event.data === YT.PlayerState.PLAYING) {
+                btn.innerHTML = `<i data-lucide="pause" class="w-6 h-6 fill-current"></i>`;
+            } else {
+                btn.innerHTML = `<i data-lucide="play" class="w-6 h-6 fill-current"></i>`;
+            }
+            lucide.createIcons();
         }
 
-        // Heartbeat & Timer logic
+        function startUpdateLoop() {
+            updateInterval = setInterval(() => {
+                if (player && player.getCurrentTime) {
+                    const current = player.getCurrentTime();
+                    const duration = player.getDuration();
+                    const percent = (current / duration) * 100;
+                    
+                    document.getElementById('progress-bar').style.width = percent + '%';
+                    
+                    const formatTime = (s) => {
+                        const m = Math.floor(s / 60);
+                        const sec = Math.floor(s % 60);
+                        return `${m}:${sec.toString().padStart(2, '0')}`;
+                    }
+                    
+                    document.getElementById('current-timestamp').innerText = 
+                        `${formatTime(current)} / ${formatTime(duration)}`;
+                }
+            }, 500);
+        }
+
+        function setupControlListeners() {
+            document.getElementById('play-pause').onclick = () => {
+                const state = player.getPlayerState();
+                if (state === YT.PlayerState.PLAYING) {
+                    player.pauseVideo();
+                } else {
+                    player.playVideo();
+                }
+            };
+
+            document.getElementById('mute-toggle').onclick = () => {
+                const btn = document.getElementById('mute-toggle');
+                if (player.isMuted()) {
+                    player.unMute();
+                    btn.innerHTML = `<i data-lucide="volume-2" class="w-5 h-5"></i>`;
+                } else {
+                    player.mute();
+                    btn.innerHTML = `<i data-lucide="volume-x" class="w-5 h-5 text-red-500"></i>`;
+                }
+                lucide.createIcons();
+            };
+
+            document.getElementById('volume-slider').oninput = (e) => {
+                player.setVolume(e.target.value);
+            };
+
+            document.getElementById('progress-container').onclick = (e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const percent = x / rect.width;
+                player.seekTo(player.getDuration() * percent, true);
+            };
+
+            document.getElementById('fullscreen-btn').onclick = () => {
+                const container = document.getElementById('video-wrapper');
+                if (!document.fullscreenElement) {
+                    container.requestFullscreen();
+                } else {
+                    document.exitFullscreen();
+                }
+            };
+        }
+
         function startTracking() {
             sessionTimer = setInterval(async () => {
-                watchedSeconds += 1;
-                updateTimerUI();
+                // Only count if playing
+                if (player && player.getPlayerState && player.getPlayerState() === YT.PlayerState.PLAYING) {
+                    watchedSeconds += 1;
+                    updateTimerUI();
 
-                // Periodic DB Sync
-                if (watchedSeconds % 10 === 0) {
-                    await sb.from('watch_sessions')
-                        .update({ 
-                            total_seconds_watched: watchedSeconds, 
-                            last_watched_at: new Date().toISOString() 
-                        })
-                        .eq('user_id', currentUser.id)
-                        .eq('lesson_id', lessonId);
-                }
+                    if (watchedSeconds % 10 === 0) {
+                        await sb.from('watch_sessions')
+                            .update({ 
+                                total_seconds_watched: watchedSeconds, 
+                                last_watched_at: new Date().toISOString() 
+                            })
+                            .eq('user_id', currentUser.id)
+                            .eq('lesson_id', lessonId);
+                    }
 
-                // Limit Enforcement
-                if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) {
-                    clearInterval(sessionTimer);
-                    player.stopVideo();
-                    showError("SESSION_EXPIRED");
+                    if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) {
+                        clearInterval(sessionTimer);
+                        player.stopVideo();
+                        showError("SESSION_EXPIRED");
+                    }
                 }
             }, 1000);
         }
@@ -344,7 +488,6 @@
                 `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
         }
 
-        // Completion Logic
         async function checkCompletionStatus() {
             const { data } = await sb
                 .from('lesson_completions')
@@ -356,7 +499,6 @@
             if (data) {
                 setCompleteUI();
             } else {
-                // Enable button after 10s of presence
                 setTimeout(() => {
                     if(!isCompleted) document.getElementById('btn-complete').disabled = false;
                 }, 10000);
@@ -390,21 +532,26 @@
             lucide.createIcons();
         }
 
-        // Visual Watermark
         function startWatermark() {
             const el = document.getElementById('moving-watermark');
             const wrapper = document.getElementById('video-wrapper');
+            
             function animate() {
                 const rect = wrapper.getBoundingClientRect();
                 const elRect = el.getBoundingClientRect();
+                const maxX = rect.width - elRect.width;
+                const maxY = rect.height - elRect.height;
+
                 watermarkData.x += watermarkData.dx;
                 watermarkData.y += watermarkData.dy;
                 
-                if (watermarkData.x <= 0 || watermarkData.x + elRect.width >= rect.width) watermarkData.dx *= -1;
-                if (watermarkData.y <= 0 || watermarkData.y + elRect.height >= rect.height) watermarkData.dy *= -1;
+                if (watermarkData.x <= 0 || watermarkData.x >= maxX) watermarkData.dx *= -1;
+                if (watermarkData.y <= 0 || watermarkData.y >= maxY) watermarkData.dy *= -1;
                 
-                el.style.left = watermarkData.x + 'px';
-                el.style.top = watermarkData.y + 'px';
+                watermarkData.x = Math.max(0, Math.min(watermarkData.x, maxX));
+                watermarkData.y = Math.max(0, Math.min(watermarkData.y, maxY));
+
+                el.style.transform = `translate(${watermarkData.x}px, ${watermarkData.y}px)`;
                 requestAnimationFrame(animate);
             }
             animate();
