@@ -86,7 +86,6 @@
             position: relative;
         }
 
-        /* Speed Dropdown Menu */
         .speed-menu {
             position: absolute;
             bottom: 100%;
@@ -279,9 +278,18 @@
         let isLessonAlreadyCompleted = false;
 
         async function init() {
+            // Check Auth
             const { data: { session } } = await sb.auth.getSession();
             if (!session) { window.location.href = 'index.html'; return; }
             currentUser = session.user;
+
+            // Security Check: Verify Course Approval
+            const isApproved = await verifyCourseApproval();
+            if (!isApproved) {
+                window.location.href = '/dashboard';
+                return;
+            }
+
             document.getElementById('moving-watermark').innerText = currentUser.email;
             document.body.classList.add('ready');
             lucide.createIcons();
@@ -296,6 +304,35 @@
             
             // Step 3: Start session tracking
             startPageSessionTracking();
+        }
+
+        async function verifyCourseApproval() {
+            try {
+                // 1. Get the lesson to find which course it belongs to
+                const { data: lesson, error: lessonError } = await sb
+                    .from('lessons')
+                    .select('course_id')
+                    .eq('id', lessonId)
+                    .single();
+
+                if (lessonError || !lesson) return false;
+
+                // 2. Check if user has an 'approved' status for this course_id in course_approvals table
+                const { data: approval, error: approvalError } = await sb
+                    .from('course_approvals')
+                    .select('status')
+                    .eq('user_id', currentUser.id)
+                    .eq('course_id', lesson.course_id)
+                    .eq('status', 'approved')
+                    .maybeSingle();
+
+                if (approvalError || !approval) return false;
+
+                return true;
+            } catch (e) {
+                console.error("Approval verification failed:", e);
+                return false;
+            }
         }
 
         async function checkInitialCompletionStatus() {
@@ -369,7 +406,7 @@
             document.getElementById('timer-display').classList.remove('hidden');
             updateTimerUI();
 
-            // Unlock Logic: If not completed, unlock the button after 10 seconds of page time
+            // Unlock Logic
             if (!isLessonAlreadyCompleted) {
                 setTimeout(() => {
                     const btn = document.getElementById('btn-complete');
