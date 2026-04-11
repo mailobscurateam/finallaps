@@ -108,7 +108,7 @@
             }
 
             try {
-                // 2. Security Gate: Verify if this specific user has an "approved" status for this course
+                // 2. Security Gate: Verify enrollment status
                 const { data: statusCheck, error: sErr } = await sb
                     .from('course_status')
                     .select('status')
@@ -121,7 +121,6 @@
                 }
 
                 if (statusCheck.status !== 'approved') {
-                    // Access restricted: status might be 'pending' or 'rejected'
                     document.getElementById('lessons-container').innerHTML = `
                         <div class="p-16 text-center glass-card rounded-[2.5rem] border-yellow-500/20 bg-yellow-500/5">
                             <i data-lucide="lock" class="w-12 h-12 text-yellow-500 mx-auto mb-6"></i>
@@ -153,10 +152,10 @@
                     document.getElementById('course-desc').textContent = course.description;
                 }
 
-                // 4. Fetch Lessons
+                // 4. Fetch Lessons using the 'categories' column directly from lessons table
                 const { data: lessons, error: lErr } = await sb
                     .from('lessons')
-                    .select('*, lesson_categories!category_id(name, color_hex)')
+                    .select('*')
                     .eq('course_id', courseId)
                     .order('order_index', { ascending: true });
 
@@ -176,6 +175,9 @@
             }
         }
 
+        /**
+         * Groups and renders lessons based on the 'categories' column in the lessons table
+         */
         function renderCategorizedLessons(lessons) {
             const container = document.getElementById('lessons-container');
             
@@ -190,13 +192,13 @@
                 return;
             }
 
+            // Group by the literal value in lesson.categories
             const grouped = lessons.reduce((acc, lesson) => {
-                const category = lesson.lesson_categories;
-                const catName = category ? category.name : 'Core Curriculum';
+                const catName = lesson.categories || 'Core Curriculum';
                 
                 if (!acc[catName]) {
                     acc[catName] = {
-                        details: category || { color_hex: '#6366f1' },
+                        name: catName,
                         items: []
                     };
                 }
@@ -205,7 +207,8 @@
             }, {});
 
             container.innerHTML = Object.entries(grouped).map(([name, data]) => {
-                const color = data.details.color_hex || '#ec4899';
+                // Generate a consistent color based on the category name string
+                const color = stringToColor(name);
                 
                 return `
                     <section class="category-group animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -225,6 +228,19 @@
             }).join('');
 
             lucide.createIcons();
+        }
+
+        /**
+         * Helper to generate a hex color from a string for visual variety
+         */
+        function stringToColor(str) {
+            if (str === 'Core Curriculum') return '#ec4899'; // Default pink
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = str.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
+            return "#" + "00000".substring(0, 6 - c.length) + c;
         }
 
         function renderLessonItem(lesson) {
