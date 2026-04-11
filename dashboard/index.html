@@ -13,7 +13,6 @@
         body { font-family: 'Outfit', sans-serif; background-color: var(--nexus-dark); color: #f4f4f5; min-height: 100vh; overflow-x: hidden; }
         .mono { font-family: 'JetBrains Mono', monospace; }
         
-        /* Advanced UI Elements */
         .glass-panel { 
             background: linear-gradient(135deg, rgba(24, 24, 27, 0.6) 0%, rgba(12, 12, 13, 0.8) 100%);
             backdrop-filter: blur(20px);
@@ -39,15 +38,10 @@
             letter-spacing: 0.1em; 
             border: 1px solid currentColor;
         }
-        .status-approved { background: rgba(34, 197, 94, 0.1); color: #4ade80; border-color: rgba(74, 222, 128, 0.2); }
-        .status-pending { background: rgba(234, 179, 8, 0.1); color: #fbbf24; border-color: rgba(251, 191, 36, 0.2); }
+        .status-verified { background: rgba(34, 197, 94, 0.1); color: #4ade80; border-color: rgba(74, 222, 128, 0.2); }
 
         .module-card { transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
         .module-card:hover { transform: translateY(-5px); border-color: rgba(236, 72, 153, 0.3); background: rgba(255,255,255,0.02); }
-
-        .profile-avatar-glow {
-            box-shadow: 0 0 30px rgba(236, 72, 153, 0.2);
-        }
 
         .hero-gradient {
             background: linear-gradient(to right, #fff 20%, rgba(255,255,255,0.4) 100%);
@@ -64,9 +58,9 @@
     <nav class="fixed top-0 w-full z-50 px-8 py-6 flex justify-between items-center backdrop-blur-md border-b border-white/5">
         <div class="flex items-center gap-4">
             <div class="w-10 h-10 rounded-xl bg-pink-600 flex items-center justify-center text-white shadow-lg shadow-pink-500/20">
-                <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                <i data-lucide="cpu" class="w-5 h-5"></i>
             </div>
-            <span class="mono text-xs font-black uppercase tracking-[0.4em] hidden md:block">Nexus <span class="text-pink-500">Command</span></span>
+            <span class="mono text-xs font-black uppercase tracking-[0.4em] hidden md:block">Nexus <span class="text-pink-500">System</span></span>
         </div>
         
         <div class="flex items-center gap-4">
@@ -78,93 +72,74 @@
 
     <main class="pt-32 pb-20 px-6 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-10">
         
-        <!-- LEFT COLUMN: Profile & Identity -->
+        <!-- LEFT COLUMN: Profile & Analytics -->
         <div class="lg:col-span-4 space-y-8">
-            <section class="glass-panel p-8 rounded-[2.5rem] relative overflow-hidden group">
-                <!-- Header Decorative Area -->
-                <div class="absolute top-0 left-0 w-full h-24 bg-gradient-to-br from-pink-600/20 to-transparent"></div>
-                
+            <section class="glass-panel p-8 rounded-[2.5rem] relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-24 bg-gradient-to-br from-pink-600/10 to-transparent"></div>
                 <div class="relative pt-6">
-                    <div class="w-24 h-24 rounded-3xl bg-gradient-to-tr from-pink-500 to-purple-600 p-1 mb-6 profile-avatar-glow">
-                        <div class="w-full h-full rounded-[1.4rem] bg-[#09090b] flex items-center justify-center">
-                            <i data-lucide="user" class="w-10 h-10 text-pink-500"></i>
-                        </div>
+                    <div class="w-20 h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-6">
+                        <i data-lucide="user-cog" class="w-8 h-8 text-pink-500"></i>
                     </div>
-                    
-                    <h1 id="profile-name" class="text-4xl font-black text-white tracking-tighter uppercase mb-1">Agent</h1>
+                    <h1 id="profile-name" class="text-4xl font-black text-white tracking-tighter uppercase mb-1">...</h1>
                     <p id="profile-email" class="mono text-[10px] text-gray-500 uppercase tracking-widest mb-8">Accessing Mainframe...</p>
                     
-                    <div class="space-y-4 pt-6 border-t border-white/5">
+                    <div class="space-y-3 pt-6 border-t border-white/5">
                         <div class="flex justify-between items-center">
-                            <span class="mono text-[9px] text-gray-400 uppercase tracking-widest">Clearance</span>
-                            <span class="status-pill status-approved">Level 04</span>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <span class="mono text-[9px] text-gray-400 uppercase tracking-widest">Neural Link</span>
-                            <div class="flex items-center gap-2">
-                                <div class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-                                <span class="text-white font-bold mono text-[10px]">STABLE</span>
-                            </div>
+                            <span class="mono text-[9px] text-gray-400 uppercase tracking-widest">System Access</span>
+                            <span class="status-pill status-verified">Verified</span>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <!-- Status Metrics -->
             <div class="grid grid-cols-2 gap-4">
                 <div class="glass-panel p-6 rounded-3xl">
-                    <p class="mono text-[9px] text-pink-500 uppercase font-black mb-1 tracking-widest">Approved</p>
+                    <p class="mono text-[9px] text-green-500 uppercase font-black mb-1 tracking-widest">Verified</p>
                     <h3 id="stat-approved" class="text-4xl font-black text-white">0</h3>
                 </div>
                 <div class="glass-panel p-6 rounded-3xl">
-                    <p class="mono text-[9px] text-yellow-500 uppercase font-black mb-1 tracking-widest">Requests</p>
+                    <p class="mono text-[9px] text-yellow-500 uppercase font-black mb-1 tracking-widest">Pending</p>
                     <h3 id="stat-pending" class="text-4xl font-black text-white">0</h3>
                 </div>
             </div>
 
-            <div class="glass-panel p-8 rounded-[2.5rem] bg-pink-600/5 border-pink-500/10">
-                <h4 class="mono text-[10px] uppercase text-gray-500 font-bold mb-4 tracking-widest">Quick Actions</h4>
-                <a href="/courses" class="flex items-center justify-between p-4 bg-white/5 rounded-2xl hover:bg-pink-600 transition-all group">
-                    <span class="text-xs font-bold uppercase tracking-widest">Acquire Modules</span>
-                    <i data-lucide="arrow-up-right" class="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"></i>
+            <div class="glass-panel p-6 rounded-[2rem] border-pink-500/10">
+                <a href="/status" class="flex items-center justify-between p-4 bg-white/5 rounded-2xl hover:bg-white/10 transition-all group">
+                    <span class="text-xs font-bold uppercase tracking-widest">Enrollment Logs</span>
+                    <i data-lucide="list-checks" class="w-4 h-4 text-gray-500 group-hover:text-white transition-colors"></i>
                 </a>
             </div>
         </div>
 
-        <!-- RIGHT COLUMN: Approved Modules Grid -->
+        <!-- RIGHT COLUMN: Verified Modules -->
         <div class="lg:col-span-8 space-y-8">
             <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
-                    <h2 class="text-5xl font-black text-white tracking-tighter uppercase hero-gradient">Registry</h2>
-                    <p class="mono text-[10px] text-pink-500 uppercase tracking-[0.4em] mt-2">Authenticated Deployments</p>
-                </div>
-                <div class="flex gap-2">
-                    <div class="px-4 py-2 rounded-xl bg-white/5 border border-white/10 flex items-center gap-2">
-                        <i data-lucide="shield-check" class="w-3 h-3 text-green-500"></i>
-                        <span class="mono text-[8px] uppercase font-bold text-gray-400">Security: Active</span>
-                    </div>
+                    <h2 class="text-5xl font-black text-white tracking-tighter uppercase hero-gradient">Verified Modules</h2>
+                    <p class="mono text-[10px] text-pink-500 uppercase tracking-[0.4em] mt-2">Active Technical Deployments</p>
                 </div>
             </div>
 
             <!-- Modules Grid -->
             <div id="modules-container" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Loading Animation -->
+                <!-- Loading State -->
                 <div id="loading-state" class="col-span-full py-32 text-center">
-                    <div class="inline-block w-12 h-12 border-2 border-pink-500 border-t-transparent rounded-full animate-spin mb-6"></div>
-                    <p class="mono text-[10px] text-pink-500 uppercase tracking-[0.3em] animate-pulse">Syncing Registry Data...</p>
+                    <div class="inline-block w-10 h-10 border-2 border-pink-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                    <p class="mono text-[10px] text-pink-500 uppercase tracking-widest animate-pulse">Syncing Course Status...</p>
                 </div>
             </div>
 
             <!-- Empty State -->
-            <div id="empty-state" class="hidden glass-panel rounded-[3rem] p-24 text-center">
-                <div class="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-8 border border-white/10">
-                    <i data-lucide="package-search" class="w-8 h-8 text-gray-700"></i>
+            <div id="empty-state" class="hidden glass-panel rounded-[3rem] p-20 text-center">
+                <div class="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-6 border border-white/10">
+                    <i data-lucide="lock" class="w-6 h-6 text-gray-600"></i>
                 </div>
-                <h3 class="text-2xl font-black text-white uppercase tracking-tight mb-2">No Verified Modules</h3>
-                <p class="text-gray-500 text-sm max-w-xs mx-auto mb-8 leading-relaxed">Your registry is currently empty. Initiate a module request from the terminal to begin population.</p>
-                <a href="/courses" class="inline-flex items-center gap-2 px-8 py-4 bg-pink-600 hover:bg-pink-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-pink-500/20">
-                    <i data-lucide="plus" class="w-4 h-4"></i>
-                    Browse Directory
+                <h3 class="text-xl font-black text-white uppercase mb-2">No Modules Authorized</h3>
+                <p class="text-gray-500 text-xs max-w-xs mx-auto mb-8 leading-relaxed">
+                    Access is restricted. Modules will appear here once your enrollment is marked as "approved" in the system registry.
+                </p>
+                <a href="/courses" class="inline-flex items-center gap-2 px-8 py-3 bg-pink-600 hover:bg-pink-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+                    Request Access
                 </a>
             </div>
         </div>
@@ -179,119 +154,97 @@
             const { data: { session } } = await sb.auth.getSession();
             if (!session) return window.location.href = 'login.html';
             
-            // Set User Identity
-            const email = session.user.email;
-            const username = email.split('@')[0];
-            document.getElementById('profile-name').textContent = username;
-            document.getElementById('profile-email').textContent = email;
+            document.getElementById('profile-name').textContent = session.user.email.split('@')[0];
+            document.getElementById('profile-email').textContent = session.user.email;
             
-            fetchModules(session.user.id);
+            fetchVerifiedModules(session.user.id);
 
-            // Subscribe to real-time sync
-            sb.channel('registry-sync')
+            // Real-time listener for course status changes
+            sb.channel('course-sync')
                 .on('postgres_changes', { 
                     event: '*', 
                     schema: 'public', 
                     table: 'course_status',
                     filter: `user_id=eq.${session.user.id}`
-                }, () => fetchModules(session.user.id))
+                }, () => fetchVerifiedModules(session.user.id))
                 .subscribe();
         }
 
-        async function fetchModules(userId) {
+        async function fetchVerifiedModules(userId) {
             const container = document.getElementById('modules-container');
             const empty = document.getElementById('empty-state');
             const loading = document.getElementById('loading-state');
 
             try {
-                // Fetch enrollments with joined course data
+                // Fetch status from course_status table
                 const { data, error } = await sb
                     .from('course_status')
-                    .select(`
-                        id, status, created_at, course_id, course_name,
-                        courses ( id, name, instructor, description )
-                    `)
-                    .eq('user_id', userId)
-                    .order('created_at', { ascending: false });
+                    .select('*')
+                    .eq('user_id', userId);
 
                 if (loading) loading.classList.add('hidden');
                 
-                if (error || !data || data.length === 0) {
-                    container.innerHTML = '';
-                    empty.classList.remove('hidden');
-                    updateStats([], []);
+                if (error || !data) {
+                    console.error("Registry Error:", error);
                     return;
                 }
 
-                // Logic based on status states: approved, pending, rejected
-                const approved = data.filter(item => item.status === 'approved');
-                const pending = data.filter(item => item.status === 'pending');
+                // Filtering: Only "approved" are verified modules
+                const verifiedModules = data.filter(item => item.status === 'approved');
+                const pendingModules = data.filter(item => item.status === 'pending');
 
-                updateStats(approved, pending);
+                // Update Stats
+                document.getElementById('stat-approved').textContent = verifiedModules.length;
+                document.getElementById('stat-pending').textContent = pendingModules.length;
 
-                if (approved.length === 0) {
-                    container.innerHTML = '';
+                container.innerHTML = '';
+                
+                if (verifiedModules.length === 0) {
                     empty.classList.remove('hidden');
                 } else {
                     empty.classList.add('hidden');
-                    container.innerHTML = '';
-                    approved.forEach(item => {
-                        container.appendChild(renderModuleCard(item));
+                    verifiedModules.forEach(module => {
+                        container.appendChild(createModuleCard(module));
                     });
                 }
 
                 lucide.createIcons();
             } catch (err) {
-                console.error("Critical Registry Failure:", err);
+                console.error("Critical Failure:", err);
             }
         }
 
-        function renderModuleCard(item) {
+        function createModuleCard(item) {
             const div = document.createElement('div');
-            div.className = 'glass-panel p-8 rounded-[2.5rem] module-card relative overflow-hidden group';
-            
-            // Priority: item.course_name from enrollment table, fallback to joined courses table
-            const moduleName = item.course_name || item.courses?.name || 'Technical Module';
-            const instructor = item.courses?.instructor || 'Nexus Systems';
-            const displayId = item.course_id || item.courses?.id || '####';
+            div.className = 'glass-panel p-8 rounded-[2rem] module-card group relative overflow-hidden';
             
             div.innerHTML = `
-                <div class="absolute -right-6 -top-6 opacity-[0.03] group-hover:opacity-[0.08] transition-all duration-700">
-                    <i data-lucide="layout-grid" class="w-40 h-40 text-pink-500"></i>
-                </div>
-                
-                <div class="flex justify-between items-start mb-8 relative">
-                    <div class="w-14 h-14 rounded-2xl bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-500 group-hover:scale-110 transition-transform">
-                        <i data-lucide="shield-check" class="w-7 h-7"></i>
-                    </div>
-                    <div class="flex flex-col items-end">
-                        <span class="status-pill status-approved">Verified</span>
-                        <span class="mono text-[7px] text-gray-600 mt-2 tracking-widest uppercase">Ref: ${displayId.slice(0,8)}</span>
-                    </div>
+                <div class="absolute -right-4 -top-4 opacity-[0.03] group-hover:opacity-[0.07] transition-all duration-500">
+                    <i data-lucide="award" class="w-32 h-32"></i>
                 </div>
 
-                <div class="relative mb-8">
-                    <h3 class="text-xl font-black text-white uppercase tracking-tight leading-tight group-hover:text-pink-500 transition-colors">${moduleName}</h3>
-                    <p class="mono text-[9px] text-gray-500 uppercase tracking-[0.2em] mt-2">Authority: ${instructor}</p>
+                <div class="flex justify-between items-start mb-6">
+                    <div class="w-12 h-12 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center justify-center text-green-500">
+                        <i data-lucide="check-circle" class="w-6 h-6"></i>
+                    </div>
+                    <span class="mono text-[8px] text-gray-600 uppercase tracking-widest">Ref: ${item.course_id.slice(0,8)}</span>
                 </div>
 
-                <button onclick="handleAccess('${displayId}')" 
-                        class="w-full py-4 bg-white/5 hover:bg-pink-600 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 group-hover:shadow-lg group-hover:shadow-pink-600/20">
+                <h3 class="text-xl font-black text-white uppercase tracking-tight mb-2 group-hover:text-pink-500 transition-colors">
+                    ${item.course_name || 'System Module'}
+                </h3>
+                <p class="mono text-[9px] text-gray-500 uppercase tracking-widest mb-8">Verified Authorization Access</p>
+
+                <button onclick="handleLaunch('${item.course_id}')" 
+                        class="w-full py-4 bg-white/5 hover:bg-pink-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 group-hover:shadow-lg group-hover:shadow-pink-600/20">
                     Launch Environment
-                    <i data-lucide="external-link" class="w-3 h-3 opacity-50"></i>
+                    <i data-lucide="zap" class="w-3 h-3"></i>
                 </button>
             `;
             return div;
         }
 
-        function updateStats(approved, pending) {
-            document.getElementById('stat-approved').textContent = approved.length;
-            document.getElementById('stat-pending').textContent = pending.length;
-        }
-
-        window.handleAccess = (id) => {
-            // Updated to match your curriculum logic: setting both key references
-            sessionStorage.setItem('active_course_id', id);
+        window.handleLaunch = (id) => {
             localStorage.setItem('active_session_id', id);
             window.location.href = 'curriculum.html';
         };
