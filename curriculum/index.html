@@ -187,7 +187,7 @@
         }
 
         function renderLessonItem(lesson) {
-            const type = (lesson.lesson_type || 'youtube').toLowerCase();
+            const type = (lesson.lesson_type || 'yt').toLowerCase();
             let icon = 'play';
             if (type === 'pdf') icon = 'file-text';
             if (type === 'zoom' || type === 'live' || type === 'video') icon = 'video';
