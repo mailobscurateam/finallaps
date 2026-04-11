@@ -319,7 +319,7 @@
 
                 // 2. Check if user has an 'approved' status for this course_id in course_approvals table
                 const { data: approval, error: approvalError } = await sb
-                    .from('course_approvals')
+                    .from('course_status')
                     .select('status')
                     .eq('user_id', currentUser.id)
                     .eq('course_id', lesson.course_id)
