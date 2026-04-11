@@ -108,7 +108,7 @@
                         user_id: session.user.id, 
                         course_id: courseId,
                         status: 'pending',
-                        updated_at: new Date().toISOString()
+                        created_at: new Date().toISOString()
                     }, { 
                         onConflict: 'user_id,course_id',
                         ignoreDuplicates: false 
