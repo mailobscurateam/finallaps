@@ -69,12 +69,12 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzYW94anp2aHhpZ2dudGlicHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDQ2OTAsImV4cCI6MjA5MTQyMDY5MH0.Q5Iu51O3NK4k2kcc_GoegnyAYIFIs2SUkQOV10qp2jI';
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // Updated Enrollment Function
+        // Fixed Enrollment Function
         window.enrollInCourse = async function(btn, courseId) {
             try {
                 // UI feedback
-                const originalText = btn.innerHTML;
                 btn.disabled = true;
+                const originalText = btn.innerHTML;
                 btn.innerHTML = `<span class="flex items-center justify-center gap-2"><i data-lucide="loader" class="w-3 h-3 animate-spin"></i> Processing...</span>`;
                 lucide.createIcons();
 
@@ -84,47 +84,52 @@
                     return;
                 }
 
-                // Check for existing enrollment
-                const { data: existing } = await sb
+                // Check for existing enrollment status
+                const { data: existing, error: fetchError } = await sb
                     .from('course_status')
-                    .select('status')
+                    .select('id, status')
                     .eq('user_id', session.user.id)
                     .eq('course_id', courseId)
                     .maybeSingle();
 
+                if (fetchError) throw fetchError;
+
                 if (existing && existing.status === 'approved') {
-                    // Already approved - straight to curriculum
                     sessionStorage.setItem('active_course_id', courseId);
                     window.location.href = '/curriculum';
                     return;
                 }
 
-                // Update or Insert to 'pending'
-                const { error } = await sb
+                // Use Upsert with explicit user_id and course_id
+                // We ensure 'status' is set to 'pending'
+                const { error: upsertError } = await sb
                     .from('course_status')
                     .upsert({ 
                         user_id: session.user.id, 
                         course_id: courseId,
                         status: 'pending',
                         updated_at: new Date().toISOString()
-                    }, { onConflict: 'user_id,course_id' });
+                    }, { 
+                        onConflict: 'user_id,course_id',
+                        ignoreDuplicates: false 
+                    });
 
-                if (error) throw error;
+                if (upsertError) throw upsertError;
 
                 // Cache metadata for status page
                 sessionStorage.setItem('pending_course_id', courseId);
                 
-                // Redirect to the status route as requested
+                // Success redirect
                 window.location.href = '/status';
 
             } catch (err) {
                 console.error("Enrollment error details:", err);
                 btn.disabled = false;
-                btn.innerHTML = `<span class="text-red-400">Retry Enrollment</span>`;
+                btn.innerHTML = `<span class="text-red-400">Error: ${err.message || 'Retry Enrollment'}</span>`;
                 
                 setTimeout(() => { 
                     btn.innerHTML = "Enroll Now"; 
-                }, 3000);
+                }, 4000);
             }
         };
 
