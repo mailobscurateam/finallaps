@@ -69,7 +69,7 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzYW94anp2aHhpZ2dudGlicHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDQ2OTAsImV4cCI6MjA5MTQyMDY5MH0.Q5Iu51O3NK4k2kcc_GoegnyAYIFIs2SUkQOV10qp2jI';
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // Core Enrollment Function
+        // Updated Enrollment Function
         window.enrollInCourse = async function(btn, courseId) {
             try {
                 // UI feedback
@@ -84,7 +84,7 @@
                     return;
                 }
 
-                // Check for existing enrollment first to handle status redirecting more intelligently
+                // Check for existing enrollment
                 const { data: existing } = await sb
                     .from('course_status')
                     .select('status')
@@ -93,13 +93,13 @@
                     .maybeSingle();
 
                 if (existing && existing.status === 'approved') {
-                    // Cache the course ID even for already approved users before redirect
+                    // Already approved - straight to curriculum
                     sessionStorage.setItem('active_course_id', courseId);
                     window.location.href = '/curriculum';
                     return;
                 }
 
-                // Insert/Update status to pending
+                // Update or Insert to 'pending'
                 const { error } = await sb
                     .from('course_status')
                     .upsert({ 
@@ -111,22 +111,17 @@
 
                 if (error) throw error;
 
-                // Save to session for the tracking page
+                // Cache metadata for status page
                 sessionStorage.setItem('pending_course_id', courseId);
                 
-                // Redirect to status page
-                window.location.href = 'approvestatus.html';
+                // Redirect to the status route as requested
+                window.location.href = '/status';
 
             } catch (err) {
                 console.error("Enrollment error details:", err);
                 btn.disabled = false;
                 btn.innerHTML = `<span class="text-red-400">Retry Enrollment</span>`;
                 
-                // If the error is likely a permission issue (RLS)
-                if (err.code === '42501') {
-                    console.error("Check your RLS policies for course_status table.");
-                }
-
                 setTimeout(() => { 
                     btn.innerHTML = "Enroll Now"; 
                 }, 3000);
