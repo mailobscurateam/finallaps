@@ -87,9 +87,25 @@
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         async function init() {
+            // Check for new course ID in URL query parameters first
+            const urlParams = new URLSearchParams(window.location.search);
+            const newCourseId = urlParams.get('course_id') || urlParams.get('id');
+
+            if (newCourseId) {
+                // If a new ID is found in the URL, replace the old session storage
+                console.log("New session ID detected. Updating storage...");
+                sessionStorage.removeItem('active_course_id');
+                sessionStorage.setItem('active_course_id', newCourseId);
+                
+                // Optional: Clean up URL without refreshing to keep state clean
+                const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                window.history.replaceState({path: cleanUrl}, '', cleanUrl);
+            }
+
             const courseId = sessionStorage.getItem('active_course_id');
+            
             if (!courseId) {
-                // If no active course, redirect back
+                // If still no active course, redirect back to courses selection
                 window.location.href = '/courses';
                 return;
             }
@@ -109,8 +125,7 @@
                     document.getElementById('course-desc').textContent = course.description;
                 }
 
-                // 2. Fetch Lessons with EXPLICIT Relationship Join
-                // We use !category_id to avoid the 'more than one relationship' ambiguity error
+                // 2. Fetch Lessons
                 const { data: lessons, error: lErr } = await sb
                     .from('lessons')
                     .select('*, lesson_categories!category_id(name, color_hex)')
@@ -147,7 +162,6 @@
                 return;
             }
 
-            // Grouping logic: Organizing into an object by Category Name
             const grouped = lessons.reduce((acc, lesson) => {
                 const category = lesson.lesson_categories;
                 const catName = category ? category.name : 'Core Curriculum';
@@ -162,7 +176,6 @@
                 return acc;
             }, {});
 
-            // Render categories and their respective lessons
             container.innerHTML = Object.entries(grouped).map(([name, data]) => {
                 const color = data.details.color_hex || '#ec4899';
                 
