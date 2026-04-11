@@ -3,262 +3,406 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simulation Room | Nexus Prime</title>
+    <title>Stream Protocol | Nexus Prime</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://www.youtube.com/iframe_api"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Outfit', sans-serif; background-color: #09090b; color: #f4f4f5; opacity: 0; transition: opacity 0.5s ease-in-out; }
-        body.auth-ready { opacity: 1; }
-        .mono { font-family: 'JetBrains Mono', monospace; }
-        .glass-card { background: rgba(24, 24, 27, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
-        
-        .video-wrapper {
-            position: relative;
-            width: 100%;
-            aspect-ratio: 16 / 9;
-            background: #000;
-            border-radius: 1.5rem;
-            overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .interaction-shield { position: absolute; inset: 0; z-index: 10; background: transparent; cursor: pointer; }
-
-        #moving-watermark {
-            position: absolute;
-            z-index: 20;
-            pointer-events: none;
-            font-size: 10px;
-            font-weight: 700;
-            white-space: nowrap;
-            text-transform: lowercase;
-            mix-blend-mode: difference;
-            color: rgba(255, 255, 255, 0.4);
-            font-family: 'JetBrains Mono', monospace;
-        }
-
-        .custom-controls {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
-            z-index: 30;
-            padding: 20px;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-        .video-wrapper:hover .custom-controls { opacity: 1; }
-
-        .progress-bar-container {
-            width: 100%;
-            height: 4px;
-            background: rgba(255,255,255,0.1);
-            margin-bottom: 12px;
-            cursor: pointer;
-            border-radius: 2px;
-            overflow: hidden;
-        }
-        .progress-fill { height: 100%; background: #ec4899; width: 0%; transition: width 0.1s linear; }
-
-        .limit-overlay {
-            position: absolute;
-            inset: 0;
-            background: rgba(9, 9, 11, 0.98);
-            z-index: 100;
-            display: none;
+        body { 
+            font-family: 'Outfit', sans-serif; 
+            background-color: #09090b; 
+            color: #f4f4f5; 
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 2rem;
-            backdrop-filter: blur(20px);
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
         }
-
-        input[type="range"] { accent-color: #ec4899; }
+        body.ready { opacity: 1; }
         
-        select {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            color: #f4f4f5;
-            padding: 2px 8px;
-            border-radius: 6px;
-            font-size: 10px;
-            outline: none;
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        
+        .glass-card { 
+            background: rgba(24, 24, 27, 0.4); 
+            backdrop-filter: blur(12px); 
+            border: 1px solid rgba(255, 255, 255, 0.05); 
         }
 
-        .btn-complete-active {
-            background: #10b981 !important;
-            border-color: #10b981 !important;
-            color: white !important;
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+            height: 0;
+            overflow: hidden;
+            background: #000;
+            border-radius: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #youtube-player {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            border: 0; opacity: 0; transition: opacity 0.8s ease-in;
+        }
+
+        #youtube-player.visible { opacity: 1; }
+
+        .watermark {
+            position: absolute;
+            z-index: 30;
+            pointer-events: none;
+            user-select: none;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: rgba(236, 72, 153, 0.25);
+            text-transform: lowercase;
+            white-space: nowrap;
+        }
+
+        .status-bar { height: 2px; background: rgba(255,255,255,0.05); position: relative; overflow: hidden; }
+        .status-progress { position: absolute; height: 100%; background: #ec4899; width: 0%; transition: width 0.3s; }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 8px 16px; 
+            font-size: 10px; 
+            font-weight: 700;
+            text-transform: uppercase; 
+            letter-spacing: 0.1em; 
+            transition: all 0.3s;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .nav-btn:hover { 
+            background: rgba(236, 72, 153, 0.1); 
+            border-color: #ec4899; 
+            color: #ec4899; 
+        }
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            border-color: rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.3);
+        }
+        .nav-btn.complete-active {
+            background: #10b981;
+            border-color: #10b981;
+            color: white;
+        }
+
+        .telemetry-box {
+            border-left: 2px solid #ec4899;
+            background: rgba(236, 72, 153, 0.03);
+            padding: 1rem;
+            border-radius: 0 12px 12px 0;
+        }
+
+        .preloader-overlay {
+            position: absolute; inset: 0; background: #09090b;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 20;
         }
     </style>
 </head>
-<body class="min-h-screen">
+<body>
 
-    <nav class="p-4 md:p-6 flex justify-between items-center border-b border-white/5 bg-black/20 sticky top-0 z-50 backdrop-blur-md">
-        <div id="nav-back" class="flex items-center space-x-2 text-gray-400 hover:text-white transition group cursor-pointer">
-            <i data-lucide="arrow-left" class="w-4 h-4 group-hover:-translate-x-1 transition-transform"></i>
-            <span class="mono text-[10px] uppercase font-bold tracking-widest">Exit Simulation</span>
-        </div>
-        
-        <div class="flex items-center space-x-6">
-            <div id="limit-telemetry" class="hidden flex flex-col items-end">
-                <span class="mono text-[8px] text-gray-500 uppercase tracking-widest">Airtime Remaining</span>
-                <span id="time-remaining" class="mono text-sm font-bold text-pink-500">--:--:--</span>
+    <header class="p-6 border-b border-white/5 flex justify-between items-center bg-black/20 backdrop-blur-xl sticky top-0 z-50">
+        <div class="flex items-center gap-4">
+            <div class="w-8 h-8 rounded-lg bg-pink-500/20 flex items-center justify-center text-pink-500">
+                <i data-lucide="play-circle" class="w-4 h-4"></i>
             </div>
-            <button id="btn-signout" class="mono text-[10px] text-gray-500 hover:text-pink-500 uppercase font-bold tracking-widest transition-colors">Terminate</button>
-        </div>
-    </nav>
-
-    <main class="max-w-[1600px] mx-auto p-6 md:p-10 lg:grid lg:grid-cols-4 lg:gap-10">
-        
-        <div class="lg:col-span-3 space-y-8">
             <div>
-                <div class="flex items-center space-x-3 mb-3">
-                    <span id="lesson-type-badge" class="px-3 py-0.5 rounded-full bg-pink-500/10 border border-pink-500/20 text-pink-500 mono text-[9px] uppercase font-bold tracking-widest">Simulation</span>
-                    <span id="lesson-id-label" class="mono text-[9px] text-gray-500 uppercase tracking-widest">SID: 0000</span>
-                </div>
-                <h1 id="lesson-title" class="text-3xl md:text-5xl font-black tracking-tighter italic uppercase">Initializing...</h1>
-            </div>
-
-            <div class="video-wrapper glass-card" id="master-wrapper">
-                <!-- Limit Error -->
-                <div id="limit-error" class="limit-overlay">
-                    <div class="w-20 h-20 bg-pink-500/10 rounded-full flex items-center justify-center mb-6">
-                        <i data-lucide="lock" class="text-pink-500 w-10 h-10"></i>
-                    </div>
-                    <h2 class="text-2xl font-black italic uppercase tracking-tighter mb-2">Access Terminated</h2>
-                    <p id="limit-error-msg" class="mono text-xs text-gray-500 uppercase tracking-widest mb-8">Session Duration Exceeded</p>
-                    <button onclick="window.location.href='/curriculum'" class="px-8 py-3 bg-white text-black mono text-[10px] font-black uppercase tracking-widest rounded-full hover:bg-pink-500 hover:text-white transition-all">Return to Deck</button>
-                </div>
-
-                <div id="moving-watermark">nexus-prime-secure-stream</div>
-                <div class="interaction-shield" id="interaction-shield"></div>
-                <div id="yt-player" class="w-full h-full"></div>
-                
-                <!-- Controls -->
-                <div id="custom-controls-ui" class="custom-controls">
-                    <div class="progress-bar-container" id="progress-bar">
-                        <div class="progress-fill" id="progress-fill"></div>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-6">
-                            <button class="text-white hover:text-pink-500 transition" id="btn-play">
-                                <i data-lucide="play" id="play-icon" class="w-6 h-6 fill-current"></i>
-                            </button>
-                            <div class="flex items-center space-x-3">
-                                <i data-lucide="volume-2" class="w-4 h-4 text-gray-500"></i>
-                                <input type="range" id="volume-slider" class="w-20 h-1 rounded-lg" min="0" max="100" value="100">
-                            </div>
-                            <span class="mono text-[10px] font-bold tracking-tighter text-gray-400" id="time-display">00:00 / 00:00</span>
-                        </div>
-                        <div class="flex items-center space-x-4">
-                            <select id="speed-selector" class="mono">
-                                <option value="0.5">0.5x</option>
-                                <option value="1" selected>1.0x</option>
-                                <option value="1.5">1.5x</option>
-                                <option value="2">2.0x</option>
-                            </select>
-                            <button class="text-gray-400 hover:text-white" id="btn-fullscreen">
-                                <i data-lucide="maximize" class="w-4 h-4"></i>
-                            </button>
-                        </div>
-                    </div>
+                <h1 id="lesson-title" class="text-sm font-bold tracking-tight text-white uppercase">Authenticating Protocol...</h1>
+                <div class="flex items-center gap-2 mt-0.5">
+                    <span class="mono text-[9px] text-pink-500 uppercase font-bold tracking-widest">YouTube Node</span>
+                    <span id="info-status" class="mono text-[9px] text-yellow-500 uppercase font-bold tracking-widest">• Syncing</span>
                 </div>
             </div>
+        </div>
+        
+        <div class="flex items-center gap-4">
+            <div id="timer-display" class="hidden text-right mr-4">
+                <p class="mono text-[9px] text-gray-500 uppercase font-bold tracking-widest">Time Remaining</p>
+                <p id="time-left" class="text-lg font-black text-white tracking-tighter tabular-nums">--:--:--</p>
+            </div>
+            
+            <button id="btn-complete" class="nav-btn" disabled>
+                <i data-lucide="check-circle" class="w-3 h-3"></i>
+                Mark Complete
+            </button>
 
-            <!-- Description -->
-            <div class="border-t border-white/5 pt-8">
-                <h3 class="mono text-[10px] font-black text-pink-500 uppercase tracking-[0.3em] mb-4">Briefing Notes</h3>
-                <p id="lesson-description" class="text-gray-400 leading-relaxed max-w-4xl text-lg">
-                    Connecting to encrypted briefing data...
-                </p>
+            <button id="btn-exit" class="nav-btn">
+                <i data-lucide="arrow-left" class="w-3 h-3"></i>
+                Exit
+            </button>
+        </div>
+    </header>
+
+    <div class="status-bar">
+        <div id="loading-bar" class="status-progress"></div>
+    </div>
+
+    <main class="flex-1 p-6 md:p-12 max-w-6xl mx-auto w-full">
+        <div id="telemetry-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="telemetry-box">
+                <p class="mono text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Session UID</p>
+                <p id="info-id" class="text-sm font-bold text-white tracking-tight">ANALYZING...</p>
+            </div>
+            <div class="telemetry-box">
+                <p class="mono text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Watch Limit</p>
+                <p id="info-limit" class="text-sm font-bold text-white tracking-tight">--</p>
+            </div>
+            <div class="telemetry-box">
+                <p class="mono text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Stream Status</p>
+                <p id="signal-quality" class="text-sm font-bold text-white tracking-tight">WAITING_FOR_HANDSHAKE</p>
             </div>
         </div>
 
-        <aside class="space-y-6">
-            <!-- Progress Section -->
-            <div class="glass-card p-8 rounded-[2rem] space-y-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="mono text-[11px] uppercase text-gray-500 font-bold tracking-widest">Simulation Log</h2>
-                    <i data-lucide="shield-check" class="w-4 h-4 text-pink-500"></i>
+        <div id="video-wrapper" class="video-container shadow-2xl">
+            <div id="preloader" class="preloader-overlay">
+                <div class="relative w-16 h-16 mb-6">
+                    <div class="absolute inset-0 border-2 border-pink-500/20 rounded-full"></div>
+                    <div class="absolute inset-0 border-2 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
                 </div>
-                
-                <button id="btn-mark-complete" class="w-full py-4 bg-white/5 border border-white/10 hover:border-pink-500/50 hover:bg-pink-500/5 mono text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl transition-all flex items-center justify-center space-x-3 group">
-                    <i data-lucide="check-circle" class="w-4 h-4 group-hover:scale-110 transition-transform"></i>
-                    <span id="complete-btn-text">Mark as Completed</span>
-                </button>
-                <p class="mono text-[8px] text-center text-gray-600 uppercase tracking-widest">Finalize record to update trajectory</p>
+                <p id="loader-text" class="mono text-[10px] font-bold tracking-[0.3em] text-pink-500 uppercase text-center">Decrypting Stream</p>
             </div>
-
-            <!-- Telemetry Section -->
-            <div class="glass-card p-8 rounded-[2rem] space-y-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="mono text-[11px] uppercase text-gray-500 font-bold tracking-widest">Telemetry</h2>
-                    <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                </div>
-
-                <div class="space-y-4">
-                    <div>
-                        <label class="mono text-[9px] text-gray-600 uppercase tracking-widest block mb-1">Active User</label>
-                        <div id="user-name" class="font-bold text-white uppercase truncate">Verifying...</div>
-                    </div>
-                    <div>
-                        <label class="mono text-[9px] text-gray-600 uppercase tracking-widest block mb-1">Session ID</label>
-                        <div id="user-id" class="mono text-[10px] text-pink-500 truncate">---</div>
-                    </div>
-                    <div>
-                        <label class="mono text-[9px] text-gray-600 uppercase tracking-widest block mb-1">Signal Status</label>
-                        <div id="session-status" class="mono text-[10px] text-green-500 font-bold">STABLE</div>
-                    </div>
-                </div>
-            </div>
-        </aside>
+            
+            <div id="moving-watermark" class="watermark">initializing_secure_layer</div>
+            <div id="youtube-player"></div>
+        </div>
     </main>
 
     <script>
+        // Configuration
         const SUPABASE_URL = 'https://tsaoxjzvhxiggntibpui.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzYW94anp2aHhpZ2dudGlicHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDQ2OTAsImV4cCI6MjA5MTQyMDY5MH0.Q5Iu51O3NK4k2kcc_GoegnyAYIFIs2SUkQOV10qp2jI';
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const urlParams = new URLSearchParams(window.location.search);
-        const lessonId = urlParams.get('id'); 
+        const lessonId = urlParams.get('id');
 
-        let player, currentUser = null;
-        let allowedSeconds = 0, watchedSeconds = 0;
-        let sessionTimer = null, dbSyncTimer = null;
-        let watermarkData = { x: 50, y: 50, dx: 1, dy: 1 };
+        let player;
+        let currentUser = null;
+        let allowedSeconds = 0;
+        let watchedSeconds = 0;
+        let sessionTimer = null;
+        let watermarkData = { x: 10, y: 10, dx: 0.6, dy: 0.4 };
         let isCompleted = false;
 
-        async function checkAuth() {
+        // Initialize App
+        async function init() {
             const { data: { session } } = await sb.auth.getSession();
             if (!session) { window.location.href = 'index.html'; return; }
 
             currentUser = session.user;
-            document.getElementById('user-name').innerText = currentUser.email.split('@')[0];
-            document.getElementById('user-id').innerText = currentUser.id;
             document.getElementById('moving-watermark').innerText = currentUser.email;
-            document.body.classList.add('auth-ready');
+            document.body.classList.add('ready');
             
-            startWatermarkAnimation();
-            fetchLessonFromSupabase();
+            lucide.createIcons();
+            await fetchLessonData();
+            await checkCompletionStatus();
+            startWatermark();
+        }
+
+        // Fetch Lesson Info & Timer Logic
+        async function fetchLessonData() {
+            if (!lessonId) { window.location.href = '/curriculum'; return; }
+
+            const { data: lesson, error } = await sb
+                .from('lessons')
+                .select('*')
+                .eq('id', lessonId)
+                .single();
+
+            if (error || !lesson) { showError("DATA_STREAM_CORRUPTED"); return; }
+
+            const hours = parseInt(lesson.watchtime_hours) || 0;
+            const minutes = parseInt(lesson.watchtime_minutes) || 0;
+            allowedSeconds = (hours * 3600) + (minutes * 60);
+
+            document.getElementById('lesson-title').innerText = lesson.title;
+            document.getElementById('info-id').innerText = `X-CORE-${lesson.order_index || '000'}`;
+            document.getElementById('info-limit').innerText = `${hours}H ${minutes}M ALLOCATED`;
+
+            await syncSessionProgress();
+
+            if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) {
+                showError("WATCH_LIMIT_EXCEEDED");
+                return;
+            }
+
+            loadYouTubeAPI(lesson.video_url);
+        }
+
+        // Database: Get existing watch time
+        async function syncSessionProgress() {
+            const { data } = await sb
+                .from('watch_sessions')
+                .select('total_seconds_watched')
+                .eq('user_id', currentUser.id)
+                .eq('lesson_id', lessonId)
+                .maybeSingle();
+
+            if (data) {
+                watchedSeconds = data.total_seconds_watched;
+            } else {
+                await sb.from('watch_sessions').insert({
+                    user_id: currentUser.id,
+                    lesson_id: lessonId,
+                    total_seconds_watched: 0
+                });
+            }
+            updateTimerUI();
+        }
+
+        // YouTube API Loader
+        function loadYouTubeAPI(videoUrl) {
+            // Extract ID from URL (handles watch?v=, share links, etc)
+            let videoId = videoUrl;
+            if (videoUrl.includes('v=')) {
+                videoId = videoUrl.split('v=')[1].split('&')[0];
+            } else if (videoUrl.includes('youtu.be/')) {
+                videoId = videoUrl.split('youtu.be/')[1].split('?')[0];
+            }
+
+            window.onYouTubeIframeAPIReady = () => {
+                player = new YT.Player('youtube-player', {
+                    videoId: videoId,
+                    playerVars: {
+                        'autoplay': 0,
+                        'controls': 1,
+                        'rel': 0,
+                        'modestbranding': 1,
+                        'origin': window.location.origin
+                    },
+                    events: {
+                        'onReady': onPlayerReady,
+                        'onStateChange': onPlayerStateChange
+                    }
+                });
+            };
+
+            const tag = document.createElement('script');
+            tag.src = "https://www.youtube.com/iframe_api";
+            document.body.appendChild(tag);
+        }
+
+        function onPlayerReady(event) {
+            document.getElementById('loading-bar').style.width = '100%';
+            document.getElementById('info-status').innerText = "• ONLINE";
+            document.getElementById('info-status').className = "mono text-[9px] text-green-500 uppercase font-bold tracking-widest";
+            document.getElementById('signal-quality').innerText = "STABLE_ENCRYPTED";
+            document.getElementById('preloader').style.display = 'none';
+            document.getElementById('youtube-player').classList.add('visible');
+            document.getElementById('timer-display').classList.remove('hidden');
+            
+            startTracking();
+        }
+
+        function onPlayerStateChange(event) {
+            // Optional: Pause tracking if video is paused? 
+            // In high-security simulations, we usually track session time regardless.
+        }
+
+        // Heartbeat & Timer logic
+        function startTracking() {
+            sessionTimer = setInterval(async () => {
+                watchedSeconds += 1;
+                updateTimerUI();
+
+                // Periodic DB Sync
+                if (watchedSeconds % 10 === 0) {
+                    await sb.from('watch_sessions')
+                        .update({ 
+                            total_seconds_watched: watchedSeconds, 
+                            last_watched_at: new Date().toISOString() 
+                        })
+                        .eq('user_id', currentUser.id)
+                        .eq('lesson_id', lessonId);
+                }
+
+                // Limit Enforcement
+                if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) {
+                    clearInterval(sessionTimer);
+                    player.stopVideo();
+                    showError("SESSION_EXPIRED");
+                }
+            }, 1000);
+        }
+
+        function updateTimerUI() {
+            const remaining = Math.max(0, allowedSeconds - watchedSeconds);
+            const h = Math.floor(remaining / 3600);
+            const m = Math.floor((remaining % 3600) / 60);
+            const s = remaining % 60;
+            document.getElementById('time-left').innerText = 
+                `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+
+        // Completion Logic
+        async function checkCompletionStatus() {
+            const { data } = await sb
+                .from('lesson_completions')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .eq('lesson_id', lessonId)
+                .maybeSingle();
+
+            if (data) {
+                setCompleteUI();
+            } else {
+                // Enable button after 10s of presence
+                setTimeout(() => {
+                    if(!isCompleted) document.getElementById('btn-complete').disabled = false;
+                }, 10000);
+            }
+        }
+
+        async function handleMarkComplete() {
+            if (isCompleted) return;
+            const btn = document.getElementById('btn-complete');
+            btn.disabled = true;
+            btn.innerText = "UPLOADING...";
+
+            const { error } = await sb
+                .from('lesson_completions')
+                .insert({ user_id: currentUser.id, lesson_id: lessonId });
+
+            if (error) {
+                btn.innerText = "RETRY_UPLOAD";
+                btn.disabled = false;
+                return;
+            }
+            setCompleteUI();
+        }
+
+        function setCompleteUI() {
+            const btn = document.getElementById('btn-complete');
+            btn.innerHTML = `<i data-lucide="check" class="w-3 h-3"></i> COMPLETE`;
+            btn.classList.add('complete-active');
+            btn.disabled = true;
+            isCompleted = true;
             lucide.createIcons();
         }
 
-        function startWatermarkAnimation() {
+        // Visual Watermark
+        function startWatermark() {
             const el = document.getElementById('moving-watermark');
-            const wrapper = document.getElementById('master-wrapper');
+            const wrapper = document.getElementById('video-wrapper');
             function animate() {
                 const rect = wrapper.getBoundingClientRect();
                 const elRect = el.getBoundingClientRect();
-                watermarkData.x += watermarkData.dx * 0.4;
-                watermarkData.y += watermarkData.dy * 0.4;
+                watermarkData.x += watermarkData.dx;
+                watermarkData.y += watermarkData.dy;
+                
                 if (watermarkData.x <= 0 || watermarkData.x + elRect.width >= rect.width) watermarkData.dx *= -1;
                 if (watermarkData.y <= 0 || watermarkData.y + elRect.height >= rect.height) watermarkData.dy *= -1;
+                
                 el.style.left = watermarkData.x + 'px';
                 el.style.top = watermarkData.y + 'px';
                 requestAnimationFrame(animate);
@@ -266,288 +410,25 @@
             animate();
         }
 
-        async function fetchLessonFromSupabase() {
-            if (!lessonId) {
-                window.location.href = '/curriculum';
-                return;
-            }
-
-            try {
-                const { data: lesson, error } = await sb
-                    .from('lessons')
-                    .select('*')
-                    .eq('id', lessonId)
-                    .single();
-
-                if (error || !lesson) throw new Error("Lesson not found");
-
-                const hours = parseInt(lesson.watchtime_hours) || 0;
-                const minutes = parseInt(lesson.watchtime_minutes) || 0;
-                allowedSeconds = (hours * 3600) + (minutes * 60);
-
-                if (allowedSeconds === 0) {
-                    showLimitError("PROTOCOL LOCK: WATCH TIME IS OVER");
-                    return;
-                }
-
-                document.getElementById('lesson-title').innerText = lesson.title;
-                document.getElementById('lesson-id-label').innerText = `SID: ${lesson.order_index || 'N/A'}`;
-                document.getElementById('lesson-type-badge').innerText = lesson.lesson_type;
-                document.getElementById('lesson-description').innerText = lesson.description || "No briefing notes provided.";
-
-                await syncProgressFromDB();
-                
-                if (watchedSeconds >= allowedSeconds) {
-                    showLimitError("PROTOCOL LOCK: SESSION TIME DEPLETED");
-                    return;
-                }
-
-                initVideo(lesson.video_url);
-                startSessionClock();
-                setupCompletionHandler();
-
-            } catch (err) {
-                console.error(err);
-                showLimitError("SYSTEM ERROR: UNABLE TO LOAD SIMULATION");
-            }
+        function showError(msg) {
+            document.getElementById('preloader').style.display = 'flex';
+            document.getElementById('preloader').innerHTML = `
+                <div class="text-center p-8 glass-card rounded-2xl border-pink-500/20">
+                    <p class="mono text-pink-500 font-black tracking-widest uppercase mb-2">ACCESS_DENIED</p>
+                    <p class="text-[10px] text-gray-500 uppercase tracking-[4px]">${msg}</p>
+                    <button onclick="window.location.href='/curriculum'" class="mt-8 nav-btn mx-auto">
+                        Return to Dashboard
+                    </button>
+                </div>
+            `;
+            document.getElementById('info-status').innerText = "• TERMINATED";
+            document.getElementById('info-status').className = "mono text-[9px] text-red-500 uppercase font-bold tracking-widest";
+            document.getElementById('signal-quality').innerText = "CONNECTION_LOST";
         }
 
-        async function syncProgressFromDB() {
-            const { data, error } = await sb
-                .from('watch_sessions')
-                .select('total_seconds_watched, is_completed')
-                .eq('user_id', currentUser.id)
-                .eq('lesson_id', lessonId)
-                .maybeSingle();
-
-            if (data) {
-                watchedSeconds = data.total_seconds_watched;
-                isCompleted = data.is_completed || false;
-                updateCompletionUI();
-            } else {
-                // Initialize session if not exists
-                await sb.from('watch_sessions').insert({
-                    user_id: currentUser.id,
-                    lesson_id: lessonId,
-                    total_seconds_watched: 0,
-                    is_completed: false
-                });
-            }
-        }
-
-        function setupCompletionHandler() {
-            const btn = document.getElementById('btn-mark-complete');
-            const btnText = document.getElementById('complete-btn-text');
-            
-            btn.onclick = async () => {
-                if (isCompleted) return;
-
-                // UI Loading State
-                btn.disabled = true;
-                btn.style.opacity = "0.7";
-                btnText.innerText = "UPDATING LOG...";
-
-                try {
-                    // Use upsert to handle case where record might not exist yet
-                    const { error } = await sb
-                        .from('watch_sessions')
-                        .upsert({ 
-                            user_id: currentUser.id, 
-                            lesson_id: lessonId,
-                            is_completed: true,
-                            total_seconds_watched: watchedSeconds,
-                            last_watched_at: new Date().toISOString()
-                        }, { onConflict: 'user_id,lesson_id' });
-
-                    if (error) throw error;
-
-                    isCompleted = true;
-                    updateCompletionUI();
-                } catch (err) {
-                    console.error("Completion Error:", err);
-                    btn.disabled = false;
-                    btn.style.opacity = "1";
-                    btnText.innerText = "RETRY COMPLETION";
-                    // Add a temporary red border to signal error
-                    btn.classList.add('border-red-500');
-                    setTimeout(() => btn.classList.remove('border-red-500'), 2000);
-                }
-            };
-        }
-
-        function updateCompletionUI() {
-            const btn = document.getElementById('btn-mark-complete');
-            const btnText = document.getElementById('complete-btn-text');
-            
-            if (isCompleted) {
-                btn.disabled = true;
-                btn.onclick = null;
-                btn.classList.add('btn-complete-active');
-                btn.classList.remove('hover:border-pink-500/50', 'hover:bg-pink-500/5');
-                btn.innerHTML = `
-                    <i data-lucide="check-circle-2" class="w-4 h-4 text-white"></i> 
-                    <span>Simulation Completed</span>
-                `;
-                btn.style.cursor = 'default';
-                btn.style.opacity = "1";
-            }
-            lucide.createIcons();
-        }
-
-        function startSessionClock() {
-            if (sessionTimer) clearInterval(sessionTimer);
-            sessionTimer = setInterval(() => {
-                watchedSeconds += 1;
-                updateRemainingUI();
-
-                if (watchedSeconds >= allowedSeconds) {
-                    if (player && player.pauseVideo) player.pauseVideo();
-                    showLimitError("TIME EXPIRED: SESSION TERMINATED");
-                    syncWithDB();
-                }
-            }, 1000);
-
-            if (dbSyncTimer) clearInterval(dbSyncTimer);
-            dbSyncTimer = setInterval(syncWithDB, 15000); // Sync every 15s to avoid hitting rate limits
-        }
-
-        async function syncWithDB() {
-            if (!currentUser || isCompleted) return;
-            await sb
-                .from('watch_sessions')
-                .upsert({ 
-                    user_id: currentUser.id, 
-                    lesson_id: lessonId,
-                    total_seconds_watched: watchedSeconds,
-                    last_watched_at: new Date().toISOString()
-                }, { onConflict: 'user_id,lesson_id' });
-        }
-
-        function updateRemainingUI() {
-            const telemetry = document.getElementById('limit-telemetry');
-            const display = document.getElementById('time-remaining');
-            telemetry.classList.remove('hidden');
-            
-            const remaining = Math.max(0, allowedSeconds - watchedSeconds);
-            const h = Math.floor(remaining / 3600);
-            const m = Math.floor((remaining % 3600) / 60);
-            const s = remaining % 60;
-            
-            display.innerText = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-            
-            if (remaining < 60) {
-                display.classList.remove('text-pink-500');
-                display.classList.add('text-red-500');
-            }
-        }
-
-        function showLimitError(msg) {
-            if (sessionTimer) clearInterval(sessionTimer);
-            if (dbSyncTimer) clearInterval(dbSyncTimer);
-            document.getElementById('limit-error').style.display = 'flex';
-            document.getElementById('limit-error-msg').innerText = msg;
-            document.getElementById('session-status').innerText = "TERMINATED";
-            document.getElementById('session-status').className = "mono text-[10px] text-red-500 font-bold";
-        }
-
-        function initVideo(videoUrl) {
-            let vidId = "";
-            if (videoUrl && (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be'))) {
-                vidId = videoUrl.includes('v=') ? videoUrl.split('v=')[1].split('&')[0] : videoUrl.split('/').pop();
-                
-                player = new YT.Player('yt-player', {
-                    videoId: vidId,
-                    playerVars: { 
-                        'autoplay': 0, 
-                        'controls': 0, 
-                        'disablekb': 1, 
-                        'modestbranding': 1, 
-                        'rel': 0, 
-                        'showinfo': 0, 
-                        'iv_load_policy': 3 
-                    },
-                    events: { 
-                        'onReady': onPlayerReady, 
-                        'onStateChange': onPlayerStateChange 
-                    }
-                });
-            } else {
-                showLimitError("MALFORMED SIGNAL: INVALID VIDEO SOURCE");
-            }
-        }
-
-        function onPlayerReady() { setupCustomControls(); updateRemainingUI(); }
-
-        function onPlayerStateChange(event) {
-            const icon = document.getElementById('play-icon');
-            if (event.data === YT.PlayerState.PLAYING) {
-                if (watchedSeconds >= allowedSeconds) { player.pauseVideo(); return; }
-                icon.setAttribute('data-lucide', 'pause');
-            } else {
-                icon.setAttribute('data-lucide', 'play');
-            }
-            lucide.createIcons();
-        }
-
-        function setupCustomControls() {
-            const btnPlay = document.getElementById('btn-play');
-            const shield = document.getElementById('interaction-shield');
-            const progressBar = document.getElementById('progress-bar');
-            const progressFill = document.getElementById('progress-fill');
-            const timeDisplay = document.getElementById('time-display');
-            const wrapper = document.getElementById('master-wrapper');
-
-            const togglePlay = () => {
-                if (watchedSeconds >= allowedSeconds) return;
-                const state = player.getPlayerState();
-                if (state === YT.PlayerState.PLAYING) player.pauseVideo();
-                else player.playVideo();
-            };
-
-            btnPlay.onclick = togglePlay;
-            shield.onclick = togglePlay;
-
-            setInterval(() => {
-                if (player && player.getCurrentTime) {
-                    const current = player.getCurrentTime();
-                    const total = player.getDuration();
-                    progressFill.style.width = ((current / total) * 100) + '%';
-                    timeDisplay.innerText = `${formatTime(current)} / ${formatTime(total)}`;
-                }
-            }, 500);
-
-            progressBar.onclick = (e) => {
-                const rect = progressBar.getBoundingClientRect();
-                const pos = (e.clientX - rect.left) / rect.width;
-                player.seekTo(pos * player.getDuration());
-            };
-
-            document.getElementById('speed-selector').onchange = (e) => player.setPlaybackRate(parseFloat(e.target.value));
-            document.getElementById('volume-slider').oninput = (e) => player.setVolume(e.target.value);
-            document.getElementById('btn-fullscreen').onclick = () => { 
-                if (!document.fullscreenElement) wrapper.requestFullscreen(); 
-                else document.exitFullscreen(); 
-            };
-        }
-
-        function formatTime(seconds) {
-            const m = Math.floor(seconds / 60);
-            const s = Math.floor(seconds % 60);
-            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-        }
-
-        document.getElementById('btn-signout').onclick = async () => {
-            await syncWithDB();
-            await sb.auth.signOut();
-            window.location.href = 'index.html';
-        };
-
-        document.getElementById('nav-back').onclick = async () => { 
-            await syncWithDB();
-            window.location.href = `/curriculum`; 
-        };
-
-        window.onload = checkAuth;
+        document.getElementById('btn-exit').onclick = () => window.location.href = '/curriculum';
+        document.getElementById('btn-complete').onclick = handleMarkComplete;
+        window.onload = init;
     </script>
 </body>
 </html>
