@@ -275,6 +275,7 @@
 
         let player, currentUser, allowedSeconds, watchedSeconds = 0;
         let watermarkData = { x: 50, y: 50, dx: 0.8, dy: 0.6 };
+        let sessionTrackingActive = false;
 
         async function init() {
             const { data: { session } } = await sb.auth.getSession();
@@ -283,9 +284,13 @@
             document.getElementById('moving-watermark').innerText = currentUser.email;
             document.body.classList.add('ready');
             lucide.createIcons();
+            
             await fetchLessonData();
             startWatermark();
             setupControls();
+            
+            // Start page-based session tracking immediately after data fetch
+            startPageSessionTracking();
         }
 
         async function fetchLessonData() {
@@ -294,6 +299,18 @@
             allowedSeconds = (parseInt(lesson.watchtime_hours) * 3600) + (parseInt(lesson.watchtime_minutes) * 60);
             document.getElementById('lesson-title').innerText = lesson.title;
             document.getElementById('info-id').innerText = `X-CORE-${lesson.order_index || '000'}`;
+            
+            // Fetch initial progress from DB
+            const { data: sessionData } = await sb.from('watch_sessions')
+                .select('total_seconds_watched')
+                .eq('user_id', currentUser.id)
+                .eq('lesson_id', lessonId)
+                .maybeSingle();
+            
+            if (sessionData) {
+                watchedSeconds = sessionData.total_seconds_watched;
+            }
+
             loadYouTubeAPI(lesson.video_url);
         }
 
@@ -314,23 +331,101 @@
         function onPlayerReady() {
             document.getElementById('preloader').style.display = 'none';
             document.getElementById('youtube-player').classList.add('visible');
-            document.getElementById('timer-display').classList.remove('hidden');
             document.getElementById('info-status').innerText = "• ONLINE";
             document.getElementById('info-status').className = "mono text-[9px] text-green-500 uppercase font-bold tracking-widest";
             
+            // Video-specific UI updates (progress bar, current time)
             setInterval(() => {
                 if (player && player.getCurrentTime) {
                     const curr = player.getCurrentTime();
                     const dur = player.getDuration();
                     document.getElementById('progress-bar').style.width = (curr/dur*100) + '%';
                     document.getElementById('current-timestamp').innerText = `${Math.floor(curr/60)}:${Math.floor(curr%60).toString().padStart(2,'0')} / ${Math.floor(dur/60)}:${Math.floor(dur%60).toString().padStart(2,'0')}`;
-                    
-                    if (player.getPlayerState() === YT.PlayerState.PLAYING) {
-                        watchedSeconds += 1;
-                        updateTimerUI();
-                    }
                 }
             }, 1000);
+        }
+
+        // Independent Session Tracking Logic
+        function startPageSessionTracking() {
+            if (sessionTrackingActive) return;
+            sessionTrackingActive = true;
+            
+            document.getElementById('timer-display').classList.remove('hidden');
+            updateTimerUI();
+
+            // Completion Unlock Logic: Unlock after 10 seconds of page time if not already completed
+            setTimeout(async () => {
+                const { data: completion } = await sb.from('lesson_completions')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .eq('lesson_id', lessonId)
+                    .maybeSingle();
+
+                if (!completion) {
+                    const btn = document.getElementById('btn-complete');
+                    btn.disabled = false;
+                    btn.onclick = handleMarkComplete;
+                } else {
+                    setCompleteUI();
+                }
+            }, 10000);
+
+            // Ticking logic for countdown (independent of player state)
+            setInterval(async () => {
+                watchedSeconds += 1;
+                updateTimerUI();
+
+                // Periodic DB sync (every 10 seconds)
+                if (watchedSeconds % 10 === 0) {
+                    await sb.from('watch_sessions')
+                        .upsert({ 
+                            user_id: currentUser.id, 
+                            lesson_id: lessonId, 
+                            total_seconds_watched: watchedSeconds,
+                            last_watched_at: new Date().toISOString()
+                        }, { onConflict: 'user_id,lesson_id' });
+                }
+
+                if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) {
+                    handleSessionExpired();
+                }
+            }, 1000);
+        }
+
+        function handleSessionExpired() {
+            if (player && player.pauseVideo) player.pauseVideo();
+            document.getElementById('video-wrapper').innerHTML = `
+                <div class="absolute inset-0 bg-black/90 flex flex-col items-center justify-center z-[70] text-center p-6">
+                    <p class="mono text-red-500 font-bold tracking-widest mb-2 uppercase">Session Limit Reached</p>
+                    <p class="text-xs text-gray-400 max-w-xs">Your allocated access time for this protocol has expired. Please return to the dashboard.</p>
+                    <button onclick="window.location.href='/curriculum'" class="mt-6 nav-btn">Return to Dashboard</button>
+                </div>
+            `;
+        }
+
+        async function handleMarkComplete() {
+            const btn = document.getElementById('btn-complete');
+            btn.disabled = true;
+            btn.innerText = "PROCESSING...";
+
+            const { error } = await sb.from('lesson_completions').insert({
+                user_id: currentUser.id,
+                lesson_id: lessonId
+            });
+
+            if (error) {
+                btn.disabled = false;
+                btn.innerText = "RETRY COMPLETE";
+                return;
+            }
+            setCompleteUI();
+        }
+
+        function setCompleteUI() {
+            const btn = document.getElementById('btn-complete');
+            btn.innerText = "COMPLETE";
+            btn.classList.add('bg-pink-600', 'border-pink-500', 'text-white');
+            btn.disabled = true;
         }
 
         function onPlayerStateChange(ev) {
@@ -341,7 +436,10 @@
 
         function updateTimerUI() {
             const rem = Math.max(0, allowedSeconds - watchedSeconds);
-            document.getElementById('time-left').innerText = `${Math.floor(rem/3600).toString().padStart(2,'0')}:${Math.floor((rem%3600)/60).toString().padStart(2,'0')}:${(rem%60).toString().padStart(2,'0')}`;
+            const h = Math.floor(rem / 3600).toString().padStart(2, '0');
+            const m = Math.floor((rem % 3600) / 60).toString().padStart(2, '0');
+            const s = (rem % 60).toString().padStart(2, '0');
+            document.getElementById('time-left').innerText = `${h}:${m}:${s}`;
         }
 
         function setupControls() {
@@ -355,7 +453,6 @@
             document.getElementById('progress-container').onclick = (e) => player.seekTo(player.getDuration() * (e.offsetX / e.currentTarget.offsetWidth), true);
             document.getElementById('fullscreen-btn').onclick = () => document.fullscreenElement ? document.exitFullscreen() : document.getElementById('video-wrapper').requestFullscreen();
 
-            // Speed Control Logic
             const speedBtn = document.getElementById('speed-btn');
             const speedMenu = document.getElementById('speed-menu');
             
@@ -369,7 +466,6 @@
                     const speed = parseFloat(opt.dataset.speed);
                     player.setPlaybackRate(speed);
                     speedBtn.innerText = `SPEED ${speed.toFixed(1)}X`;
-                    
                     document.querySelectorAll('.speed-option').forEach(o => o.classList.remove('active'));
                     opt.classList.add('active');
                     speedMenu.classList.remove('active');
@@ -395,6 +491,7 @@
             anim();
         }
 
+        document.getElementById('btn-exit').onclick = () => window.location.href = '/curriculum';
         window.onload = init;
     </script>
 </body>
