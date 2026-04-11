@@ -46,12 +46,11 @@
             top: 0; left: 0; width: 100%; height: 100%;
             border: 0; opacity: 0; transition: opacity 0.8s ease-in;
             z-index: 5;
-            pointer-events: none; /* Block direct interaction to force custom controls */
+            pointer-events: none;
         }
 
         #youtube-player.visible { opacity: 1; }
 
-        /* Custom Controls Overlay */
         .controls-overlay {
             position: absolute;
             inset: 0;
@@ -59,7 +58,7 @@
             display: flex;
             flex-direction: column;
             justify-content: flex-end;
-            background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 40%);
+            background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 40%);
             opacity: 0;
             transition: opacity 0.3s ease;
         }
@@ -75,7 +74,10 @@
             cursor: pointer;
             position: relative;
             margin-bottom: 12px;
+            transition: height 0.2s;
         }
+        
+        .progress-bar-container:hover { height: 6px; }
 
         .progress-filled {
             height: 100%;
@@ -84,7 +86,36 @@
             position: relative;
         }
 
-        /* Enhanced Inversion Watermark */
+        /* Speed Dropdown Menu */
+        .speed-menu {
+            position: absolute;
+            bottom: 100%;
+            right: 0;
+            background: #18181b;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 4px;
+            margin-bottom: 8px;
+            display: none;
+            flex-direction: column;
+            min-width: 80px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+        }
+        
+        .speed-menu.active { display: flex; }
+        
+        .speed-option {
+            padding: 8px 12px;
+            font-size: 11px;
+            color: #a1a1aa;
+            text-align: left;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        
+        .speed-option:hover { background: rgba(255,255,255,0.05); color: white; }
+        .speed-option.active { color: #ec4899; font-weight: 800; }
+
         .watermark {
             position: absolute;
             z-index: 50; 
@@ -123,17 +154,6 @@
             border-color: #ec4899; 
             color: #ec4899; 
         }
-        .nav-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            border-color: rgba(255,255,255,0.1);
-            color: rgba(255,255,255,0.3);
-        }
-        .nav-btn.complete-active {
-            background: #10b981;
-            border-color: #10b981;
-            color: white;
-        }
 
         .telemetry-box {
             border-left: 2px solid #ec4899;
@@ -142,15 +162,7 @@
             border-radius: 0 12px 12px 0;
         }
 
-        .preloader-overlay {
-            position: absolute; inset: 0; background: #09090b;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 100;
-        }
-
-        input[type=range] {
-            accent-color: #ec4899;
-        }
+        input[type=range] { accent-color: #ec4899; }
     </style>
 </head>
 <body>
@@ -174,16 +186,8 @@
                 <p class="mono text-[9px] text-gray-500 uppercase font-bold tracking-widest">Time Remaining</p>
                 <p id="time-left" class="text-lg font-black text-white tracking-tighter tabular-nums">--:--:--</p>
             </div>
-            
-            <button id="btn-complete" class="nav-btn" disabled>
-                <i data-lucide="check-circle" class="w-3 h-3"></i>
-                Mark Complete
-            </button>
-
-            <button id="btn-exit" class="nav-btn">
-                <i data-lucide="arrow-left" class="w-3 h-3"></i>
-                Exit
-            </button>
+            <button id="btn-complete" class="nav-btn" disabled>Mark Complete</button>
+            <button id="btn-exit" class="nav-btn">Exit</button>
         </div>
     </header>
 
@@ -208,20 +212,14 @@
         </div>
 
         <div id="video-wrapper" class="video-container shadow-2xl">
-            <div id="preloader" class="preloader-overlay">
-                <div class="relative w-16 h-16 mb-6">
-                    <div class="absolute inset-0 border-2 border-pink-500/20 rounded-full"></div>
-                    <div class="absolute inset-0 border-2 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
-                </div>
-                <p id="loader-text" class="mono text-[10px] font-bold tracking-[0.3em] text-pink-500 uppercase text-center">Decrypting Stream</p>
+            <div id="preloader" class="absolute inset-0 bg-black flex items-center justify-center z-[60]">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
             </div>
             
-            <div id="moving-watermark" class="watermark">initializing_secure_layer</div>
-            
-            <!-- YouTube Player -->
+            <div id="moving-watermark" class="watermark">initializing...</div>
             <div id="youtube-player"></div>
 
-            <!-- Custom Controls Layer -->
+            <!-- Custom Controls -->
             <div id="custom-controls" class="controls-overlay p-4">
                 <div id="progress-container" class="progress-bar-container">
                     <div id="progress-bar" class="progress-filled"></div>
@@ -229,22 +227,37 @@
                 
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-6">
-                        <button id="play-pause" class="text-white hover:text-pink-500 transition-colors">
+                        <button id="play-pause" class="text-white hover:text-pink-500">
                             <i data-lucide="play" class="w-6 h-6 fill-current"></i>
                         </button>
                         
                         <div class="flex items-center gap-3">
-                            <button id="mute-toggle" class="text-white hover:text-pink-500 transition-colors">
+                            <button id="mute-toggle" class="text-white hover:text-pink-500">
                                 <i data-lucide="volume-2" class="w-5 h-5"></i>
                             </button>
-                            <input id="volume-slider" type="range" min="0" max="100" value="100" class="w-20 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer">
+                            <input id="volume-slider" type="range" min="0" max="100" value="100" class="w-16 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer">
                         </div>
 
                         <span id="current-timestamp" class="mono text-[11px] text-white/70">0:00 / 0:00</span>
                     </div>
 
-                    <div class="flex items-center gap-4">
-                        <button id="fullscreen-btn" class="text-white hover:text-pink-500 transition-colors">
+                    <div class="flex items-center gap-4 relative">
+                        <!-- Speed Control -->
+                        <div class="relative">
+                            <button id="speed-btn" class="mono text-[10px] font-bold text-white/70 hover:text-pink-500 px-2 py-1 border border-white/10 rounded">
+                                SPEED 1.0X
+                            </button>
+                            <div id="speed-menu" class="speed-menu">
+                                <button class="speed-option" data-speed="0.5">0.5x</button>
+                                <button class="speed-option" data-speed="0.75">0.75x</button>
+                                <button class="speed-option active" data-speed="1">1.0x (Norm)</button>
+                                <button class="speed-option" data-speed="1.25">1.25x</button>
+                                <button class="speed-option" data-speed="1.5">1.5x</button>
+                                <button class="speed-option" data-speed="2">2.0x</button>
+                            </div>
+                        </div>
+
+                        <button id="fullscreen-btn" class="text-white hover:text-pink-500">
                             <i data-lucide="maximize" class="w-5 h-5"></i>
                         </button>
                     </div>
@@ -254,327 +267,134 @@
     </main>
 
     <script>
-        // Configuration
         const SUPABASE_URL = 'https://tsaoxjzvhxiggntibpui.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzYW94anp2aHhpZ2dudGlicHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDQ2OTAsImV4cCI6MjA5MTQyMDY5MH0.Q5Iu51O3NK4k2kcc_GoegnyAYIFIs2SUkQOV10qp2jI';
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
         const urlParams = new URLSearchParams(window.location.search);
         const lessonId = urlParams.get('id');
 
-        let player;
-        let currentUser = null;
-        let allowedSeconds = 0;
-        let watchedSeconds = 0;
-        let sessionTimer = null;
+        let player, currentUser, allowedSeconds, watchedSeconds = 0;
         let watermarkData = { x: 50, y: 50, dx: 0.8, dy: 0.6 };
-        let isCompleted = false;
-        let updateInterval;
 
         async function init() {
             const { data: { session } } = await sb.auth.getSession();
             if (!session) { window.location.href = 'index.html'; return; }
-
             currentUser = session.user;
             document.getElementById('moving-watermark').innerText = currentUser.email;
             document.body.classList.add('ready');
-            
             lucide.createIcons();
             await fetchLessonData();
-            await checkCompletionStatus();
             startWatermark();
-            setupControlListeners();
+            setupControls();
         }
 
         async function fetchLessonData() {
-            if (!lessonId) { window.location.href = '/curriculum'; return; }
-
-            const { data: lesson, error } = await sb
-                .from('lessons')
-                .select('*')
-                .eq('id', lessonId)
-                .single();
-
-            if (error || !lesson) { showError("DATA_STREAM_CORRUPTED"); return; }
-
-            const hours = parseInt(lesson.watchtime_hours) || 0;
-            const minutes = parseInt(lesson.watchtime_minutes) || 0;
-            allowedSeconds = (hours * 3600) + (minutes * 60);
-
+            const { data: lesson } = await sb.from('lessons').select('*').eq('id', lessonId).single();
+            if (!lesson) return;
+            allowedSeconds = (parseInt(lesson.watchtime_hours) * 3600) + (parseInt(lesson.watchtime_minutes) * 60);
             document.getElementById('lesson-title').innerText = lesson.title;
             document.getElementById('info-id').innerText = `X-CORE-${lesson.order_index || '000'}`;
-            document.getElementById('info-limit').innerText = `${hours}H ${minutes}M ALLOCATED`;
-
-            await syncSessionProgress();
-
-            if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) {
-                showError("WATCH_LIMIT_EXCEEDED");
-                return;
-            }
-
             loadYouTubeAPI(lesson.video_url);
         }
 
-        async function syncSessionProgress() {
-            const { data } = await sb
-                .from('watch_sessions')
-                .select('total_seconds_watched')
-                .eq('user_id', currentUser.id)
-                .eq('lesson_id', lessonId)
-                .maybeSingle();
-
-            if (data) {
-                watchedSeconds = data.total_seconds_watched;
-            } else {
-                await sb.from('watch_sessions').insert({
-                    user_id: currentUser.id,
-                    lesson_id: lessonId,
-                    total_seconds_watched: 0
-                });
-            }
-            updateTimerUI();
-        }
-
         function loadYouTubeAPI(videoUrl) {
-            let videoId = videoUrl;
-            if (videoUrl.includes('v=')) {
-                videoId = videoUrl.split('v=')[1].split('&')[0];
-            } else if (videoUrl.includes('youtu.be/')) {
-                videoId = videoUrl.split('youtu.be/')[1].split('?')[0];
-            }
-
+            let vid = videoUrl.includes('v=') ? videoUrl.split('v=')[1].split('&')[0] : videoUrl.split('/').pop();
             window.onYouTubeIframeAPIReady = () => {
                 player = new YT.Player('youtube-player', {
-                    videoId: videoId,
-                    playerVars: {
-                        'autoplay': 0,
-                        'controls': 0, // HIDE NATIVE CONTROLS
-                        'disablekb': 1,
-                        'rel': 0,
-                        'modestbranding': 1,
-                        'origin': window.location.origin
-                    },
-                    events: {
-                        'onReady': onPlayerReady,
-                        'onStateChange': onPlayerStateChange
-                    }
+                    videoId: vid,
+                    playerVars: { 'autoplay': 0, 'controls': 0, 'disablekb': 1, 'rel': 0, 'modestbranding': 1 },
+                    events: { 'onReady': onPlayerReady, 'onStateChange': onPlayerStateChange }
                 });
             };
-
             const tag = document.createElement('script');
             tag.src = "https://www.youtube.com/iframe_api";
             document.body.appendChild(tag);
         }
 
-        function onPlayerReady(event) {
-            document.getElementById('loading-bar').style.width = '100%';
-            document.getElementById('info-status').innerText = "• ONLINE";
-            document.getElementById('info-status').className = "mono text-[9px] text-green-500 uppercase font-bold tracking-widest";
-            document.getElementById('signal-quality').innerText = "STABLE_ENCRYPTED";
+        function onPlayerReady() {
             document.getElementById('preloader').style.display = 'none';
             document.getElementById('youtube-player').classList.add('visible');
             document.getElementById('timer-display').classList.remove('hidden');
+            document.getElementById('info-status').innerText = "• ONLINE";
+            document.getElementById('info-status').className = "mono text-[9px] text-green-500 uppercase font-bold tracking-widest";
             
-            startTracking();
-            startUpdateLoop();
-        }
-
-        function onPlayerStateChange(event) {
-            const btn = document.getElementById('play-pause');
-            if (event.data === YT.PlayerState.PLAYING) {
-                btn.innerHTML = `<i data-lucide="pause" class="w-6 h-6 fill-current"></i>`;
-            } else {
-                btn.innerHTML = `<i data-lucide="play" class="w-6 h-6 fill-current"></i>`;
-            }
-            lucide.createIcons();
-        }
-
-        function startUpdateLoop() {
-            updateInterval = setInterval(() => {
+            setInterval(() => {
                 if (player && player.getCurrentTime) {
-                    const current = player.getCurrentTime();
-                    const duration = player.getDuration();
-                    const percent = (current / duration) * 100;
+                    const curr = player.getCurrentTime();
+                    const dur = player.getDuration();
+                    document.getElementById('progress-bar').style.width = (curr/dur*100) + '%';
+                    document.getElementById('current-timestamp').innerText = `${Math.floor(curr/60)}:${Math.floor(curr%60).toString().padStart(2,'0')} / ${Math.floor(dur/60)}:${Math.floor(dur%60).toString().padStart(2,'0')}`;
                     
-                    document.getElementById('progress-bar').style.width = percent + '%';
-                    
-                    const formatTime = (s) => {
-                        const m = Math.floor(s / 60);
-                        const sec = Math.floor(s % 60);
-                        return `${m}:${sec.toString().padStart(2, '0')}`;
-                    }
-                    
-                    document.getElementById('current-timestamp').innerText = 
-                        `${formatTime(current)} / ${formatTime(duration)}`;
-                }
-            }, 500);
-        }
-
-        function setupControlListeners() {
-            document.getElementById('play-pause').onclick = () => {
-                const state = player.getPlayerState();
-                if (state === YT.PlayerState.PLAYING) {
-                    player.pauseVideo();
-                } else {
-                    player.playVideo();
-                }
-            };
-
-            document.getElementById('mute-toggle').onclick = () => {
-                const btn = document.getElementById('mute-toggle');
-                if (player.isMuted()) {
-                    player.unMute();
-                    btn.innerHTML = `<i data-lucide="volume-2" class="w-5 h-5"></i>`;
-                } else {
-                    player.mute();
-                    btn.innerHTML = `<i data-lucide="volume-x" class="w-5 h-5 text-red-500"></i>`;
-                }
-                lucide.createIcons();
-            };
-
-            document.getElementById('volume-slider').oninput = (e) => {
-                player.setVolume(e.target.value);
-            };
-
-            document.getElementById('progress-container').onclick = (e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const percent = x / rect.width;
-                player.seekTo(player.getDuration() * percent, true);
-            };
-
-            document.getElementById('fullscreen-btn').onclick = () => {
-                const container = document.getElementById('video-wrapper');
-                if (!document.fullscreenElement) {
-                    container.requestFullscreen();
-                } else {
-                    document.exitFullscreen();
-                }
-            };
-        }
-
-        function startTracking() {
-            sessionTimer = setInterval(async () => {
-                // Only count if playing
-                if (player && player.getPlayerState && player.getPlayerState() === YT.PlayerState.PLAYING) {
-                    watchedSeconds += 1;
-                    updateTimerUI();
-
-                    if (watchedSeconds % 10 === 0) {
-                        await sb.from('watch_sessions')
-                            .update({ 
-                                total_seconds_watched: watchedSeconds, 
-                                last_watched_at: new Date().toISOString() 
-                            })
-                            .eq('user_id', currentUser.id)
-                            .eq('lesson_id', lessonId);
-                    }
-
-                    if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) {
-                        clearInterval(sessionTimer);
-                        player.stopVideo();
-                        showError("SESSION_EXPIRED");
+                    if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+                        watchedSeconds += 1;
+                        updateTimerUI();
                     }
                 }
             }, 1000);
         }
 
-        function updateTimerUI() {
-            const remaining = Math.max(0, allowedSeconds - watchedSeconds);
-            const h = Math.floor(remaining / 3600);
-            const m = Math.floor((remaining % 3600) / 60);
-            const s = remaining % 60;
-            document.getElementById('time-left').innerText = 
-                `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-        }
-
-        async function checkCompletionStatus() {
-            const { data } = await sb
-                .from('lesson_completions')
-                .select('*')
-                .eq('user_id', currentUser.id)
-                .eq('lesson_id', lessonId)
-                .maybeSingle();
-
-            if (data) {
-                setCompleteUI();
-            } else {
-                setTimeout(() => {
-                    if(!isCompleted) document.getElementById('btn-complete').disabled = false;
-                }, 10000);
-            }
-        }
-
-        async function handleMarkComplete() {
-            if (isCompleted) return;
-            const btn = document.getElementById('btn-complete');
-            btn.disabled = true;
-            btn.innerText = "UPLOADING...";
-
-            const { error } = await sb
-                .from('lesson_completions')
-                .insert({ user_id: currentUser.id, lesson_id: lessonId });
-
-            if (error) {
-                btn.innerText = "RETRY_UPLOAD";
-                btn.disabled = false;
-                return;
-            }
-            setCompleteUI();
-        }
-
-        function setCompleteUI() {
-            const btn = document.getElementById('btn-complete');
-            btn.innerHTML = `<i data-lucide="check" class="w-3 h-3"></i> COMPLETE`;
-            btn.classList.add('complete-active');
-            btn.disabled = true;
-            isCompleted = true;
+        function onPlayerStateChange(ev) {
+            const btn = document.getElementById('play-pause');
+            btn.innerHTML = ev.data === YT.PlayerState.PLAYING ? `<i data-lucide="pause" class="w-6 h-6 fill-current"></i>` : `<i data-lucide="play" class="w-6 h-6 fill-current"></i>`;
             lucide.createIcons();
+        }
+
+        function updateTimerUI() {
+            const rem = Math.max(0, allowedSeconds - watchedSeconds);
+            document.getElementById('time-left').innerText = `${Math.floor(rem/3600).toString().padStart(2,'0')}:${Math.floor((rem%3600)/60).toString().padStart(2,'0')}:${(rem%60).toString().padStart(2,'0')}`;
+        }
+
+        function setupControls() {
+            document.getElementById('play-pause').onclick = () => player.getPlayerState() === 1 ? player.pauseVideo() : player.playVideo();
+            document.getElementById('mute-toggle').onclick = () => {
+                player.isMuted() ? player.unMute() : player.mute();
+                document.getElementById('mute-toggle').innerHTML = player.isMuted() ? `<i data-lucide="volume-x" class="w-5 h-5 text-red-500"></i>` : `<i data-lucide="volume-2" class="w-5 h-5"></i>`;
+                lucide.createIcons();
+            };
+            document.getElementById('volume-slider').oninput = (e) => player.setVolume(e.target.value);
+            document.getElementById('progress-container').onclick = (e) => player.seekTo(player.getDuration() * (e.offsetX / e.currentTarget.offsetWidth), true);
+            document.getElementById('fullscreen-btn').onclick = () => document.fullscreenElement ? document.exitFullscreen() : document.getElementById('video-wrapper').requestFullscreen();
+
+            // Speed Control Logic
+            const speedBtn = document.getElementById('speed-btn');
+            const speedMenu = document.getElementById('speed-menu');
+            
+            speedBtn.onclick = (e) => {
+                e.stopPropagation();
+                speedMenu.classList.toggle('active');
+            };
+
+            document.querySelectorAll('.speed-option').forEach(opt => {
+                opt.onclick = () => {
+                    const speed = parseFloat(opt.dataset.speed);
+                    player.setPlaybackRate(speed);
+                    speedBtn.innerText = `SPEED ${speed.toFixed(1)}X`;
+                    
+                    document.querySelectorAll('.speed-option').forEach(o => o.classList.remove('active'));
+                    opt.classList.add('active');
+                    speedMenu.classList.remove('active');
+                };
+            });
+
+            window.onclick = () => speedMenu.classList.remove('active');
         }
 
         function startWatermark() {
             const el = document.getElementById('moving-watermark');
-            const wrapper = document.getElementById('video-wrapper');
-            
-            function animate() {
-                const rect = wrapper.getBoundingClientRect();
-                const elRect = el.getBoundingClientRect();
-                const maxX = rect.width - elRect.width;
-                const maxY = rect.height - elRect.height;
-
+            const wrap = document.getElementById('video-wrapper');
+            function anim() {
+                const r = wrap.getBoundingClientRect();
+                const er = el.getBoundingClientRect();
                 watermarkData.x += watermarkData.dx;
                 watermarkData.y += watermarkData.dy;
-                
-                if (watermarkData.x <= 0 || watermarkData.x >= maxX) watermarkData.dx *= -1;
-                if (watermarkData.y <= 0 || watermarkData.y >= maxY) watermarkData.dy *= -1;
-                
-                watermarkData.x = Math.max(0, Math.min(watermarkData.x, maxX));
-                watermarkData.y = Math.max(0, Math.min(watermarkData.y, maxY));
-
+                if (watermarkData.x <= 0 || watermarkData.x >= r.width - er.width) watermarkData.dx *= -1;
+                if (watermarkData.y <= 0 || watermarkData.y >= r.height - er.height) watermarkData.dy *= -1;
                 el.style.transform = `translate(${watermarkData.x}px, ${watermarkData.y}px)`;
-                requestAnimationFrame(animate);
+                requestAnimationFrame(anim);
             }
-            animate();
+            anim();
         }
 
-        function showError(msg) {
-            document.getElementById('preloader').style.display = 'flex';
-            document.getElementById('preloader').innerHTML = `
-                <div class="text-center p-8 glass-card rounded-2xl border-pink-500/20">
-                    <p class="mono text-pink-500 font-black tracking-widest uppercase mb-2">ACCESS_DENIED</p>
-                    <p class="text-[10px] text-gray-500 uppercase tracking-[4px]">${msg}</p>
-                    <button onclick="window.location.href='/curriculum'" class="mt-8 nav-btn mx-auto">
-                        Return to Dashboard
-                    </button>
-                </div>
-            `;
-            document.getElementById('info-status').innerText = "• TERMINATED";
-            document.getElementById('info-status').className = "mono text-[9px] text-red-500 uppercase font-bold tracking-widest";
-            document.getElementById('signal-quality').innerText = "CONNECTION_LOST";
-        }
-
-        document.getElementById('btn-exit').onclick = () => window.location.href = '/curriculum';
-        document.getElementById('btn-complete').onclick = handleMarkComplete;
         window.onload = init;
     </script>
 </body>
