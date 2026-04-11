@@ -9,32 +9,74 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Outfit', sans-serif; background-color: #09090b; color: #f4f4f5; }
+        body { 
+            font-family: 'Outfit', sans-serif; 
+            background-color: #09090b; 
+            color: #f4f4f5; 
+            overflow-x: hidden;
+        }
         .mono { font-family: 'JetBrains Mono', monospace; }
-        .glass-card { background: rgba(24, 24, 27, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
-        .lesson-item:hover { background: rgba(236, 72, 153, 0.05); border-left-color: #ec4899; }
-        .type-badge { font-size: 9px; letter-spacing: 0.05em; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); }
-        .cat-line { height: 1px; flex-grow: 1; background: linear-gradient(90deg, rgba(236, 72, 153, 0.2) 0%, transparent 100%); }
+        .glass-card { 
+            background: rgba(24, 24, 27, 0.4); 
+            backdrop-filter: blur(12px); 
+            border: 1px solid rgba(255, 255, 255, 0.05); 
+        }
+        .lesson-item {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .lesson-item:hover { 
+            background: rgba(236, 72, 153, 0.03); 
+            border-left: 4px solid #ec4899; 
+            transform: translateX(8px);
+            border-top-left-radius: 4px;
+            border-bottom-left-radius: 4px;
+        }
+        .type-badge { 
+            font-size: 9px; 
+            letter-spacing: 0.05em; 
+            padding: 2px 8px; 
+            border-radius: 20px; 
+            border: 1px solid rgba(255,255,255,0.1); 
+            background: rgba(255,255,255,0.03); 
+        }
+        .cat-line { 
+            height: 1px; 
+            flex-grow: 1; 
+            background: linear-gradient(90deg, rgba(236, 72, 153, 0.3) 0%, transparent 100%); 
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #09090b; }
+        ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #ec4899; }
     </style>
 </head>
-<body class="p-6 md:p-12">
-    <nav class="max-w-6xl mx-auto flex justify-between items-center mb-16">
-        <a href="/courses" class="flex items-center space-x-2 text-gray-400 hover:text-white transition">
-            <i data-lucide="arrow-left" class="w-4 h-4"></i>
+<body class="p-6 md:p-12 min-h-screen">
+    <nav class="max-w-5xl mx-auto flex justify-between items-center mb-16">
+        <a href="/courses" class="flex items-center space-x-2 text-gray-400 hover:text-white transition-all group">
+            <i data-lucide="arrow-left" class="w-4 h-4 group-hover:-translate-x-1 transition-transform"></i>
             <span class="mono text-[10px] uppercase font-bold tracking-widest">Back to Modules</span>
         </a>
-        <div class="mono text-[10px] text-pink-500 uppercase font-black tracking-[0.3em]">Curriculum Dashboard</div>
+        <div class="mono text-[10px] text-pink-500 uppercase font-black tracking-[0.3em] animate-pulse">Curriculum Dashboard</div>
     </nav>
 
     <main class="max-w-4xl mx-auto">
-        <header id="course-header" class="mb-12">
-            <h1 id="course-title" class="text-4xl md:text-5xl font-black mb-4 tracking-tighter text-white">Loading Course...</h1>
-            <p id="course-desc" class="text-gray-400 leading-relaxed max-w-2xl"></p>
+        <header id="course-header" class="mb-16">
+            <h1 id="course-title" class="text-4xl md:text-6xl font-black mb-6 tracking-tighter text-white leading-tight">
+                Loading Course...
+            </h1>
+            <div class="flex items-center gap-4">
+                <p id="course-desc" class="text-gray-400 leading-relaxed max-w-2xl text-lg font-light"></p>
+            </div>
         </header>
 
-        <div id="lessons-container" class="space-y-12">
-            <div class="animate-pulse space-y-4">
-                <div class="h-20 bg-white/5 rounded-2xl w-full"></div>
+        <div id="lessons-container" class="space-y-16">
+            <!-- Skeleton Loader -->
+            <div class="animate-pulse space-y-8">
+                <div class="h-8 bg-white/5 rounded w-1/4"></div>
+                <div class="space-y-4">
+                    <div class="h-20 bg-white/5 rounded-2xl w-full"></div>
+                    <div class="h-20 bg-white/5 rounded-2xl w-full"></div>
+                </div>
             </div>
         </div>
     </main>
@@ -46,46 +88,73 @@
 
         async function init() {
             const courseId = sessionStorage.getItem('active_course_id');
-            if (!courseId) { window.location.href = '/courses'; return; }
+            if (!courseId) {
+                // If no active course, redirect back
+                window.location.href = '/courses';
+                return;
+            }
 
             try {
-                // 1. Fetch Course Info
-                const { data: course } = await sb.from('courses').select('*').eq('id', courseId).single();
+                // 1. Fetch Course Data
+                const { data: course, error: cErr } = await sb
+                    .from('courses')
+                    .select('*')
+                    .eq('id', courseId)
+                    .single();
+                
+                if (cErr) throw cErr;
+
                 if (course) {
                     document.getElementById('course-title').textContent = course.name;
                     document.getElementById('course-desc').textContent = course.description;
                 }
 
-                // 2. Fetch Lessons with Explicit Join
+                // 2. Fetch Lessons with EXPLICIT Relationship Join
+                // We use !category_id to avoid the 'more than one relationship' ambiguity error
                 const { data: lessons, error: lErr } = await sb
                     .from('lessons')
-                    .select('*, lesson_categories!category_id(*)') 
+                    .select('*, lesson_categories!category_id(name, color_hex)')
                     .eq('course_id', courseId)
                     .order('order_index', { ascending: true });
 
                 if (lErr) throw lErr;
+                
                 renderCategorizedLessons(lessons);
             } catch (err) {
-                console.error(err);
-                document.getElementById('lessons-container').innerHTML = `<p class="text-red-400 mono text-xs">Error: ${err.message}</p>`;
+                console.error("Initialization Error:", err);
+                document.getElementById('lessons-container').innerHTML = `
+                    <div class="p-8 border border-red-500/20 bg-red-500/5 rounded-3xl text-center">
+                        <i data-lucide="alert-circle" class="w-8 h-8 text-red-500 mx-auto mb-4"></i>
+                        <p class="text-red-400 mono text-xs uppercase font-bold mb-2">Data Fetching Failed</p>
+                        <p class="text-gray-500 text-sm max-w-xs mx-auto">${err.message}</p>
+                    </div>
+                `;
+                lucide.createIcons();
             }
         }
 
         function renderCategorizedLessons(lessons) {
             const container = document.getElementById('lessons-container');
+            
             if (!lessons || lessons.length === 0) {
-                container.innerHTML = `<div class="p-12 text-center glass-card rounded-[2rem] text-gray-500 mono text-xs uppercase tracking-widest">No lessons found.</div>`;
+                container.innerHTML = `
+                    <div class="p-16 text-center glass-card rounded-[2.5rem] border-dashed border-2 border-white/5">
+                        <i data-lucide="book-open" class="w-12 h-12 text-gray-700 mx-auto mb-4"></i>
+                        <p class="text-gray-500 mono text-xs uppercase tracking-widest">The curriculum is currently empty.</p>
+                    </div>
+                `;
+                lucide.createIcons();
                 return;
             }
 
-            // Grouping Logic
+            // Grouping logic: Organizing into an object by Category Name
             const grouped = lessons.reduce((acc, lesson) => {
                 const category = lesson.lesson_categories;
-                const catName = category ? category.name : 'Uncategorized';
+                const catName = category ? category.name : 'Core Curriculum';
                 
                 if (!acc[catName]) {
                     acc[catName] = {
-                        color: category ? category.color_hex : '#6366f1',
+                        details: category || { color_hex: '#6366f1' },
                         items: []
                     };
                 }
@@ -93,48 +162,67 @@
                 return acc;
             }, {});
 
-            container.innerHTML = Object.entries(grouped).map(([name, data]) => `
-                <section>
-                    <div class="flex items-center gap-4 mb-6">
-                        <h3 class="mono text-[11px] font-black uppercase tracking-[0.3em]" style="color: ${data.color}">
-                            ${name}
-                        </h3>
-                        <div class="cat-line"></div>
-                        <span class="mono text-[9px] text-gray-600">${data.items.length} LESSONS</span>
-                    </div>
-                    <div class="grid gap-3">
-                        ${data.items.map(lesson => renderLessonCard(lesson)).join('')}
-                    </div>
-                </section>
-            `).join('');
+            // Render categories and their respective lessons
+            container.innerHTML = Object.entries(grouped).map(([name, data]) => {
+                const color = data.details.color_hex || '#ec4899';
+                
+                return `
+                    <section class="category-group animate-in fade-in slide-in-from-bottom-4 duration-700">
+                        <div class="flex items-center gap-6 mb-8">
+                            <h3 class="mono text-[11px] font-black uppercase tracking-[0.4em]" style="color: ${color}">
+                                ${name}
+                            </h3>
+                            <div class="cat-line" style="background: linear-gradient(90deg, ${color}44 0%, transparent 100%)"></div>
+                            <span class="mono text-[10px] text-gray-600 font-bold whitespace-nowrap">${data.items.length} MODULES</span>
+                        </div>
+                        
+                        <div class="grid gap-4">
+                            ${data.items.map(lesson => renderLessonItem(lesson)).join('')}
+                        </div>
+                    </section>
+                `;
+            }).join('');
 
             lucide.createIcons();
         }
 
-        function renderLessonCard(lesson) {
+        function renderLessonItem(lesson) {
             const type = (lesson.lesson_type || 'youtube').toLowerCase();
-            const icon = type === 'pdf' ? 'file-text' : (type === 'zoom' ? 'video' : 'play');
-            
+            let icon = 'play';
+            if (type === 'pdf') icon = 'file-text';
+            if (type === 'zoom' || type === 'live' || type === 'video') icon = 'video';
+
+            const duration = lesson.watchtime_minutes || 0;
+
             return `
-                <div class="glass-card p-5 rounded-2xl border-l-4 border-l-transparent transition-all lesson-item flex items-center justify-between group">
-                    <div class="flex items-center space-x-5">
-                        <div class="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-white/40 font-bold text-[10px] mono border border-white/5">
-                            ${lesson.order_index || '0'}
+                <div class="glass-card p-6 rounded-2xl border-l-4 border-l-transparent lesson-item flex items-center justify-between group">
+                    <div class="flex items-center space-x-6">
+                        <div class="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-white/30 font-black text-[11px] mono border border-white/5 group-hover:bg-white/10 group-hover:text-white/60 transition-colors">
+                            ${lesson.order_index?.toString().padStart(2, '0') || '00'}
                         </div>
                         <div>
-                            <div class="flex items-center space-x-3 mb-1">
-                                <h4 class="font-bold text-white">${lesson.title}</h4>
+                            <div class="flex items-center gap-3 mb-1.5">
+                                <h4 class="font-bold text-lg text-white group-hover:text-pink-400 transition-colors tracking-tight">
+                                    ${lesson.title}
+                                </h4>
                                 <span class="type-badge mono text-gray-500 font-bold uppercase">${type}</span>
                             </div>
-                            <p class="text-[10px] text-gray-600 mono uppercase tracking-widest flex items-center gap-2">
-                                <i data-lucide="clock" class="w-3 h-3"></i>
-                                ${lesson.watchtime_minutes || 0}m
-                            </p>
+                            <div class="flex items-center gap-4">
+                                <p class="text-[10px] text-gray-500 mono uppercase tracking-widest flex items-center gap-2">
+                                    <i data-lucide="clock" class="w-3 h-3 text-pink-500/50"></i>
+                                    ${duration} MINS
+                                </p>
+                                ${lesson.is_completed ? `
+                                    <span class="text-[9px] mono text-emerald-500 uppercase font-bold flex items-center gap-1">
+                                        <i data-lucide="check-circle-2" class="w-3 h-3"></i> Completed
+                                    </span>
+                                ` : ''}
+                            </div>
                         </div>
                     </div>
                     <a href="/learn/${type}?id=${lesson.id}" 
-                       class="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-gray-400 group-hover:bg-pink-600 group-hover:text-white transition-all">
-                        <i data-lucide="${icon}" class="w-4 h-4"></i>
+                       class="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-gray-500 group-hover:bg-pink-600 group-hover:text-white group-hover:rotate-6 transition-all duration-300 shadow-xl shadow-black/20">
+                        <i data-lucide="${icon}" class="w-5 h-5 ${icon === 'play' ? 'ml-0.5' : ''}"></i>
                     </a>
                 </div>
             `;
