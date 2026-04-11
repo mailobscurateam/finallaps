@@ -276,6 +276,7 @@
         let player, currentUser, allowedSeconds, watchedSeconds = 0;
         let watermarkData = { x: 50, y: 50, dx: 0.8, dy: 0.6 };
         let sessionTrackingActive = false;
+        let isLessonAlreadyCompleted = false;
 
         async function init() {
             const { data: { session } } = await sb.auth.getSession();
@@ -285,12 +286,29 @@
             document.body.classList.add('ready');
             lucide.createIcons();
             
+            // Step 1: Check database for existing completion
+            await checkInitialCompletionStatus();
+            
+            // Step 2: Fetch lesson details and setup player
             await fetchLessonData();
             startWatermark();
             setupControls();
             
-            // Start page-based session tracking immediately after data fetch
+            // Step 3: Start session tracking
             startPageSessionTracking();
+        }
+
+        async function checkInitialCompletionStatus() {
+            const { data: completion } = await sb.from('lesson_completions')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .eq('lesson_id', lessonId)
+                .maybeSingle();
+
+            if (completion) {
+                isLessonAlreadyCompleted = true;
+                setCompleteUI();
+            }
         }
 
         async function fetchLessonData() {
@@ -334,7 +352,6 @@
             document.getElementById('info-status').innerText = "• ONLINE";
             document.getElementById('info-status').className = "mono text-[9px] text-green-500 uppercase font-bold tracking-widest";
             
-            // Video-specific UI updates (progress bar, current time)
             setInterval(() => {
                 if (player && player.getCurrentTime) {
                     const curr = player.getCurrentTime();
@@ -345,7 +362,6 @@
             }, 1000);
         }
 
-        // Independent Session Tracking Logic
         function startPageSessionTracking() {
             if (sessionTrackingActive) return;
             sessionTrackingActive = true;
@@ -353,29 +369,19 @@
             document.getElementById('timer-display').classList.remove('hidden');
             updateTimerUI();
 
-            // Completion Unlock Logic: Unlock after 10 seconds of page time if not already completed
-            setTimeout(async () => {
-                const { data: completion } = await sb.from('lesson_completions')
-                    .select('*')
-                    .eq('user_id', currentUser.id)
-                    .eq('lesson_id', lessonId)
-                    .maybeSingle();
-
-                if (!completion) {
+            // Unlock Logic: If not completed, unlock the button after 10 seconds of page time
+            if (!isLessonAlreadyCompleted) {
+                setTimeout(() => {
                     const btn = document.getElementById('btn-complete');
                     btn.disabled = false;
                     btn.onclick = handleMarkComplete;
-                } else {
-                    setCompleteUI();
-                }
-            }, 10000);
+                }, 10000);
+            }
 
-            // Ticking logic for countdown (independent of player state)
             setInterval(async () => {
                 watchedSeconds += 1;
                 updateTimerUI();
 
-                // Periodic DB sync (every 10 seconds)
                 if (watchedSeconds % 10 === 0) {
                     await sb.from('watch_sessions')
                         .upsert({ 
