@@ -52,7 +52,7 @@
 </head>
 <body class="p-6 md:p-12 min-h-screen">
     <nav class="max-w-5xl mx-auto flex justify-between items-center mb-16">
-        <a href="dashboard.html" class="flex items-center space-x-2 text-gray-400 hover:text-white transition-all group">
+        <a href="/dashboard" class="flex items-center space-x-2 text-gray-400 hover:text-white transition-all group">
             <i data-lucide="arrow-left" class="w-4 h-4 group-hover:-translate-x-1 transition-transform"></i>
             <span class="mono text-[10px] uppercase font-bold tracking-widest">Back to Modules</span>
         </a>
@@ -103,7 +103,7 @@
             const courseId = localStorage.getItem('active_session_id');
             
             if (!courseId) {
-                window.location.href = 'dashboard.html';
+                window.location.href = '/dashboard';
                 return;
             }
 
@@ -130,7 +130,7 @@
                                 Your enrollment status for this module is currently <strong>${statusCheck.status.toUpperCase()}</strong>. 
                                 Please wait for administrator verification.
                             </p>
-                            <a href="dashboard.html" class="inline-flex items-center gap-2 px-8 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+                            <a href="/dashboard" class="inline-flex items-center gap-2 px-8 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
                                 Return to Terminal
                             </a>
                         </div>
