@@ -132,7 +132,6 @@
                 <p id="time-left" class="text-lg font-black text-white tracking-tighter tabular-nums">--:--:--</p>
             </div>
             
-            <!-- New Mark as Completed Button -->
             <button id="btn-complete" class="nav-btn" disabled>
                 <i data-lucide="check-circle" class="w-3 h-3"></i>
                 Mark Complete
@@ -195,10 +194,19 @@
         let isCompleted = false;
 
         async function checkAuth() {
+            // 1. Initial Session Check
             const { data: { session } } = await sb.auth.getSession();
             if (!session) { window.location.href = 'index.html'; return; }
-
             currentUser = session.user;
+
+            // 2. Verify Course Approval Status before proceeding
+            const isApproved = await verifyCourseApproval();
+            if (!isApproved) {
+                window.location.href = '/dashboard';
+                return;
+            }
+
+            // 3. Setup UI
             document.getElementById('moving-watermark').innerText = currentUser.email;
             document.body.classList.add('ready');
             
@@ -206,6 +214,39 @@
             fetchLessonData();
             checkCompletionStatus();
             startWatermark();
+        }
+
+        /**
+         * Verifies if the current user has "approved" status for the course 
+         * associated with this specific lesson.
+         */
+        async function verifyCourseApproval() {
+            try {
+                // Fetch the lesson to get the course_id
+                const { data: lesson, error: lessonError } = await sb
+                    .from('lessons')
+                    .select('course_id')
+                    .eq('id', lessonId)
+                    .single();
+
+                if (lessonError || !lesson) return false;
+
+                // Check course_status table for this user/course combo
+                const { data: approval, error: approvalError } = await sb
+                    .from('course_status')
+                    .select('status')
+                    .eq('user_id', currentUser.id)
+                    .eq('course_id', lesson.course_id)
+                    .eq('status', 'approved')
+                    .maybeSingle();
+
+                if (approvalError || !approval) return false;
+
+                return true;
+            } catch (e) {
+                console.error("Critical Security Check Failed:", e);
+                return false;
+            }
         }
 
         async function fetchLessonData() {
@@ -238,7 +279,7 @@
         }
 
         async function checkCompletionStatus() {
-            const { data, error } = await sb
+            const { data } = await sb
                 .from('lesson_completions')
                 .select('*')
                 .eq('user_id', currentUser.id)
@@ -379,7 +420,7 @@
                 <div class="text-center p-6">
                     <p class="mono text-pink-500 font-black tracking-widest uppercase mb-2">ACCESS TERMINATED</p>
                     <p class="text-[10px] text-gray-500 uppercase tracking-[4px]">${msg}</p>
-                    <button onclick="window.location.href='/curriculum'" class="mt-8 nav-btn">Return to Curriculum</button>
+                    <button onclick="window.location.href='/curriculum'" class="mt-8 nav-btn mx-auto">Return to Curriculum</button>
                 </div>
             `;
             document.getElementById('info-status').innerText = "• DISCONNECTED";
