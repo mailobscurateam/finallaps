@@ -133,7 +133,7 @@
     <nav class="fixed top-0 w-full z-50 px-6 py-4 nav-blur">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
             <div class="flex items-center gap-4">
-                <button onclick="window.location.href='curriculum.html'" class="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/5 transition-colors">
+                <button onclick="window.location.href='/curriculum'" class="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/5 transition-colors">
                     <i data-lucide="arrow-left" class="w-4 h-4 text-neutral-400"></i>
                 </button>
                 <div>
@@ -233,7 +233,7 @@
             currentUser = session.user;
 
             const isApproved = await verifyCourseApproval();
-            if (!isApproved) return window.location.href = 'dashboard.html';
+            if (!isApproved) return window.location.href = '/dashboard';
 
             document.getElementById('moving-watermark').innerText = currentUser.email;
             document.body.classList.add('ready');
@@ -258,7 +258,7 @@
         }
 
         async function fetchLessonData() {
-            if (!lessonId) return window.location.href = 'dashboard.html';
+            if (!lessonId) return window.location.href = '/dashboard';
 
             const { data: lesson, error } = await sb.from('lessons').select('*').eq('id', lessonId).single();
             if (error || !lesson) return showError("LESSON_NOT_FOUND");
@@ -399,7 +399,7 @@
                 <div class="text-center p-12 glass-card">
                     <p class="mono text-red-500 font-black tracking-widest uppercase mb-4">ACCESS TERMINATED</p>
                     <p class="text-[10px] text-neutral-500 uppercase tracking-[4px] mb-8">${msg}</p>
-                    <button onclick="window.location.href='curriculum.html'" class="btn-primary px-8 py-3 rounded-xl text-xs font-bold uppercase tracking-wider mx-auto">
+                    <button onclick="window.location.href='/curriculum'" class="btn-primary px-8 py-3 rounded-xl text-xs font-bold uppercase tracking-wider mx-auto">
                         Return to Hub
                     </button>
                 </div>
