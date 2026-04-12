@@ -1,53 +1,70 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zoom Simulation | Nexus Prime</title>
+    <title>Stream Terminal | Nexus Prime</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
+        :root { 
+            --accent: #ff3333;
+            --bg: #0a0a0b;
+            --card-bg: #111113;
+            --border: rgba(255, 255, 255, 0.06);
+        }
+        
         body { 
-            font-family: 'Outfit', sans-serif; 
-            background-color: #09090b; 
-            color: #f4f4f5; 
-            margin: 0;
-            padding: 0;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: var(--bg); 
+            color: #ececec; 
+            letter-spacing: -0.01em;
             opacity: 0;
             transition: opacity 0.5s ease-in-out;
         }
         body.ready { opacity: 1; }
-        
+
         .mono { font-family: 'JetBrains Mono', monospace; }
-        
-        .glass-card { 
-            background: rgba(24, 24, 27, 0.4); 
-            backdrop-filter: blur(12px); 
-            border: 1px solid rgba(255, 255, 255, 0.05); 
+
+        .mesh-bg {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: 
+                radial-gradient(at 0% 0%, rgba(255, 51, 51, 0.03) 0, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(255, 51, 51, 0.02) 0, transparent 50%);
+            z-index: -1;
+        }
+
+        .glass-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+        }
+
+        .nav-blur {
+            backdrop-filter: blur(12px) saturate(180%);
+            background: rgba(10, 10, 11, 0.8);
+            border-bottom: 1px solid var(--border);
         }
 
         .video-container {
             position: relative;
-            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+            padding-bottom: 56.25%; /* 16:9 */
             height: 0;
             overflow: hidden;
             background: #000;
-            border-radius: 1rem;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
 
         .video-container iframe {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            border: 0; opacity: 0; transition: opacity 0.8s ease-in;
-            background: #000;
+            border: 0; opacity: 0; transition: opacity 1s ease;
         }
-
         .video-container iframe.visible { opacity: 1; }
 
         .watermark {
@@ -57,124 +74,141 @@
             user-select: none;
             font-family: 'JetBrains Mono', monospace;
             font-size: 10px;
-            color: rgba(236, 72, 153, 0.3);
+            color: rgba(255, 51, 51, 0.2);
             text-transform: lowercase;
             white-space: nowrap;
         }
 
-        .status-bar { height: 2px; background: rgba(255,255,255,0.05); position: relative; overflow: hidden; }
-        .status-progress { position: absolute; height: 100%; background: #ec4899; width: 0%; transition: width 0.3s; }
+        .btn-primary {
+            background: #fff;
+            color: #000;
+            transition: all 0.2s ease;
+        }
+        .btn-primary:hover:not(:disabled) {
+            background: var(--accent);
+            color: #fff;
+            transform: translateY(-1px);
+        }
+        .btn-primary:disabled { opacity: 0.3; cursor: not-allowed; }
 
-        .nav-btn {
+        .btn-secondary {
             background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            padding: 8px 16px; 
-            font-size: 10px; 
-            font-weight: 700;
-            text-transform: uppercase; 
-            letter-spacing: 0.1em; 
-            transition: all 0.3s;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
         }
-        .nav-btn:hover { 
-            background: rgba(236, 72, 153, 0.1); 
-            border-color: #ec4899; 
-            color: #ec4899; 
-        }
-        .nav-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            border-color: rgba(255,255,255,0.1);
-            color: rgba(255,255,255,0.3);
-        }
-        .nav-btn.complete-active {
-            background: #10b981;
-            border-color: #10b981;
-            color: white;
-        }
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.08); }
 
         .telemetry-box {
-            border-left: 2px solid #ec4899;
-            background: rgba(236, 72, 153, 0.03);
-            padding: 1rem;
-            border-radius: 0 12px 12px 0;
+            background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 100%);
+            border: 1px solid var(--border);
+            padding: 1.25rem;
+            border-radius: 20px;
         }
 
         .preloader-overlay {
-            position: absolute; inset: 0; background: #09090b;
+            position: absolute; inset: 0; background: var(--bg);
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 20;
+            z-index: 40;
+        }
+
+        .progress-line {
+            height: 2px;
+            background: rgba(255, 51, 51, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        .progress-line-fill {
+            position: absolute;
+            height: 100%;
+            background: var(--accent);
+            width: 0%;
+            transition: width 0.4s ease;
         }
     </style>
 </head>
-<body>
+<body class="flex flex-col min-h-screen">
+    <div class="mesh-bg"></div>
 
-    <header class="p-6 border-b border-white/5 flex justify-between items-center bg-black/20 backdrop-blur-xl sticky top-0 z-50">
-        <div class="flex items-center gap-4">
-            <div class="w-8 h-8 rounded-lg bg-pink-500/20 flex items-center justify-center text-pink-500">
-                <i data-lucide="video" class="w-4 h-4"></i>
+    <!-- Terminal Nav -->
+    <nav class="fixed top-0 w-full z-50 px-6 py-4 nav-blur">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <button onclick="window.location.href='curriculum.html'" class="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/5 transition-colors">
+                    <i data-lucide="arrow-left" class="w-4 h-4 text-neutral-400"></i>
+                </button>
+                <div>
+                    <h1 id="lesson-title" class="text-xs font-bold tracking-tight uppercase">Authenticating...</h1>
+                    <div class="flex items-center gap-2">
+                        <span id="info-status" class="mono text-[9px] text-yellow-500 font-bold tracking-widest uppercase">● Syncing</span>
+                    </div>
+                </div>
             </div>
-            <div>
-                <h1 id="lesson-title" class="text-sm font-bold tracking-tight text-white uppercase">Authenticating Stream...</h1>
-                <div class="flex items-center gap-2 mt-0.5">
-                    <span class="mono text-[9px] text-pink-500 uppercase font-bold tracking-widest">Live Session</span>
-                    <span id="info-status" class="mono text-[9px] text-yellow-500 uppercase font-bold tracking-widest">• Syncing</span>
+            
+            <div class="flex items-center gap-6">
+                <div id="timer-display" class="hidden text-right border-r border-white/10 pr-6">
+                    <p class="mono text-[8px] text-neutral-500 font-bold tracking-widest uppercase">Airtime Remaining</p>
+                    <p id="time-left" class="text-lg font-bold tracking-tighter tabular-nums">--:--:--</p>
+                </div>
+                
+                <div class="flex items-center gap-3">
+                    <button id="btn-complete" class="btn-primary px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-2" disabled>
+                        <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+                        Complete
+                    </button>
                 </div>
             </div>
         </div>
-        
-        <div class="flex items-center gap-4">
-            <div id="timer-display" class="hidden text-right mr-4">
-                <p class="mono text-[9px] text-gray-500 uppercase font-bold tracking-widest">Time Remaining</p>
-                <p id="time-left" class="text-lg font-black text-white tracking-tighter tabular-nums">--:--:--</p>
-            </div>
-            
-            <button id="btn-complete" class="nav-btn" disabled>
-                <i data-lucide="check-circle" class="w-3 h-3"></i>
-                Mark Complete
-            </button>
+    </nav>
 
-            <button id="btn-exit" class="nav-btn">
-                <i data-lucide="x" class="w-3 h-3"></i>
-                Exit
-            </button>
-        </div>
-    </header>
-
-    <div class="status-bar">
-        <div id="loading-bar" class="status-progress"></div>
+    <div class="fixed top-[73px] w-full z-40 progress-line">
+        <div id="loading-bar" class="progress-line-fill"></div>
     </div>
 
-    <main class="flex-1 p-6 md:p-12 max-w-6xl mx-auto w-full">
-        <div id="telemetry-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <main class="flex-1 pt-32 pb-20 px-6 max-w-6xl mx-auto w-full">
+        <!-- Telemetry Data -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             <div class="telemetry-box">
-                <p class="mono text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Stream Identifier</p>
-                <p id="info-id" class="text-sm font-bold text-white tracking-tight">REDACTED</p>
+                <p class="mono text-[9px] text-neutral-500 font-bold uppercase tracking-[0.2em] mb-1">Signal Hash</p>
+                <p id="info-id" class="text-sm font-bold tracking-tight">X-CORE-REDACTED</p>
             </div>
             <div class="telemetry-box">
-                <p class="mono text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Access Protocol</p>
-                <p id="info-limit" class="text-sm font-bold text-white tracking-tight">--</p>
+                <p class="mono text-[9px] text-neutral-500 font-bold uppercase tracking-[0.2em] mb-1">Access Tier</p>
+                <p id="info-limit" class="text-sm font-bold tracking-tight text-neutral-300">--</p>
             </div>
             <div class="telemetry-box">
-                <p class="mono text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Connection Integrity</p>
-                <p id="signal-quality" class="text-sm font-bold text-white tracking-tight">STABLE_ENCRYPTED</p>
+                <p class="mono text-[9px] text-neutral-500 font-bold uppercase tracking-[0.2em] mb-1">Security Status</p>
+                <p class="text-sm font-bold tracking-tight text-green-500 flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                    STABLE_AES256
+                </p>
             </div>
         </div>
 
-        <div id="video-wrapper" class="video-container shadow-2xl">
+        <!-- Video Stage -->
+        <div id="video-wrapper" class="video-container">
             <div id="preloader" class="preloader-overlay">
-                <div class="relative w-16 h-16 mb-6">
-                    <div class="absolute inset-0 border-2 border-pink-500/20 rounded-full"></div>
-                    <div class="absolute inset-0 border-2 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
+                <div class="relative w-12 h-12 mb-6">
+                    <div class="absolute inset-0 border-2 border-white/5 rounded-full"></div>
+                    <div class="absolute inset-0 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
                 </div>
-                <p id="loader-text" class="mono text-[10px] font-bold tracking-[0.3em] text-pink-500 uppercase text-center">Establishing Link</p>
+                <p id="loader-text" class="mono text-[9px] font-bold tracking-[0.4em] text-neutral-500 uppercase">Handshaking Server</p>
             </div>
             
-            <div id="moving-watermark" class="watermark">initializing_secure_layer</div>
+            <div id="moving-watermark" class="watermark">initializing_nexus_layer</div>
             <div id="iframe-holder"></div>
+        </div>
+
+        <div class="mt-8 flex justify-between items-center text-neutral-600">
+            <div class="flex items-center gap-6">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="eye" class="w-4 h-4"></i>
+                    <span class="text-[10px] font-bold uppercase tracking-widest">Active Stream</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <i data-lucide="shield-check" class="w-4 h-4"></i>
+                    <span class="text-[10px] font-bold uppercase tracking-widest">Encrypted Session</span>
+                </div>
+            </div>
         </div>
     </main>
 
@@ -190,23 +224,17 @@
         let allowedSeconds = 0;
         let watchedSeconds = 0;
         let sessionTimer = null;
-        let watermarkData = { x: 10, y: 10, dx: 0.5, dy: 0.5 };
+        let watermarkData = { x: 10, y: 10, dx: 0.4, dy: 0.4 };
         let isCompleted = false;
 
         async function checkAuth() {
-            // 1. Initial Session Check
             const { data: { session } } = await sb.auth.getSession();
-            if (!session) { window.location.href = 'index.html'; return; }
+            if (!session) return window.location.href = 'login.html';
             currentUser = session.user;
 
-            // 2. Verify Course Approval Status before proceeding
             const isApproved = await verifyCourseApproval();
-            if (!isApproved) {
-                window.location.href = '/dashboard';
-                return;
-            }
+            if (!isApproved) return window.location.href = 'dashboard.html';
 
-            // 3. Setup UI
             document.getElementById('moving-watermark').innerText = currentUser.email;
             document.body.classList.add('ready');
             
@@ -216,49 +244,24 @@
             startWatermark();
         }
 
-        /**
-         * Verifies if the current user has "approved" status for the course 
-         * associated with this specific lesson.
-         */
         async function verifyCourseApproval() {
             try {
-                // Fetch the lesson to get the course_id
-                const { data: lesson, error: lessonError } = await sb
-                    .from('lessons')
-                    .select('course_id')
-                    .eq('id', lessonId)
-                    .single();
+                const { data: lesson } = await sb.from('lessons').select('course_id').eq('id', lessonId).single();
+                if (!lesson) return false;
 
-                if (lessonError || !lesson) return false;
+                const { data: approval } = await sb.from('course_status')
+                    .select('status').eq('user_id', currentUser.id)
+                    .eq('course_id', lesson.course_id).eq('status', 'approved').maybeSingle();
 
-                // Check course_status table for this user/course combo
-                const { data: approval, error: approvalError } = await sb
-                    .from('course_status')
-                    .select('status')
-                    .eq('user_id', currentUser.id)
-                    .eq('course_id', lesson.course_id)
-                    .eq('status', 'approved')
-                    .maybeSingle();
-
-                if (approvalError || !approval) return false;
-
-                return true;
-            } catch (e) {
-                console.error("Critical Security Check Failed:", e);
-                return false;
-            }
+                return !!approval;
+            } catch (e) { return false; }
         }
 
         async function fetchLessonData() {
-            if (!lessonId) { window.location.href = '/curriculum'; return; }
+            if (!lessonId) return window.location.href = 'dashboard.html';
 
-            const { data: lesson, error } = await sb
-                .from('lessons')
-                .select('*')
-                .eq('id', lessonId)
-                .single();
-
-            if (error || !lesson) { showError("LINK FAILED: DATA NOT FOUND"); return; }
+            const { data: lesson, error } = await sb.from('lessons').select('*').eq('id', lessonId).single();
+            if (error || !lesson) return showError("LESSON_NOT_FOUND");
 
             const hours = parseInt(lesson.watchtime_hours) || 0;
             const minutes = parseInt(lesson.watchtime_minutes) || 0;
@@ -271,7 +274,7 @@
             await syncProgress();
 
             if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) {
-                showError("AIRTIME DEPLETED");
+                showError("AIRTIME_DEPLETED");
                 return;
             }
 
@@ -279,38 +282,25 @@
         }
 
         async function checkCompletionStatus() {
-            const { data } = await sb
-                .from('lesson_completions')
-                .select('*')
-                .eq('user_id', currentUser.id)
-                .eq('lesson_id', lessonId)
-                .maybeSingle();
+            const { data } = await sb.from('lesson_completions').select('*')
+                .eq('user_id', currentUser.id).eq('lesson_id', lessonId).maybeSingle();
 
             if (data) {
                 setCompleteUI(true);
             } else {
-                // Enable button after 5 seconds of session
-                setTimeout(() => {
-                    document.getElementById('btn-complete').disabled = false;
-                }, 5000);
+                setTimeout(() => { document.getElementById('btn-complete').disabled = false; }, 5000);
             }
         }
 
         async function syncProgress() {
-            const { data } = await sb
-                .from('watch_sessions')
-                .select('total_seconds_watched')
-                .eq('user_id', currentUser.id)
-                .eq('lesson_id', lessonId)
-                .maybeSingle();
+            const { data } = await sb.from('watch_sessions').select('total_seconds_watched')
+                .eq('user_id', currentUser.id).eq('lesson_id', lessonId).maybeSingle();
 
             if (data) {
                 watchedSeconds = data.total_seconds_watched;
             } else {
                 await sb.from('watch_sessions').insert({
-                    user_id: currentUser.id,
-                    lesson_id: lessonId,
-                    total_seconds_watched: 0
+                    user_id: currentUser.id, lesson_id: lessonId, total_seconds_watched: 0
                 });
             }
         }
@@ -323,15 +313,13 @@
             
             iframe.onload = () => {
                 document.getElementById('loading-bar').style.width = '100%';
-                document.getElementById('info-status').innerText = "• ONLINE";
-                document.getElementById('info-status').className = "mono text-[9px] text-green-500 uppercase font-bold tracking-widest";
+                document.getElementById('info-status').innerText = "● ONLINE";
+                document.getElementById('info-status').className = "mono text-[9px] text-green-500 font-bold tracking-widest uppercase";
                 document.getElementById('preloader').style.display = 'none';
                 iframe.classList.add('visible');
-                
                 document.getElementById('timer-display').classList.remove('hidden');
                 startClock();
             };
-
             holder.appendChild(iframe);
         }
 
@@ -340,16 +328,14 @@
                 watchedSeconds += 1;
                 updateUI();
 
-                if (watchedSeconds % 10 === 0) { // Sync every 10s
-                    await sb.from('watch_sessions')
-                        .update({ total_seconds_watched: watchedSeconds, last_watched_at: new Date().toISOString() })
-                        .eq('user_id', currentUser.id)
-                        .eq('lesson_id', lessonId);
+                if (watchedSeconds % 15 === 0) {
+                    await sb.from('watch_sessions').update({ total_seconds_watched: watchedSeconds, last_watched_at: new Date().toISOString() })
+                        .eq('user_id', currentUser.id).eq('lesson_id', lessonId);
                 }
 
                 if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) {
                     clearInterval(sessionTimer);
-                    showError("WATCH LIMIT REACHED");
+                    showError("WATCH_LIMIT_EXCEEDED");
                 }
             }, 1000);
         }
@@ -359,8 +345,7 @@
             const h = Math.floor(remaining / 3600);
             const m = Math.floor((remaining % 3600) / 60);
             const s = remaining % 60;
-            document.getElementById('time-left').innerText = 
-                `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+            document.getElementById('time-left').innerText = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
         }
 
         function startWatermark() {
@@ -382,8 +367,9 @@
 
         function setCompleteUI(alreadyDone = false) {
             const btn = document.getElementById('btn-complete');
-            btn.innerHTML = `<i data-lucide="check" class="w-3 h-3"></i> COMPLETED`;
-            btn.classList.add('complete-active');
+            btn.innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5"></i> COMPLETED`;
+            btn.classList.replace('btn-primary', 'btn-secondary');
+            btn.classList.add('text-green-500');
             btn.disabled = true;
             isCompleted = true;
             lucide.createIcons();
@@ -391,43 +377,37 @@
 
         async function markAsComplete() {
             if (isCompleted) return;
-
             const btn = document.getElementById('btn-complete');
-            const originalText = btn.innerHTML;
             btn.disabled = true;
             btn.innerText = "SYNCING...";
 
-            const { error } = await sb
-                .from('lesson_completions')
-                .insert({
-                    user_id: currentUser.id,
-                    lesson_id: lessonId
-                });
+            const { error } = await sb.from('lesson_completions').insert({
+                user_id: currentUser.id, lesson_id: lessonId
+            });
 
             if (error) {
-                console.error("Completion error:", error);
-                btn.innerHTML = originalText;
+                btn.innerText = "ERROR - RETRY";
                 btn.disabled = false;
                 return;
             }
-
             setCompleteUI();
         }
 
         function showError(msg) {
             document.getElementById('preloader').style.display = 'flex';
             document.getElementById('preloader').innerHTML = `
-                <div class="text-center p-6">
-                    <p class="mono text-pink-500 font-black tracking-widest uppercase mb-2">ACCESS TERMINATED</p>
-                    <p class="text-[10px] text-gray-500 uppercase tracking-[4px]">${msg}</p>
-                    <button onclick="window.location.href='/curriculum'" class="mt-8 nav-btn mx-auto">Return to Curriculum</button>
+                <div class="text-center p-12 glass-card">
+                    <p class="mono text-red-500 font-black tracking-widest uppercase mb-4">ACCESS TERMINATED</p>
+                    <p class="text-[10px] text-neutral-500 uppercase tracking-[4px] mb-8">${msg}</p>
+                    <button onclick="window.location.href='curriculum.html'" class="btn-primary px-8 py-3 rounded-xl text-xs font-bold uppercase tracking-wider mx-auto">
+                        Return to Hub
+                    </button>
                 </div>
             `;
-            document.getElementById('info-status').innerText = "• DISCONNECTED";
-            document.getElementById('info-status').className = "mono text-[9px] text-red-500 uppercase font-bold tracking-widest";
+            document.getElementById('info-status').innerText = "● OFFLINE";
+            document.getElementById('info-status').className = "mono text-[9px] text-red-500 font-bold tracking-widest uppercase";
         }
 
-        document.getElementById('btn-exit').onclick = () => window.location.href = '/curriculum';
         document.getElementById('btn-complete').onclick = markAsComplete;
         window.onload = checkAuth;
     </script>
