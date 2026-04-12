@@ -10,54 +10,156 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        :root { --math-primary: #ec4899; --math-dark: #09090b; }
-        body { font-family: 'Outfit', sans-serif; background-color: var(--math-dark); color: #f4f4f5; overflow-x: hidden; opacity: 0; transition: opacity 0.5s ease; }
+        :root { 
+            --nexus-primary: #dc2626; 
+            --nexus-primary-glow: rgba(220, 38, 38, 0.4);
+            --nexus-dark: #050505; 
+        }
+        
+        body { 
+            font-family: 'Outfit', sans-serif; 
+            background-color: var(--nexus-dark); 
+            color: #f4f4f5; 
+            overflow-x: hidden; 
+            opacity: 0; 
+            transition: opacity 0.8s ease; 
+        }
+        
         body.auth-ready { opacity: 1; }
+        
         .mono { font-family: 'JetBrains Mono', monospace; }
-        #math-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -10; }
-        .glass-card { background: rgba(24, 24, 27, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        .glass-card:hover { border-color: rgba(236, 72, 153, 0.5); transform: translateY(-10px); background: rgba(24, 24, 27, 0.6); }
-        .gradient-text { background: linear-gradient(to bottom right, #fff 30%, #ec4899 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .course-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 2rem; }
-        .course-image-container { width: 100%; height: 180px; background: #18181b; position: relative; overflow: hidden; }
-        .course-image { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s ease; }
-        .glass-card:hover .course-image { transform: scale(1.1); }
+        
+        #math-canvas { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            z-index: -10; 
+        }
+
+        .glass-card { 
+            background: rgba(12, 12, 12, 0.6); 
+            backdrop-filter: blur(16px); 
+            border: 1px solid rgba(255, 255, 255, 0.03); 
+            transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1); 
+        }
+
+        .glass-card:hover { 
+            border-color: rgba(220, 38, 38, 0.4); 
+            transform: translateY(-8px) scale(1.01); 
+            background: rgba(15, 15, 15, 0.8);
+            box-shadow: 0 20px 40px -20px var(--nexus-primary-glow);
+        }
+
+        .gradient-text { 
+            background: linear-gradient(to bottom right, #fff 40%, #ef4444 100%); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+        }
+
+        .course-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); 
+            gap: 2.5rem; 
+        }
+
+        .course-image-container { 
+            width: 100%; 
+            height: 200px; 
+            background: #0a0a0a; 
+            position: relative; 
+            overflow: hidden; 
+        }
+
+        .course-image { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; 
+            transition: transform 0.7s cubic-bezier(0.23, 1, 0.32, 1); 
+            filter: grayscale(0.2) contrast(1.1);
+        }
+
+        .glass-card:hover .course-image { 
+            transform: scale(1.08); 
+            filter: grayscale(0) contrast(1.1);
+        }
+
+        .enroll-btn {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.4s ease;
+        }
+
+        .enroll-btn:hover {
+            background: var(--nexus-primary);
+            border-color: var(--nexus-primary);
+            box-shadow: 0 0 20px var(--nexus-primary-glow);
+            color: white;
+        }
+
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+
+        .scanline {
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(to right, transparent, var(--nexus-primary), transparent);
+            position: absolute;
+            animation: scanline 4s linear infinite;
+            opacity: 0.3;
+            z-index: 2;
+        }
     </style>
 </head>
-<body class="bg-[#09090b]">
+<body class="bg-[#050505]">
     <div id="math-canvas"></div>
 
     <main class="relative z-10 min-h-screen">
-        <nav class="fixed top-0 w-full z-50 p-6 flex justify-between items-center backdrop-blur-md bg-black/20 border-b border-white/5">
-            <a href="index.html" class="flex items-center space-x-3 group">
-                <div class="w-10 h-10 bg-pink-600 rounded-lg flex items-center justify-center font-black text-xl transition-transform group-hover:rotate-12">Σ</div>
-                <div class="font-black text-xl tracking-tighter">NEXUS<span class="text-pink-500">PRIME</span></div>
-            </a>
-            <div class="flex items-center space-x-6">
-                <div id="user-display" class="hidden md:flex items-center space-x-3">
-                    <span id="user-email" class="mono text-[10px] text-gray-400">...</span>
-                    <button onclick="handleLogout()" class="text-[10px] font-bold uppercase tracking-[0.2em] text-pink-500 hover:text-white transition">Logout</button>
+        <nav class="fixed top-0 w-full z-50 p-6 flex justify-between items-center backdrop-blur-xl bg-black/40 border-b border-white/5">
+            <div class="flex items-center space-x-8">
+                <a href="index.html" class="flex items-center space-x-3 group">
+                    <div class="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center font-black text-xl transition-all group-hover:shadow-[0_0_15px_rgba(220,38,38,0.5)] group-hover:rotate-6">Σ</div>
+                    <div class="font-black text-xl tracking-tighter text-white">NEXUS<span class="text-red-600">PRIME</span></div>
+                </a>
+            </div>
+            
+            <div class="flex items-center space-x-8">
+                <div id="user-display" class="hidden md:flex items-center space-x-4 bg-white/5 px-4 py-2 rounded-full border border-white/10">
+                    <div class="w-2 h-2 bg-red-600 rounded-full animate-pulse shadow-[0_0_8px_#dc2626]"></div>
+                    <span id="user-email" class="mono text-[10px] text-gray-300 font-bold uppercase tracking-widest">...</span>
+                    <div class="w-[1px] h-3 bg-white/10"></div>
+                    <button onclick="handleLogout()" class="text-[10px] font-black uppercase tracking-[0.2em] text-red-500 hover:text-white transition">Logout</button>
                 </div>
-                <div class="mono text-xs text-pink-500 font-bold uppercase tracking-widest px-4">Student Portal</div>
             </div>
         </nav>
 
-        <section class="pt-40 pb-20 px-6">
+        <section class="pt-48 pb-20 px-6">
             <div class="max-w-6xl mx-auto text-center">
-                <div class="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-pink-500/10 border border-pink-500/30 text-pink-400 text-[10px] font-black uppercase tracking-[0.3em] mb-8">
-                    <i data-lucide="shield-check" class="w-3 h-3"></i>
-                    <span>Authenticated Access</span>
+                <div class="inline-flex items-center space-x-3 px-5 py-2 rounded-full bg-red-600/10 border border-red-600/30 text-red-500 text-[10px] font-black uppercase tracking-[0.4em] mb-10">
+                    <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
+                    <span>Secure Tactical Access</span>
                 </div>
-                <h1 class="text-6xl md:text-7xl font-black mb-6 tracking-tighter">Available <span class="gradient-text">Modules</span></h1>
-                <p class="text-gray-400 max-w-2xl mx-auto text-lg leading-relaxed">Enroll in your specialized Combined Mathematics curriculum. Access is granted upon approval.</p>
+                <h1 class="text-7xl md:text-8xl font-black mb-8 tracking-tighter leading-tight text-white">
+                    Operational <span class="gradient-text">Modules</span>
+                </h1>
+                <p class="text-gray-400 max-w-2xl mx-auto text-xl font-light leading-relaxed">
+                    Select your trajectory. Deploy into advanced combined mathematics sectors. 
+                    <span class="text-white font-medium">Clearance verification required.</span>
+                </p>
             </div>
         </section>
 
         <section class="pb-32 px-6">
-            <div class="max-w-6xl mx-auto">
-                <div id="course-loader" class="flex flex-col items-center py-20">
-                    <div class="w-12 h-12 border-4 border-pink-500/20 border-t-pink-500 rounded-full animate-spin mb-4"></div>
-                    <p class="mono text-xs text-gray-500 uppercase tracking-widest animate-pulse">Querying Nexus DB...</p>
+            <div class="max-w-7xl mx-auto">
+                <div id="course-loader" class="flex flex-col items-center py-32">
+                    <div class="relative w-16 h-16 mb-6">
+                        <div class="absolute inset-0 border-4 border-red-900/20 rounded-full"></div>
+                        <div class="absolute inset-0 border-4 border-t-red-600 rounded-full animate-spin"></div>
+                    </div>
+                    <p class="mono text-[10px] text-red-600/60 font-black uppercase tracking-[0.5em] animate-pulse">Syncing Nexus Core...</p>
                 </div>
                 <div id="courses-container" class="course-grid hidden"></div>
             </div>
@@ -69,13 +171,11 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzYW94anp2aHhpZ2dudGlicHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDQ2OTAsImV4cCI6MjA5MTQyMDY5MH0.Q5Iu51O3NK4k2kcc_GoegnyAYIFIs2SUkQOV10qp2jI';
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // Fixed Enrollment Function
         window.enrollInCourse = async function(btn, courseId) {
             try {
-                // UI feedback
                 btn.disabled = true;
                 const originalText = btn.innerHTML;
-                btn.innerHTML = `<span class="flex items-center justify-center gap-2"><i data-lucide="loader" class="w-3 h-3 animate-spin"></i> Processing...</span>`;
+                btn.innerHTML = `<span class="flex items-center justify-center gap-3"><i data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-spin"></i> Authorizing...</span>`;
                 lucide.createIcons();
 
                 const { data: { session } } = await sb.auth.getSession();
@@ -84,7 +184,6 @@
                     return;
                 }
 
-                // Check for existing enrollment status
                 const { data: existing, error: fetchError } = await sb
                     .from('course_status')
                     .select('id, status')
@@ -95,13 +194,11 @@
                 if (fetchError) throw fetchError;
 
                 if (existing && existing.status === 'approved') {
-                    sessionStorage.setItem('active_course_id', courseId);
-                    window.location.href = '/curriculum';
+                    localStorage.setItem('active_session_id', courseId);
+                    window.location.href = 'curriculum.html';
                     return;
                 }
 
-                // Use Upsert with explicit user_id and course_id
-                // We ensure 'status' is set to 'pending'
                 const { error: upsertError } = await sb
                     .from('course_status')
                     .upsert({ 
@@ -110,26 +207,17 @@
                         status: 'pending',
                         created_at: new Date().toISOString()
                     }, { 
-                        onConflict: 'user_id,course_id',
-                        ignoreDuplicates: false 
+                        onConflict: 'user_id,course_id'
                     });
 
                 if (upsertError) throw upsertError;
-
-                // Cache metadata for status page
-                sessionStorage.setItem('pending_course_id', courseId);
-                
-                // Success redirect
-                window.location.href = '/status';
+                window.location.href = 'status.html';
 
             } catch (err) {
-                console.error("Enrollment error details:", err);
+                console.error(err);
                 btn.disabled = false;
-                btn.innerHTML = `<span class="text-red-400">Error: ${err.message || 'Retry Enrollment'}</span>`;
-                
-                setTimeout(() => { 
-                    btn.innerHTML = "Enroll Now"; 
-                }, 4000);
+                btn.innerHTML = `<span class="text-red-500 font-black">System Error</span>`;
+                setTimeout(() => { btn.innerHTML = "Retry Enrollment"; }, 3000);
             }
         };
 
@@ -149,25 +237,36 @@
         async function fetchCourses() {
             const { data: courses, error } = await sb.from('courses').select('*');
             if (error) {
-                console.error("Fetch courses error:", error);
-                document.getElementById('course-loader').innerHTML = `<p class="text-red-500">Failed to load modules. Check connection.</p>`;
+                document.getElementById('course-loader').innerHTML = `<p class="text-red-500 font-black uppercase tracking-widest">Database Offline</p>`;
                 return;
             }
             
             const container = document.getElementById('courses-container');
             container.innerHTML = courses.map(c => `
-                <div class="glass-card rounded-[2rem] flex flex-col h-full group overflow-hidden">
+                <div class="glass-card rounded-[2.5rem] flex flex-col h-full group overflow-hidden">
                     <div class="course-image-container">
-                        <img src="${c.image_url || 'https://images.unsplash.com/photo-1509228468518-180dd4864904?w=800'}" class="course-image" onerror="this.src='https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=800'">
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+                        <div class="scanline"></div>
+                        <img src="${c.image_url || 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=800'}" class="course-image" onerror="this.src='https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=800'">
+                        <div class="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent"></div>
+                        <div class="absolute top-6 left-6 px-3 py-1 bg-red-600 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg">New Module</div>
                     </div>
-                    <div class="p-8 flex flex-col flex-grow">
-                        <h3 class="text-2xl font-black mb-1 leading-tight group-hover:text-pink-500 transition-colors">${c.name}</h3>
-                        <p class="mono text-[11px] text-gray-500 uppercase tracking-widest mb-4">By ${c.instructor || 'Nexus Faculty'}</p>
-                        <p class="text-gray-400 text-sm leading-relaxed mb-8 flex-grow">${c.description || 'Advanced combined mathematics module.'}</p>
-                        <div class="pt-6 border-t border-white/5">
-                            <button onclick="enrollInCourse(this, '${c.id}')" class="block w-full py-4 bg-white/5 border border-white/10 group-hover:bg-pink-600 group-hover:border-pink-600 text-center font-bold text-xs uppercase tracking-[0.2em] rounded-xl transition-all">
-                                Enroll Now
+                    <div class="p-10 flex flex-col flex-grow">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="text-2xl font-black leading-tight group-hover:text-red-500 transition-colors text-white tracking-tight">${c.name}</h3>
+                            <div class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
+                                <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400 group-hover:text-red-500"></i>
+                            </div>
+                        </div>
+                        <p class="mono text-[10px] text-gray-500 uppercase tracking-widest mb-6 font-bold flex items-center gap-2">
+                            <i data-lucide="user" class="w-3 h-3 text-red-600"></i>
+                            ${c.instructor || 'Nexus Faculty'}
+                        </p>
+                        <p class="text-gray-400 text-sm leading-relaxed mb-10 flex-grow font-light">
+                            ${c.description || 'Advanced combined mathematics module exploring complex theoretical frameworks.'}
+                        </p>
+                        <div class="pt-8 border-t border-white/5 mt-auto">
+                            <button onclick="enrollInCourse(this, '${c.id}')" class="enroll-btn block w-full py-4 rounded-2xl text-center font-black text-[11px] uppercase tracking-[0.3em] transition-all">
+                                Initialize Sector
                             </button>
                         </div>
                     </div>
@@ -193,12 +292,17 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             container.appendChild(renderer.domElement);
             const particles = new THREE.BufferGeometry();
-            const posArr = new Float32Array(1000 * 3);
-            for(let i=0; i<3000; i++) posArr[i] = (Math.random() - 0.5) * 400;
+            const posArr = new Float32Array(1200 * 3);
+            for(let i=0; i<3600; i++) posArr[i] = (Math.random() - 0.5) * 450;
             particles.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
-            const pSystem = new THREE.Points(particles, new THREE.PointsMaterial({ size: 0.5, color: 0xec4899, transparent: true, opacity: 0.2 }));
+            const pSystem = new THREE.Points(particles, new THREE.PointsMaterial({ size: 0.8, color: 0xdc2626, transparent: true, opacity: 0.18 }));
             scene.add(pSystem);
-            const animate = () => { requestAnimationFrame(animate); pSystem.rotation.y += 0.0002; renderer.render(scene, camera); };
+            const animate = () => { 
+                requestAnimationFrame(animate); 
+                pSystem.rotation.y += 0.00018; 
+                pSystem.rotation.x += 0.00005; 
+                renderer.render(scene, camera); 
+            };
             animate();
             window.addEventListener('resize', () => {
                 camera.aspect = window.innerWidth / window.innerHeight;
