@@ -184,6 +184,7 @@
                     return;
                 }
 
+                // Check for existing enrollment status
                 const { data: existing, error: fetchError } = await sb
                     .from('course_status')
                     .select('id, status')
@@ -193,12 +194,20 @@
 
                 if (fetchError) throw fetchError;
 
-                if (existing && existing.status === 'approved') {
-                    localStorage.setItem('active_session_id', courseId);
-                    window.location.href = '/curriculum';
-                    return;
+                if (existing) {
+                    if (existing.status === 'approved') {
+                        // User is already approved, take to curriculum
+                        localStorage.setItem('active_session_id', courseId);
+                        window.location.href = '/curriculum';
+                        return;
+                    } else if (existing.status === 'pending') {
+                        // User already has a pending request, take to status page
+                        window.location.href = '/status';
+                        return;
+                    }
                 }
 
+                // If no record exists, proceed with enrollment
                 const { error: upsertError } = await sb
                     .from('course_status')
                     .upsert({ 
