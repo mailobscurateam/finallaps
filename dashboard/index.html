@@ -118,12 +118,12 @@
                 <!-- User Profile Card -->
                 <div class="glass-card p-8">
                     <div class="flex items-center gap-4 mb-8">
-                        <div class="w-14 h-14 rounded-2xl bg-neutral-800 border border-white/5 flex items-center justify-center">
+                        <div class="w-14 h-14 rounded-2xl bg-neutral-800 border border-white/5 flex items-center justify-center overflow-hidden">
                             <i data-lucide="user" class="w-6 h-6 text-neutral-400"></i>
                         </div>
                         <div>
-                            <h2 id="profile-name" class="text-xl font-bold tracking-tight leading-tight">...</h2>
-                            <p id="profile-email" class="text-xs text-neutral-500 font-medium">Loading session...</p>
+                            <h2 id="profile-name" class="text-xl font-bold tracking-tight leading-tight capitalize">...</h2>
+                            <p id="profile-email" class="text-xs text-neutral-500 font-medium lowercase">Loading session...</p>
                         </div>
                     </div>
 
@@ -201,10 +201,15 @@
             const { data: { session } } = await sb.auth.getSession();
             if (!session) return window.location.href = 'login.html';
             
-            document.getElementById('profile-name').textContent = session.user.email.split('@')[0];
-            document.getElementById('profile-email').textContent = session.user.email;
+            const user = session.user;
             
-            fetchVerifiedModules(session.user.id);
+            // Priority: Display Name from metadata -> User Name part of Email
+            const displayName = user.user_metadata?.display_name || user.email.split('@')[0];
+            
+            document.getElementById('profile-name').textContent = displayName;
+            document.getElementById('profile-email').textContent = user.email;
+            
+            fetchVerifiedModules(user.id);
 
             // Real-time listener
             sb.channel('dashboard-updates')
@@ -212,8 +217,8 @@
                     event: '*', 
                     schema: 'public', 
                     table: 'course_status',
-                    filter: `user_id=eq.${session.user.id}`
-                }, () => fetchVerifiedModules(session.user.id))
+                    filter: `user_id=eq.${user.id}`
+                }, () => fetchVerifiedModules(user.id))
                 .subscribe();
         }
 
@@ -299,4 +304,4 @@
         window.onload = init;
     </script>
 </body>
-</html>f
+</html>
