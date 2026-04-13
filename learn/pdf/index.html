@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Terminal | Nexus Prime</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root { 
+            --accent: #ff3333;
+            --bg: #0a0a0b;
+            --card-bg: #111113;
+            --border: rgba(255, 255, 255, 0.06);
+        }
+        
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: var(--bg); 
+            color: #ececec; 
+            letter-spacing: -0.01em;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        body.ready { opacity: 1; }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        .mesh-bg {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: 
+                radial-gradient(at 0% 0%, rgba(255, 51, 51, 0.03) 0, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(255, 51, 51, 0.02) 0, transparent 50%);
+            z-index: -1;
+        }
+
+        .glass-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+        }
+
+        .nav-blur {
+            backdrop-filter: blur(12px) saturate(180%);
+            background: rgba(10, 10, 11, 0.8);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .pdf-container {
+            position: relative;
+            height: 80vh;
+            width: 100%;
+            overflow: hidden;
+            background: #1a1a1c;
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .pdf-container iframe {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            border: 0; opacity: 0; transition: opacity 1s ease;
+        }
+        .pdf-container iframe.visible { opacity: 1; }
+
+        .btn-primary {
+            background: #fff;
+            color: #000;
+            transition: all 0.2s ease;
+        }
+        .btn-primary:hover:not(:disabled) {
+            background: var(--accent);
+            color: #fff;
+            transform: translateY(-1px);
+        }
+        .btn-primary:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.08); }
+
+        .telemetry-box {
+            background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 100%);
+            border: 1px solid var(--border);
+            padding: 1.25rem;
+            border-radius: 20px;
+        }
+
+        .preloader-overlay {
+            position: absolute; inset: 0; background: var(--bg);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 40;
+        }
+
+        .progress-line {
+            height: 2px;
+            background: rgba(255, 51, 51, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        .progress-line-fill {
+            position: absolute;
+            height: 100%;
+            background: var(--accent);
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+    <div class="mesh-bg"></div>
+
+    <!-- Terminal Nav -->
+    <nav class="fixed top-0 w-full z-50 px-6 py-4 nav-blur">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <button onclick="window.location.href='/curriculum'" class="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/5 transition-colors">
+                    <i data-lucide="arrow-left" class="w-4 h-4 text-neutral-400"></i>
+                </button>
+                <div>
+                    <h1 id="lesson-title" class="text-xs font-bold tracking-tight uppercase">Decrypting...</h1>
+                    <div class="flex items-center gap-2">
+                        <span id="info-status" class="mono text-[9px] text-yellow-500 font-bold tracking-widest uppercase">● Syncing</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <button id="btn-download" class="btn-secondary px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 hidden">
+                    <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                    Download PDF
+                </button>
+
+                <button id="btn-complete" class="btn-primary px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-2" disabled>
+                    <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+                    Complete
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="fixed top-[73px] w-full z-40 progress-line">
+        <div id="loading-bar" class="progress-line-fill"></div>
+    </div>
+
+    <main class="flex-1 pt-32 pb-20 px-6 max-w-6xl mx-auto w-full">
+        <!-- Telemetry Data -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div class="telemetry-box">
+                <p class="mono text-[9px] text-neutral-500 font-bold uppercase tracking-[0.2em] mb-1">Doc Hash</p>
+                <p id="info-id" class="text-sm font-bold tracking-tight">X-DOC-REDACTED</p>
+            </div>
+            <div class="telemetry-box">
+                <p class="mono text-[9px] text-neutral-500 font-bold uppercase tracking-[0.2em] mb-1">Access Tier</p>
+                <p id="info-tier" class="text-sm font-bold tracking-tight text-neutral-300">AUTHORIZED</p>
+            </div>
+            <div class="telemetry-box">
+                <p class="mono text-[9px] text-neutral-500 font-bold uppercase tracking-[0.2em] mb-1">Integrity Status</p>
+                <p class="text-sm font-bold tracking-tight text-green-500 flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                    VERIFIED_STABLE
+                </p>
+            </div>
+        </div>
+
+        <!-- PDF Stage -->
+        <div id="pdf-wrapper" class="pdf-container">
+            <div id="preloader" class="preloader-overlay">
+                <div class="relative w-12 h-12 mb-6">
+                    <div class="absolute inset-0 border-2 border-white/5 rounded-full"></div>
+                    <div class="absolute inset-0 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+                <p id="loader-text" class="mono text-[9px] font-bold tracking-[0.4em] text-neutral-500 uppercase">Fetching Secure Document</p>
+            </div>
+            
+            <div id="iframe-holder" class="w-full h-full"></div>
+        </div>
+
+        <div class="mt-8 flex justify-between items-center text-neutral-600">
+            <div class="flex items-center gap-6">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="file-text" class="w-4 h-4"></i>
+                    <span class="text-[10px] font-bold uppercase tracking-widest">Confidential Document</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <i data-lucide="shield-check" class="w-4 h-4"></i>
+                    <span class="text-[10px] font-bold uppercase tracking-widest">End-to-End Encrypted</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const SUPABASE_URL = 'https://tsaoxjzvhxiggntibpui.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzYW94anp2aHhpZ2dudGlicHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDQ2OTAsImV4cCI6MjA5MTQyMDY5MH0.Q5Iu51O3NK4k2kcc_GoegnyAYIFIs2SUkQOV10qp2jI';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const lessonId = urlParams.get('id');
+
+        let currentUser = null;
+        let pdfUrl = "";
+        let isCompleted = false;
+
+        async function checkAuth() {
+            const { data: { session } } = await sb.auth.getSession();
+            if (!session) return window.location.href = 'login.html';
+            currentUser = session.user;
+
+            const isApproved = await verifyCourseApproval();
+            if (!isApproved) return window.location.href = '/dashboard';
+
+            document.body.classList.add('ready');
+            
+            lucide.createIcons();
+            fetchLessonData();
+            checkCompletionStatus();
+        }
+
+        async function verifyCourseApproval() {
+            try {
+                const { data: lesson } = await sb.from('lessons').select('course_id').eq('id', lessonId).single();
+                if (!lesson) return false;
+
+                const { data: approval } = await sb.from('course_status')
+                    .select('status').eq('user_id', currentUser.id)
+                    .eq('course_id', lesson.course_id).eq('status', 'approved').maybeSingle();
+
+                return !!approval;
+            } catch (e) { return false; }
+        }
+
+        async function fetchLessonData() {
+            if (!lessonId) return window.location.href = '/dashboard';
+
+            const { data: lesson, error } = await sb.from('lessons').select('*').eq('id', lessonId).single();
+            if (error || !lesson) return showError("DOCUMENT_NOT_FOUND");
+
+            pdfUrl = lesson.video_url; // Assuming PDF URL is stored here
+            document.getElementById('lesson-title').innerText = lesson.title;
+            document.getElementById('info-id').innerText = `X-DOC-${lesson.order_index || '000'}`;
+
+            initPDF(pdfUrl); 
+        }
+
+        async function checkCompletionStatus() {
+            const { data } = await sb.from('lesson_completions').select('*')
+                .eq('user_id', currentUser.id).eq('lesson_id', lessonId).maybeSingle();
+
+            if (data) {
+                setCompleteUI(true);
+            } else {
+                // Enable button after a short delay for UX
+                setTimeout(() => { document.getElementById('btn-complete').disabled = false; }, 2000);
+            }
+        }
+
+        function initPDF(url) {
+            const holder = document.getElementById('iframe-holder');
+            const iframe = document.createElement('iframe');
+            
+            iframe.src = url;
+            iframe.className = "w-full h-full";
+            
+            iframe.onload = () => {
+                document.getElementById('loading-bar').style.width = '100%';
+                document.getElementById('info-status').innerText = "● ONLINE";
+                document.getElementById('info-status').className = "mono text-[9px] text-green-500 font-bold tracking-widest uppercase";
+                document.getElementById('preloader').style.display = 'none';
+                iframe.classList.add('visible');
+                
+                // Show download button
+                const dlBtn = document.getElementById('btn-download');
+                dlBtn.classList.remove('hidden');
+                dlBtn.onclick = () => window.open(url, '_blank');
+            };
+            holder.appendChild(iframe);
+        }
+
+        function setCompleteUI(alreadyDone = false) {
+            const btn = document.getElementById('btn-complete');
+            btn.innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5"></i> COMPLETED`;
+            btn.classList.replace('btn-primary', 'btn-secondary');
+            btn.classList.add('text-green-500');
+            btn.disabled = true;
+            isCompleted = true;
+            lucide.createIcons();
+        }
+
+        async function markAsComplete() {
+            if (isCompleted) return;
+            const btn = document.getElementById('btn-complete');
+            btn.disabled = true;
+            btn.innerText = "SYNCING...";
+
+            const { error } = await sb.from('lesson_completions').insert({
+                user_id: currentUser.id, lesson_id: lessonId
+            });
+
+            if (error) {
+                btn.innerText = "ERROR - RETRY";
+                btn.disabled = false;
+                return;
+            }
+            setCompleteUI();
+        }
+
+        function showError(msg) {
+            document.getElementById('preloader').style.display = 'flex';
+            document.getElementById('preloader').innerHTML = `
+                <div class="text-center p-12 glass-card">
+                    <p class="mono text-red-500 font-black tracking-widest uppercase mb-4">ACCESS TERMINATED</p>
+                    <p class="text-[10px] text-neutral-500 uppercase tracking-[4px] mb-8">${msg}</p>
+                    <button onclick="window.location.href='/curriculum'" class="btn-primary px-8 py-3 rounded-xl text-xs font-bold uppercase tracking-wider mx-auto">
+                        Return to Hub
+                    </button>
+                </div>
+            `;
+            document.getElementById('info-status').innerText = "● OFFLINE";
+            document.getElementById('info-status').className = "mono text-[9px] text-red-500 font-bold tracking-widest uppercase";
+        }
+
+        document.getElementById('btn-complete').onclick = markAsComplete;
+        window.onload = checkAuth;
+    </script>
+</body>
+</html>
