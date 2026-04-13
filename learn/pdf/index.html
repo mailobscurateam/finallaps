@@ -67,6 +67,18 @@
         }
         .pdf-container iframe.visible { opacity: 1; }
 
+        /* Guard to hide the Google Viewer pop-out button */
+        .popout-guard {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 60px;
+            height: 60px;
+            background: transparent;
+            z-index: 30;
+            pointer-events: all;
+        }
+
         .btn-primary {
             background: #fff;
             color: #000;
@@ -172,6 +184,9 @@
 
         <!-- PDF Stage -->
         <div id="pdf-wrapper" class="pdf-container">
+            <!-- Invisible guard to block interaction with the pop-out button -->
+            <div id="popout-guard" class="popout-guard hidden"></div>
+
             <div id="preloader" class="preloader-overlay">
                 <div id="loader-spinner" class="relative w-12 h-12 mb-6">
                     <div class="absolute inset-0 border-2 border-white/5 rounded-full"></div>
@@ -272,14 +287,11 @@
             const holder = document.getElementById('iframe-holder');
             const iframe = document.createElement('iframe');
             
-            // Use Google Docs Viewer to wrap direct download URLs so they display in-browser
-            // This bypasses the issue where direct URLs force a download or refuse connection
             const formattedUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
             
             iframe.src = formattedUrl;
             iframe.className = "w-full h-full";
             
-            // Timeout to show "Open in New Tab" if iframe fails to trigger onload
             const loadTimeout = setTimeout(() => {
                 if (!iframe.classList.contains('visible')) {
                     document.getElementById('loader-spinner').classList.add('hidden');
@@ -295,9 +307,9 @@
                 document.getElementById('info-status').innerText = "● ONLINE";
                 document.getElementById('info-status').className = "mono text-[9px] text-green-500 font-bold tracking-widest uppercase";
                 document.getElementById('preloader').style.display = 'none';
+                document.getElementById('popout-guard').classList.remove('hidden');
                 iframe.classList.add('visible');
                 
-                // Show download button
                 const dlBtn = document.getElementById('btn-download');
                 dlBtn.classList.remove('hidden');
                 dlBtn.onclick = () => {
