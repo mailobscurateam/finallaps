@@ -272,12 +272,9 @@
             const holder = document.getElementById('iframe-holder');
             const iframe = document.createElement('iframe');
             
-            // Fix for Google Drive links which often cause "Refused to Connect"
-            let formattedUrl = url;
-            if (url.includes('drive.google.com')) {
-                // Convert sharing links to preview links which are more frame-friendly
-                formattedUrl = url.replace(/\/view.*$/, '/preview').replace(/\/edit.*$/, '/preview');
-            }
+            // Use Google Docs Viewer to wrap direct download URLs so they display in-browser
+            // This bypasses the issue where direct URLs force a download or refuse connection
+            const formattedUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
             
             iframe.src = formattedUrl;
             iframe.className = "w-full h-full";
