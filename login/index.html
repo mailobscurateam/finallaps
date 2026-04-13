@@ -214,7 +214,7 @@
                         password: passInput.value
                     });
                     if (error) throw error;
-                    window.location.href = '/courses';
+                    window.location.href = '/dashboard';
                 } catch (err) {
                     document.getElementById('error-text').textContent = err.message;
                     errorMsg.classList.remove('hidden');
