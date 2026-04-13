@@ -48,7 +48,7 @@
         .category-pill {
             display: inline-flex;
             align-items: center;
-            padding: 0.5rem 1rem;
+            padding: 0.5rem 1.25rem;
             border-radius: 9999px;
             background: var(--bg-card);
             border: 1px solid var(--border);
@@ -141,12 +141,10 @@
             <p id="course-desc" class="text-lg text-slate-400 leading-relaxed max-w-3xl"></p>
         </header>
 
-        <!-- Filters -->
+        <!-- Filters (Month Toggles) -->
         <div class="mb-12">
             <div id="month-filter" class="flex flex-wrap gap-3">
-                <button onclick="filterByMonth('all')" data-month="all" class="category-pill active">
-                    All Modules
-                </button>
+                <!-- Month pills injected here -->
             </div>
         </div>
 
@@ -197,7 +195,15 @@
 
                 allLessons = lessons;
                 generateMonthFilters(lessons);
-                renderCategorizedLessons(lessons);
+                
+                // Set initial view to the first available month automatically
+                const uniqueMonths = [...new Set(lessons.map(l => l.month))].filter(m => m != null).sort((a, b) => a - b);
+                if (uniqueMonths.length > 0) {
+                    filterByMonth(uniqueMonths[0]);
+                } else {
+                    renderCategorizedLessons(lessons);
+                }
+
             } catch (err) {
                 renderErrorUI(err.message);
             }
@@ -206,6 +212,7 @@
         function generateMonthFilters(lessons) {
             const filterContainer = document.getElementById('month-filter');
             const uniqueMonths = [...new Set(lessons.map(l => l.month))].filter(m => m != null).sort((a, b) => a - b);
+            
             uniqueMonths.forEach(monthNum => {
                 const btn = document.createElement('button');
                 btn.onclick = () => filterByMonth(monthNum);
@@ -217,8 +224,14 @@
         }
 
         function filterByMonth(val) {
-            document.querySelectorAll('.category-pill').forEach(t => t.classList.toggle('active', t.getAttribute('data-month') == val));
-            renderCategorizedLessons(val === 'all' ? allLessons : allLessons.filter(l => l.month == val));
+            // Update UI state for pills
+            document.querySelectorAll('.category-pill').forEach(t => {
+                t.classList.toggle('active', t.getAttribute('data-month') == val);
+            });
+            
+            // Filter lessons by the selected month
+            const filtered = allLessons.filter(l => l.month == val);
+            renderCategorizedLessons(filtered);
         }
 
         function renderCategorizedLessons(lessons) {
@@ -226,7 +239,7 @@
             if (!lessons.length) {
                 container.innerHTML = `
                     <div class="text-center py-20 bg-red-900/5 rounded-2xl border-2 border-dashed border-red-900/20">
-                        <p class="text-slate-500 font-medium">No lessons available in this sector.</p>
+                        <p class="text-slate-500 font-medium">No lessons available in this module.</p>
                     </div>`;
                 return;
             }
@@ -284,7 +297,7 @@
                                 ${l.is_completed ? `
                                     <span class="flex items-center gap-1.5 text-red-400 border-l border-slate-800 pl-4">
                                         <i data-lucide="check-circle-2" class="w-4 h-4"></i>
-                                        Archived
+                                        Completed
                                     </span>
                                 ` : ''}
                             </div>
@@ -293,7 +306,7 @@
 
                     <a href="/learn/${type}?id=${l.id}" 
                        class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white text-black font-bold text-sm hover:bg-red-600 hover:text-white transition-all shadow-lg shadow-black/20">
-                        Launch
+                        Launch Unit
                         <i data-lucide="arrow-right" class="w-4 h-4"></i>
                     </a>
                 </div>
