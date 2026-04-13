@@ -173,11 +173,17 @@
         <!-- PDF Stage -->
         <div id="pdf-wrapper" class="pdf-container">
             <div id="preloader" class="preloader-overlay">
-                <div class="relative w-12 h-12 mb-6">
+                <div id="loader-spinner" class="relative w-12 h-12 mb-6">
                     <div class="absolute inset-0 border-2 border-white/5 rounded-full"></div>
                     <div class="absolute inset-0 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
                 </div>
-                <p id="loader-text" class="mono text-[9px] font-bold tracking-[0.4em] text-neutral-500 uppercase">Fetching Secure Document</p>
+                <p id="loader-text" class="mono text-[9px] font-bold tracking-[0.4em] text-neutral-500 uppercase text-center px-4">Fetching Secure Document</p>
+                <div id="connection-error" class="hidden mt-6 text-center">
+                   <p class="text-xs text-neutral-400 mb-4 px-8">The source provider refused the connection inside this frame.</p>
+                   <button id="btn-external" class="btn-primary px-6 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider">
+                       Open in New Tab
+                   </button>
+                </div>
             </div>
             
             <div id="iframe-holder" class="w-full h-full"></div>
@@ -243,7 +249,6 @@
             const { data: lesson, error } = await sb.from('lessons').select('*').eq('id', lessonId).single();
             if (error || !lesson) return showError("DOCUMENT_NOT_FOUND");
 
-            // Priority: Using direct URL if explicitly provided, else fallback to database
             pdfUrl = lesson.video_url; 
             
             document.getElementById('lesson-title').innerText = lesson.title;
@@ -259,7 +264,6 @@
             if (data) {
                 setCompleteUI(true);
             } else {
-                // Enable button after a short delay for UX
                 setTimeout(() => { document.getElementById('btn-complete').disabled = false; }, 2000);
             }
         }
@@ -268,11 +272,28 @@
             const holder = document.getElementById('iframe-holder');
             const iframe = document.createElement('iframe');
             
-            // Note: If you have a direct URL, you can replace url with the string here
-            iframe.src = url;
+            // Fix for Google Drive links which often cause "Refused to Connect"
+            let formattedUrl = url;
+            if (url.includes('drive.google.com')) {
+                // Convert sharing links to preview links which are more frame-friendly
+                formattedUrl = url.replace(/\/view.*$/, '/preview').replace(/\/edit.*$/, '/preview');
+            }
+            
+            iframe.src = formattedUrl;
             iframe.className = "w-full h-full";
             
+            // Timeout to show "Open in New Tab" if iframe fails to trigger onload
+            const loadTimeout = setTimeout(() => {
+                if (!iframe.classList.contains('visible')) {
+                    document.getElementById('loader-spinner').classList.add('hidden');
+                    document.getElementById('loader-text').innerText = "CONNECTION_REFUSED_BY_HOST";
+                    document.getElementById('connection-error').classList.remove('hidden');
+                    document.getElementById('btn-external').onclick = () => window.open(url, '_blank');
+                }
+            }, 8000);
+
             iframe.onload = () => {
+                clearTimeout(loadTimeout);
                 document.getElementById('loading-bar').style.width = '100%';
                 document.getElementById('info-status').innerText = "● ONLINE";
                 document.getElementById('info-status').className = "mono text-[9px] text-green-500 font-bold tracking-widest uppercase";
