@@ -243,7 +243,9 @@
             const { data: lesson, error } = await sb.from('lessons').select('*').eq('id', lessonId).single();
             if (error || !lesson) return showError("DOCUMENT_NOT_FOUND");
 
-            pdfUrl = lesson.video_url; // Assuming PDF URL is stored here
+            // Priority: Using direct URL if explicitly provided, else fallback to database
+            pdfUrl = lesson.video_url; 
+            
             document.getElementById('lesson-title').innerText = lesson.title;
             document.getElementById('info-id').innerText = `X-DOC-${lesson.order_index || '000'}`;
 
@@ -266,6 +268,7 @@
             const holder = document.getElementById('iframe-holder');
             const iframe = document.createElement('iframe');
             
+            // Note: If you have a direct URL, you can replace url with the string here
             iframe.src = url;
             iframe.className = "w-full h-full";
             
@@ -279,7 +282,13 @@
                 // Show download button
                 const dlBtn = document.getElementById('btn-download');
                 dlBtn.classList.remove('hidden');
-                dlBtn.onclick = () => window.open(url, '_blank');
+                dlBtn.onclick = () => {
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = document.getElementById('lesson-title').innerText + ".pdf";
+                    link.target = "_blank";
+                    link.click();
+                };
             };
             holder.appendChild(iframe);
         }
