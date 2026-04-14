@@ -175,14 +175,9 @@
             const iframe = document.createElement('iframe');
             iframe.src = videoUrl;
             
-            /** * NORMAL BROWSER TAB BEHAVIOR:
-             * To make the iframe act exactly like a normal browser tab:
-             * 1. No 'sandbox' attribute (this allows cookies, storage, scripts, and form submission).
-             * 2. 'allow' includes all modern browser features.
-             * 3. 'referrerpolicy' is set to 'no-referrer-when-downgrade' to allow sites like Zoom to verify origins.
-             */
-            iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write; camera; microphone; geolocation; midi; gyroscope; accelerometer');
-            iframe.setAttribute('referrerpolicy', 'no-referrer-when-downgrade');
+            // REMOVED SANDBOX: Zoom recording redirects require unrestricted access to cookies and navigation
+            // This prevents the "loop" you see when clicking continue.
+            iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write; camera; microphone');
             iframe.allowFullscreen = true;
             
             iframe.onload = () => {
