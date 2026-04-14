@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="public, max-age=3600, must-revalidate">
-    <title>Live Stream | Nexus Prime</title>
+    <title>Stream Launch | Nexus Prime</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -21,117 +21,83 @@
             font-family: 'Plus Jakarta Sans', sans-serif; 
             background-color: var(--bg); 
             color: #ececec; 
-            letter-spacing: -0.01em;
             margin: 0;
-            overflow: hidden; 
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
         }
-
-        .mono { font-family: 'JetBrains Mono', monospace; }
 
         .mesh-bg {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
             background: 
-                radial-gradient(at 0% 0%, rgba(255, 51, 51, 0.03) 0, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(255, 51, 51, 0.02) 0, transparent 50%);
+                radial-gradient(at 0% 0%, rgba(255, 51, 51, 0.05) 0, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(255, 51, 51, 0.03) 0, transparent 50%);
             z-index: -1;
         }
 
         .nav-blur {
-            backdrop-filter: blur(12px) saturate(180%);
+            backdrop-filter: blur(12px);
             background: rgba(10, 10, 11, 0.8);
             border-bottom: 1px solid var(--border);
         }
 
-        .live-container {
-            position: relative;
-            height: calc(100vh - 74px); 
-            width: 100%;
-            background: #000;
+        .launch-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
 
-        .live-container iframe {
-            width: 100%;
-            height: 100%;
-            border: 0;
-            opacity: 0;
-            transition: opacity 0.5s ease;
-        }
-        
-        .live-container iframe.visible { opacity: 1; }
-
-        .preloader-overlay {
-            position: absolute; 
-            inset: 0; 
-            background: var(--bg);
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center;
-            z-index: 40;
-            transition: opacity 0.4s ease, visibility 0.4s;
-        }
-
-        .status-pill {
-            padding: 4px 10px;
-            border-radius: 6px;
-            background: rgba(255, 51, 51, 0.1);
-            border: 1px solid rgba(255, 51, 51, 0.2);
-        }
-
-        .fallback-zone {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            z-index: 100;
-        }
+        .mono { font-family: 'JetBrains Mono', monospace; }
     </style>
 </head>
-<body class="flex flex-col h-screen">
+<body>
     <div class="mesh-bg"></div>
 
-    <!-- Live Header -->
+    <!-- Minimal Header -->
     <nav class="w-full z-50 px-6 py-4 nav-blur shrink-0">
-        <div class="max-w-[1800px] mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-4">
-                <button onclick="window.history.back()" class="w-9 h-9 rounded-xl border border-white/10 flex items-center justify-center hover:bg-white/5 transition-colors">
-                    <i data-lucide="chevron-left" class="w-5 h-5 text-neutral-400"></i>
-                </button>
-                <div>
-                    <h1 id="stream-title" class="text-xs font-bold tracking-tight uppercase">Initializing Stream...</h1>
-                    <div class="flex items-center gap-2 mt-0.5">
-                        <div class="status-pill flex items-center gap-1.5">
-                            <span class="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>
-                            <span id="info-status" class="mono text-[9px] text-red-500 font-bold tracking-widest uppercase">Live</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="flex items-center gap-4">
-                <button id="btn-open-direct" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition-all">
-                    <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
-                    <span class="text-[10px] font-bold uppercase tracking-wider">Open Direct</span>
-                </button>
-                <button id="btn-fullscreen" class="w-9 h-9 rounded-xl border border-white/10 flex items-center justify-center hover:bg-white/5 transition-colors">
-                    <i data-lucide="maximize" class="w-4 h-4 text-neutral-400"></i>
-                </button>
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <button onclick="window.history.back()" class="flex items-center gap-2 text-neutral-400 hover:text-white transition-colors group">
+                <i data-lucide="arrow-left" class="w-5 h-5 group-hover:-translate-x-1 transition-transform"></i>
+                <span class="text-sm font-medium">Back</span>
+            </button>
+            <div class="text-right">
+                <p id="stream-title" class="text-xs font-bold uppercase tracking-widest text-neutral-500">Loading Session...</p>
             </div>
         </div>
     </nav>
 
-    <main class="flex-1 overflow-hidden">
-        <div id="video-wrapper" class="live-container">
-            <!-- Non-blocking Loader -->
-            <div id="preloader" class="preloader-overlay">
-                <div class="relative w-12 h-12 mb-6">
-                    <div class="absolute inset-0 border-2 border-white/5 rounded-full"></div>
-                    <div class="absolute inset-0 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
-                </div>
-                <p class="mono text-[9px] font-bold tracking-[0.4em] text-neutral-500 uppercase">Connecting to uplink</p>
+    <!-- Content Area -->
+    <main class="flex-1 flex items-center justify-center p-6">
+        <div class="launch-card max-w-md w-full rounded-3xl p-8 text-center">
+            <div class="w-20 h-20 bg-red-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-red-500/20">
+                <i data-lucide="play" class="w-10 h-10 text-red-500 fill-red-500"></i>
             </div>
             
-            <div id="iframe-holder" class="w-full h-full"></div>
+            <h2 class="text-2xl font-bold mb-2 tracking-tight">Ready to Watch</h2>
+            <p class="text-neutral-400 text-sm mb-8 leading-relaxed">
+                Click below to open the secure recording in a new browser tab. This ensures the best video quality and stable playback.
+            </p>
+
+            <button id="btn-launch" class="w-full py-4 bg-white text-black rounded-2xl font-bold text-sm uppercase tracking-widest hover:bg-neutral-200 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+                Launch Recording
+                <i data-lucide="external-link" class="w-4 h-4"></i>
+            </button>
+
+            <div class="mt-8 pt-8 border-t border-white/5">
+                <div class="flex items-center justify-center gap-4 text-neutral-500">
+                    <div class="flex flex-col items-center">
+                        <span class="mono text-[10px] font-bold uppercase tracking-tighter">Secure</span>
+                        <i data-lucide="shield-check" class="w-4 h-4 mt-1"></i>
+                    </div>
+                    <div class="w-px h-8 bg-white/5"></div>
+                    <div class="flex flex-col items-center">
+                        <span class="mono text-[10px] font-bold uppercase tracking-tighter">HD Feed</span>
+                        <i data-lucide="video" class="w-4 h-4 mt-1"></i>
+                    </div>
+                </div>
+            </div>
         </div>
     </main>
 
@@ -139,14 +105,9 @@
         const SUPABASE_URL = 'https://tsaoxjzvhxiggntibpui.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzYW94anp2aHhpZ2dudGlicHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDQ2OTAsImV4cCI6MjA5MTQyMDY5MH0.Q5Iu51O3NK4k2kcc_GoegnyAYIFIs2SUkQOV10qp2jI';
         
-        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-            auth: { persistSession: true },
-            global: { headers: { 'Cache-Control': 'max-age=3600' } }
-        });
-
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         const urlParams = new URLSearchParams(window.location.search);
         const lessonId = urlParams.get('id');
-        let currentVideoUrl = "";
 
         async function init() {
             lucide.createIcons();
@@ -156,66 +117,13 @@
             const { data: lesson } = await sb.from('lessons').select('*').eq('id', lessonId).maybeSingle();
             if (lesson) {
                 document.getElementById('stream-title').innerText = lesson.title;
-                currentVideoUrl = lesson.video_url;
-                loadIframe(currentVideoUrl);
-            }
-
-            sb.channel('lesson_updates')
-                .on('postgres_changes', { 
-                    event: 'UPDATE', 
-                    schema: 'public', 
-                    table: 'lessons', 
-                    filter: `id=eq.${lessonId}` 
-                }, (payload) => {
-                    if (payload.new && payload.new.video_url !== currentVideoUrl) {
-                        currentVideoUrl = payload.new.video_url;
-                        loadIframe(currentVideoUrl);
-                    }
-                })
-                .subscribe();
-        }
-
-        function loadIframe(videoUrl) {
-            const holder = document.getElementById('iframe-holder');
-            holder.innerHTML = ''; 
-            
-            const iframe = document.createElement('iframe');
-            iframe.src = videoUrl;
-            
-            // Note: For Zoom recording links specifically, if the iframe loops,
-            // the "Open Direct" button in the header is the only stable fallback.
-            iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write; camera; microphone');
-            iframe.setAttribute('referrerpolicy', 'no-referrer-when-downgrade');
-            iframe.allowFullscreen = true;
-            
-            iframe.onload = () => {
-                const loader = document.getElementById('preloader');
-                loader.style.opacity = '0';
-                setTimeout(() => {
-                    loader.style.visibility = 'hidden';
-                }, 400);
-                iframe.classList.add('visible');
-            };
-
-            holder.appendChild(iframe);
-            
-            // Show the direct open button if a Zoom link is detected
-            if (videoUrl.includes('zoom.us')) {
-                document.getElementById('btn-open-direct').classList.remove('hidden');
-                document.getElementById('btn-open-direct').onclick = () => {
-                    window.open(videoUrl, '_blank');
+                
+                const launchBtn = document.getElementById('btn-launch');
+                launchBtn.onclick = () => {
+                    window.open(lesson.video_url, '_blank');
                 };
             }
         }
-
-        document.getElementById('btn-fullscreen').onclick = () => {
-            const elem = document.getElementById('video-wrapper');
-            if (!document.fullscreenElement) {
-                elem.requestFullscreen().catch(() => {});
-            } else {
-                document.exitFullscreen();
-            }
-        };
 
         window.onload = init;
     </script>
