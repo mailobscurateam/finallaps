@@ -23,7 +23,7 @@
             color: #ececec; 
             letter-spacing: -0.01em;
             margin: 0;
-            overflow: hidden; /* Prevent scroll for true full-screen feel */
+            overflow: hidden; 
         }
 
         .mono { font-family: 'JetBrains Mono', monospace; }
@@ -45,7 +45,7 @@
 
         .live-container {
             position: relative;
-            height: calc(100vh - 74px); /* Full height minus header */
+            height: calc(100vh - 74px); 
             width: 100%;
             background: #000;
         }
@@ -55,7 +55,7 @@
             height: 100%;
             border: 0;
             opacity: 0;
-            transition: opacity 0.8s ease;
+            transition: opacity 0.5s ease;
         }
         
         .live-container iframe.visible { opacity: 1; }
@@ -69,6 +69,7 @@
             align-items: center; 
             justify-content: center;
             z-index: 40;
+            transition: opacity 0.4s ease, visibility 0.4s;
         }
 
         .status-pill {
@@ -114,7 +115,7 @@
 
     <main class="flex-1 overflow-hidden">
         <div id="video-wrapper" class="live-container">
-            <!-- Loader -->
+            <!-- Non-blocking Loader -->
             <div id="preloader" class="preloader-overlay">
                 <div class="relative w-12 h-12 mb-6">
                     <div class="absolute inset-0 border-2 border-white/5 rounded-full"></div>
@@ -131,16 +132,9 @@
         const SUPABASE_URL = 'https://tsaoxjzvhxiggntibpui.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzYW94anp2aHhpZ2dudGlicHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDQ2OTAsImV4cCI6MjA5MTQyMDY5MH0.Q5Iu51O3NK4k2kcc_GoegnyAYIFIs2SUkQOV10qp2jI';
         
-        // Approve cache for Supabase connection
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-            auth: {
-                persistSession: true,
-                autoRefreshToken: true,
-                detectSessionInUrl: true
-            },
-            global: {
-                headers: { 'Cache-Control': 'max-age=3600' }
-            }
+            auth: { persistSession: true },
+            global: { headers: { 'Cache-Control': 'max-age=3600' } }
         });
 
         const urlParams = new URLSearchParams(window.location.search);
@@ -149,43 +143,42 @@
         async function init() {
             lucide.createIcons();
             
-            const { data: { session } } = await sb.auth.getSession();
-
+            // Flow initialized immediately without auth redirection blocks
             if (!lessonId) return;
 
-            // Fetch stream data with simple caching strategy
-            const { data: lesson, error } = await sb.from('lessons').select('*').eq('id', lessonId).single();
-            if (error || !lesson) return;
+            // Parallel loading: fetch metadata while iframe prepares
+            const streamPromise = sb.from('lessons').select('*').eq('id', lessonId).maybeSingle();
 
-            document.getElementById('stream-title').innerText = lesson.title;
-            
+            streamPromise.then(({ data: lesson }) => {
+                if (!lesson) return;
+                document.getElementById('stream-title').innerText = lesson.title;
+                loadIframe(lesson.video_url);
+            });
+        }
+
+        function loadIframe(videoUrl) {
             const holder = document.getElementById('iframe-holder');
             const iframe = document.createElement('iframe');
             
-            let videoUrl = lesson.video_url;
-            
             iframe.src = videoUrl;
-            // Sandbox configured to allow essential functions for live streams
-            iframe.setAttribute('sandbox', 'allow-forms allow-scripts allow-pointer-lock allow-same-origin allow-top-navigation');
-            iframe.allow = "autoplay; fullscreen; picture-in-picture";
+            // Configured for maximum flow compatibility; removed strict sandbox restrictions that could block UI
+            iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture; encrypted-media');
             iframe.allowFullscreen = true;
             
             iframe.onload = () => {
-                document.getElementById('preloader').style.opacity = '0';
-                setTimeout(() => {
-                    document.getElementById('preloader').style.display = 'none';
-                }, 800);
+                const loader = document.getElementById('preloader');
+                loader.style.opacity = '0';
+                loader.style.visibility = 'hidden';
                 iframe.classList.add('visible');
             };
 
             holder.appendChild(iframe);
         }
 
-        // Fullscreen Toggle Logic
         document.getElementById('btn-fullscreen').onclick = () => {
             const elem = document.getElementById('video-wrapper');
             if (!document.fullscreenElement) {
-                elem.requestFullscreen().catch(err => {});
+                elem.requestFullscreen().catch(() => {});
             } else {
                 document.exitFullscreen();
             }
