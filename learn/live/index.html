@@ -146,7 +146,6 @@
             
             if (!lessonId) return;
 
-            // Fetch initial data
             const { data: lesson } = await sb.from('lessons').select('*').eq('id', lessonId).maybeSingle();
             if (lesson) {
                 document.getElementById('stream-title').innerText = lesson.title;
@@ -154,7 +153,6 @@
                 loadIframe(currentVideoUrl);
             }
 
-            // Real-time listener: if the URL updates in the database, go to that page immediately
             sb.channel('lesson_updates')
                 .on('postgres_changes', { 
                     event: 'UPDATE', 
@@ -177,9 +175,14 @@
             const iframe = document.createElement('iframe');
             iframe.src = videoUrl;
             
-            // Allow top navigation if the URL updates and requires a full page change (common for some Zoom redirects)
-            iframe.setAttribute('sandbox', 'allow-forms allow-scripts allow-pointer-lock allow-same-origin allow-top-navigation allow-top-navigation-by-user-activation allow-presentation');
-            iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write');
+            /** * NORMAL BROWSER TAB BEHAVIOR:
+             * To make the iframe act exactly like a normal browser tab:
+             * 1. No 'sandbox' attribute (this allows cookies, storage, scripts, and form submission).
+             * 2. 'allow' includes all modern browser features.
+             * 3. 'referrerpolicy' is set to 'no-referrer-when-downgrade' to allow sites like Zoom to verify origins.
+             */
+            iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write; camera; microphone; geolocation; midi; gyroscope; accelerometer');
+            iframe.setAttribute('referrerpolicy', 'no-referrer-when-downgrade');
             iframe.allowFullscreen = true;
             
             iframe.onload = () => {
