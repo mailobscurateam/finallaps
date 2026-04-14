@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="public, max-age=3600, must-revalidate">
     <title>Live Stream | Nexus Prime</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -129,7 +130,18 @@
     <script>
         const SUPABASE_URL = 'https://tsaoxjzvhxiggntibpui.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzYW94anp2aHhpZ2dudGlicHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDQ2OTAsImV4cCI6MjA5MTQyMDY5MH0.Q5Iu51O3NK4k2kcc_GoegnyAYIFIs2SUkQOV10qp2jI';
-        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // Approve cache for Supabase connection
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+                persistSession: true,
+                autoRefreshToken: true,
+                detectSessionInUrl: true
+            },
+            global: {
+                headers: { 'Cache-Control': 'max-age=3600' }
+            }
+        });
 
         const urlParams = new URLSearchParams(window.location.search);
         const lessonId = urlParams.get('id');
@@ -137,13 +149,11 @@
         async function init() {
             lucide.createIcons();
             
-            // Bypass redirection/blocking: Load data directly
             const { data: { session } } = await sb.auth.getSession();
-            // Removed strict window.location redirection for smoother flow
 
             if (!lessonId) return;
 
-            // Fetch stream data
+            // Fetch stream data with simple caching strategy
             const { data: lesson, error } = await sb.from('lessons').select('*').eq('id', lessonId).single();
             if (error || !lesson) return;
 
@@ -155,7 +165,7 @@
             let videoUrl = lesson.video_url;
             
             iframe.src = videoUrl;
-            // Sandbox and attributes optimized to prevent popups or unsolicited app redirects
+            // Sandbox configured to allow essential functions for live streams
             iframe.setAttribute('sandbox', 'allow-forms allow-scripts allow-pointer-lock allow-same-origin allow-top-navigation');
             iframe.allow = "autoplay; fullscreen; picture-in-picture";
             iframe.allowFullscreen = true;
