@@ -139,34 +139,46 @@
 
         const urlParams = new URLSearchParams(window.location.search);
         const lessonId = urlParams.get('id');
+        let currentVideoUrl = "";
 
         async function init() {
             lucide.createIcons();
             
             if (!lessonId) return;
 
-            // Parallel loading
-            const streamPromise = sb.from('lessons').select('*').eq('id', lessonId).maybeSingle();
-
-            streamPromise.then(({ data: lesson }) => {
-                if (!lesson) return;
+            // Fetch initial data
+            const { data: lesson } = await sb.from('lessons').select('*').eq('id', lessonId).maybeSingle();
+            if (lesson) {
                 document.getElementById('stream-title').innerText = lesson.title;
-                loadIframe(lesson.video_url);
-            });
+                currentVideoUrl = lesson.video_url;
+                loadIframe(currentVideoUrl);
+            }
+
+            // Real-time listener: if the URL updates in the database, go to that page immediately
+            sb.channel('lesson_updates')
+                .on('postgres_changes', { 
+                    event: 'UPDATE', 
+                    schema: 'public', 
+                    table: 'lessons', 
+                    filter: `id=eq.${lessonId}` 
+                }, (payload) => {
+                    if (payload.new && payload.new.video_url !== currentVideoUrl) {
+                        currentVideoUrl = payload.new.video_url;
+                        loadIframe(currentVideoUrl);
+                    }
+                })
+                .subscribe();
         }
 
         function loadIframe(videoUrl) {
             const holder = document.getElementById('iframe-holder');
-            holder.innerHTML = ''; // Clear holder to prevent multiple loads
+            holder.innerHTML = ''; 
             
             const iframe = document.createElement('iframe');
-            
-            // Zoom shared recording URLs often need a specific approach to avoid frame-blocking
             iframe.src = videoUrl;
             
-            // Allow necessary permissions for Zoom players (encrypted media for DRM, autoplay, etc.)
-            // We use 'allow-scripts allow-same-origin' to ensure the player logic runs correctly
-            iframe.setAttribute('sandbox', 'allow-forms allow-scripts allow-pointer-lock allow-same-origin allow-top-navigation-by-user-activation allow-presentation');
+            // Allow top navigation if the URL updates and requires a full page change (common for some Zoom redirects)
+            iframe.setAttribute('sandbox', 'allow-forms allow-scripts allow-pointer-lock allow-same-origin allow-top-navigation allow-top-navigation-by-user-activation allow-presentation');
             iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write');
             iframe.allowFullscreen = true;
             
