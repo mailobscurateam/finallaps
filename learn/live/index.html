@@ -143,10 +143,9 @@
         async function init() {
             lucide.createIcons();
             
-            // Flow initialized immediately without auth redirection blocks
             if (!lessonId) return;
 
-            // Parallel loading: fetch metadata while iframe prepares
+            // Parallel loading
             const streamPromise = sb.from('lessons').select('*').eq('id', lessonId).maybeSingle();
 
             streamPromise.then(({ data: lesson }) => {
@@ -158,17 +157,25 @@
 
         function loadIframe(videoUrl) {
             const holder = document.getElementById('iframe-holder');
+            holder.innerHTML = ''; // Clear holder to prevent multiple loads
+            
             const iframe = document.createElement('iframe');
             
+            // Zoom shared recording URLs often need a specific approach to avoid frame-blocking
             iframe.src = videoUrl;
-            // Configured for maximum flow compatibility; removed strict sandbox restrictions that could block UI
-            iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture; encrypted-media');
+            
+            // Allow necessary permissions for Zoom players (encrypted media for DRM, autoplay, etc.)
+            // We use 'allow-scripts allow-same-origin' to ensure the player logic runs correctly
+            iframe.setAttribute('sandbox', 'allow-forms allow-scripts allow-pointer-lock allow-same-origin allow-top-navigation-by-user-activation allow-presentation');
+            iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write');
             iframe.allowFullscreen = true;
             
             iframe.onload = () => {
                 const loader = document.getElementById('preloader');
                 loader.style.opacity = '0';
-                loader.style.visibility = 'hidden';
+                setTimeout(() => {
+                    loader.style.visibility = 'hidden';
+                }, 400);
                 iframe.classList.add('visible');
             };
 
