@@ -115,7 +115,6 @@
 
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* Icon Animation for Password */
         .secure-pulse {
             animation: pulse-glow 2s infinite;
         }
@@ -268,7 +267,7 @@
                 submitBtn.style.opacity = '0.7';
 
                 try {
-                    const { error } = await supabaseInstance.auth.signUp({
+                    const { data, error } = await supabaseInstance.auth.signUp({
                         email: document.getElementById('email').value,
                         password: passInput.value,
                         options: { data: { full_name: document.getElementById('fullname').value } }
@@ -276,19 +275,39 @@
                     
                     if (error) throw error;
                     
+                    // Success state
                     statusContainer.className = 'flex items-center space-x-3 p-4 rounded-2xl bg-green-500/10 border-green-500/20 text-green-400 text-xs';
-                    statusText.textContent = "Identity initialized. Verify your email terminal.";
+                    
+                    // Start countdown for redirection
+                    let countdown = 3;
                     statusMsg.classList.remove('hidden');
+                    
+                    const updateStatus = () => {
+                        statusText.textContent = `Identity initialized. Redirecting to terminal in ${countdown}s...`;
+                    };
+                    
+                    updateStatus();
+                    
+                    const interval = setInterval(() => {
+                        countdown--;
+                        if (countdown <= 0) {
+                            clearInterval(interval);
+                            window.location.href = '/login'; // Redirect to login
+                        } else {
+                            updateStatus();
+                        }
+                    }, 1000);
+
                     form.reset();
 
                 } catch (err) {
                     statusContainer.className = 'flex items-center space-x-3 p-4 rounded-2xl bg-red-500/10 border-red-500/20 text-red-400 text-xs';
                     statusText.textContent = err.message;
                     statusMsg.classList.remove('hidden');
-                } finally {
                     spinner.style.display = 'none';
                     submitBtn.disabled = false;
                     submitBtn.style.opacity = '1';
+                } finally {
                     lucide.createIcons();
                 }
             });
