@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Curriculum Dashboard | Nexus</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #ef4444;
+            --primary-soft: rgba(239, 68, 68, 0.1);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --bg-page: #0f0f12;
+            --bg-card: #1a1a1f;
+            --border: #2d2d35;
+            --card-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.5);
+            --card-hover: 0 20px 25px -5px rgb(0 0 0 / 0.6);
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--bg-page); 
+            color: var(--text-main);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        h1, h2, h3, h4 { font-family: 'Plus Jakarta Sans', sans-serif; }
+
+        .custom-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            box-shadow: var(--card-shadow);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .custom-card:hover:not(.locked) {
+            box-shadow: var(--card-hover);
+            transform: translateY(-2px);
+            border-color: #451a1a;
+        }
+
+        .custom-card.locked {
+            opacity: 0.6;
+            cursor: not-allowed;
+            filter: grayscale(0.5);
+        }
+
+        .category-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.5rem 1.25rem;
+            border-radius: 9999px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .category-pill:hover {
+            border-color: #ef4444;
+            color: #fca5a5;
+        }
+
+        .category-pill.active {
+            background: #ef4444;
+            color: white;
+            border-color: #ef4444;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
+        }
+
+        .category-pill.is-locked::after {
+            content: '';
+            font-family: 'lucide';
+            font-size: 10px;
+            margin-left: 6px;
+            opacity: 0.7;
+        }
+
+        .lesson-icon-box {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--primary-soft);
+            color: var(--primary);
+        }
+
+        .locked .lesson-icon-box {
+            background: #2d2d35;
+            color: #475569;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.25rem 0.75rem;
+            border-radius: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+
+        .badge-red { background: rgba(153, 27, 27, 0.3); color: #fca5a5; border: 1px solid rgba(252, 165, 165, 0.2); }
+        .badge-amber { background: rgba(146, 64, 14, 0.3); color: #fcd34d; border: 1px solid rgba(252, 211, 77, 0.2); }
+        .badge-locked { background: #0f0f12; color: #64748b; border: 1px solid #2d2d35; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-page); }
+        ::-webkit-scrollbar-thumb { background: #2d2d35; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #ef4444; }
+    </style>
+</head>
+<body class="min-h-screen">
+    <nav class="sticky top-0 z-50 bg-[#0f0f12]/80 backdrop-blur-md border-b border-[#2d2d35]">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <a href="/dashboard" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all text-sm font-medium">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                    Dashboard
+                </a>
+                <div class="h-4 w-[1px] bg-slate-800"></div>
+                <a href="/dashboard" class="flex items-center gap-2 text-white font-bold text-xl tracking-tight">
+                    <div class="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center shadow-lg shadow-red-900/20">
+                        <i data-lucide="shield-check" class="w-5 h-5 text-white"></i>
+                    </div>
+                    Nexus
+                </a>
+            </div>
+            <div class="flex items-center gap-4">
+                <div id="user-display" class="hidden md:block text-xs text-slate-500 font-medium"></div>
+                <div class="h-8 w-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center">
+                    <i data-lucide="user" class="w-4 h-4 text-slate-400"></i>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-5xl mx-auto px-4 py-12">
+        <header class="mb-12">
+            <div class="flex items-center gap-2 text-red-500 font-semibold text-sm mb-4">
+                <i data-lucide="graduation-cap" class="w-4 h-4"></i>
+                CURRICULUM ENROLLMENT
+            </div>
+            <h1 id="course-title" class="text-4xl md:text-5xl font-extrabold text-white mb-6 tracking-tight">
+                Loading...
+            </h1>
+            <p id="course-desc" class="text-lg text-slate-400 leading-relaxed max-w-3xl"></p>
+        </header>
+
+        <!-- Filters (Month Toggles) -->
+        <div class="mb-12">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-bold text-slate-500 uppercase tracking-widest">Select Learning Module</h3>
+                <span class="text-xs text-slate-600 italic">Months with <i data-lucide="lock" class="w-3 h-3 inline"></i> require activation</span>
+            </div>
+            <div id="month-filter" class="flex flex-wrap gap-3">
+                <!-- Month pills injected here -->
+            </div>
+        </div>
+
+        <div id="lessons-container" class="space-y-16">
+            <!-- Skeleton Loader -->
+            <div class="animate-pulse space-y-6">
+                <div class="h-8 bg-slate-800/50 rounded w-48"></div>
+                <div class="grid gap-4">
+                    <div class="h-24 bg-slate-800/50 rounded-xl"></div>
+                    <div class="h-24 bg-slate-800/50 rounded-xl"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const SUPABASE_URL = 'https://tsaoxjzvhxiggntibpui.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzYW94anp2aHhpZ2dudGlicHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDQ2OTAsImV4cCI6MjA5MTQyMDY5MH0.Q5Iu51O3NK4k2kcc_GoegnyAYIFIs2SUkQOV10qp2jI';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let allLessons = [];
+        let approvedMonths = [];
+        const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+        async function init() {
+            const { data: { session } } = await sb.auth.getSession();
+            if (!session) return window.location.href = 'login.html';
+            
+            document.getElementById('user-display').textContent = session.user.email;
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const courseId = urlParams.get('course_id') || urlParams.get('id') || localStorage.getItem('active_session_id');
+            if (!courseId) return window.location.href = '/dashboard';
+            localStorage.setItem('active_session_id', courseId);
+
+            try {
+                // 1. Check Global Course Status (Is the student even allowed in this course?)
+                const { data: statusCheck } = await sb.from('course_status')
+                    .select('status')
+                    .eq('user_id', session.user.id)
+                    .eq('course_id', courseId)
+                    .single();
+
+                if (!statusCheck || statusCheck.status !== 'approved') {
+                    renderRestrictedUI(statusCheck?.status || 'unauthorized');
+                    return;
+                }
+
+                // 2. Fetch Approved Months (Specific monthly lesson access)
+                const { data: approvals } = await sb.from('monthly_approvals')
+                    .select('month_number')
+                    .eq('user_id', session.user.id)
+                    .eq('course_id', courseId)
+                    .eq('is_approved', true);
+                
+                approvedMonths = approvals ? approvals.map(a => parseInt(a.month_number)) : [];
+
+                // 3. Fetch Course & Lessons
+                const { data: course } = await sb.from('courses').select('*').eq('id', courseId).single();
+                document.getElementById('course-title').textContent = course.name;
+                document.getElementById('course-desc').textContent = course.description;
+
+                const { data: lessons } = await sb.from('lessons').select('*')
+                    .eq('course_id', courseId).order('order_index', { ascending: true });
+
+                allLessons = lessons;
+                generateMonthFilters(lessons);
+                
+                // Set initial view to the first available month automatically
+                const uniqueMonths = [...new Set(lessons.map(l => l.month))].filter(m => m != null).sort((a, b) => a - b);
+                if (uniqueMonths.length > 0) {
+                    filterByMonth(uniqueMonths[0]);
+                } else {
+                    renderCategorizedLessons(lessons, true);
+                }
+
+            } catch (err) {
+                console.error(err);
+                renderErrorUI(err.message);
+            }
+        }
+
+        function generateMonthFilters(lessons) {
+            const filterContainer = document.getElementById('month-filter');
+            filterContainer.innerHTML = '';
+            const uniqueMonths = [...new Set(lessons.map(l => l.month))].filter(m => m != null).sort((a, b) => a - b);
+            
+            uniqueMonths.forEach(monthNum => {
+                const isLocked = !approvedMonths.includes(parseInt(monthNum));
+                const btn = document.createElement('button');
+                btn.onclick = () => filterByMonth(monthNum);
+                btn.setAttribute('data-month', monthNum);
+                btn.className = `category-pill ${isLocked ? 'is-locked opacity-70' : ''}`;
+                btn.innerHTML = `
+                    ${isLocked ? '<i data-lucide="lock" class="w-3 h-3 mr-2 text-slate-500"></i>' : ''}
+                    ${MONTH_NAMES[monthNum - 1]}
+                `;
+                filterContainer.appendChild(btn);
+            });
+            lucide.createIcons();
+        }
+
+        function filterByMonth(val) {
+            const isApproved = approvedMonths.includes(parseInt(val));
+            
+            document.querySelectorAll('.category-pill').forEach(t => {
+                t.classList.toggle('active', t.getAttribute('data-month') == val);
+            });
+            
+            const filtered = allLessons.filter(l => l.month == val);
+            renderCategorizedLessons(filtered, isApproved, val);
+        }
+
+        function renderCategorizedLessons(lessons, isApproved, selectedMonthNum) {
+            const container = document.getElementById('lessons-container');
+            
+            if (!lessons.length) {
+                container.innerHTML = `
+                    <div class="text-center py-20 bg-slate-900/20 rounded-2xl border-2 border-dashed border-slate-800">
+                        <p class="text-slate-500 font-medium">No lessons found for this period.</p>
+                    </div>`;
+                return;
+            }
+
+            if (!isApproved) {
+                container.innerHTML = `
+                    <div class="animate-fade-in text-center py-20 px-6 bg-red-950/10 border border-red-900/20 rounded-2xl">
+                        <div class="w-16 h-16 bg-red-600/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <i data-lucide="lock" class="w-8 h-8"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold text-white mb-2">${MONTH_NAMES[selectedMonthNum-1]} Access Required</h3>
+                        <p class="text-slate-400 mb-8 max-w-md mx-auto">Your enrollment for this specific month hasn't been activated yet. Please complete previous modules or contact support to unlock this content.</p>
+                        <button onclick="window.open('https://wa.me/yourlink', '_blank')" class="inline-flex items-center gap-2 px-8 py-3 bg-red-600 text-white rounded-lg font-bold hover:bg-red-500 transition-all shadow-lg shadow-red-600/20">
+                            Request Monthly Activation
+                        </button>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            const grouped = lessons.reduce((acc, l) => {
+                const c = l.categories || 'Core Curriculum';
+                if (!acc[c]) acc[c] = [];
+                acc[c].push(l);
+                return acc;
+            }, {});
+
+            container.innerHTML = Object.entries(grouped).map(([name, items], idx) => `
+                <section class="animate-fade-in" style="animation-delay: ${idx * 100}ms">
+                    <div class="flex items-center gap-4 mb-6">
+                        <h3 class="text-xl font-bold text-red-50/90 tracking-tight">${name}</h3>
+                        <div class="h-[1px] flex-1 bg-red-900/20"></div>
+                        <span class="text-xs font-bold text-red-500/60 uppercase tracking-widest">${items.length} units</span>
+                    </div>
+                    <div class="grid gap-4">
+                        ${items.map(l => renderLessonItem(l, isApproved)).join('')}
+                    </div>
+                </section>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function renderLessonItem(l, isApproved) {
+            const type = (l.lesson_type || 'video').toLowerCase();
+            const icon = type === 'pdf' ? 'file-text' : (['zoom', 'live'].includes(type) ? 'radio' : 'play');
+            
+            return `
+                <div class="custom-card p-5 md:p-6 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-6 group">
+                    <div class="flex items-start md:items-center gap-5">
+                        <div class="lesson-icon-box flex-shrink-0 group-hover:bg-red-600 group-hover:text-white transition-all duration-300">
+                            <i data-lucide="${icon}" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <div class="flex flex-wrap items-center gap-3 mb-1">
+                                <h4 class="font-bold text-lg text-white group-hover:text-red-400 transition-colors">
+                                    ${l.title}
+                                </h4>
+                                <span class="badge ${type === 'pdf' ? 'badge-red' : 'badge-amber'}">${type}</span>
+                            </div>
+                            <div class="flex items-center gap-4 text-sm text-slate-500 font-medium">
+                                <span class="flex items-center gap-1.5">
+                                    <i data-lucide="clock" class="w-4 h-4 text-slate-600"></i>
+                                    ${l.watchtime_hours || 1} hrs
+                                </span>
+                                ${l.is_completed ? `
+                                    <span class="flex items-center gap-1.5 text-emerald-500 border-l border-slate-800 pl-4">
+                                        <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                                        Done
+                                    </span>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+
+                    <a href="/learn/${type}?id=${l.id}" 
+                       class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white text-black font-bold text-sm hover:bg-red-600 hover:text-white transition-all shadow-lg shadow-black/20">
+                        Launch Unit
+                        <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </a>
+                </div>
+            `;
+        }
+
+        function renderRestrictedUI(status) {
+            document.getElementById('lessons-container').innerHTML = `
+                <div class="text-center py-24 px-6 bg-[#1a1a1f] border border-red-900/20 rounded-2xl">
+                    <div class="w-16 h-16 bg-red-900/20 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <i data-lucide="shield-off" class="w-8 h-8"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-white mb-2">Registration Required</h3>
+                    <p class="text-slate-500 mb-10 max-w-sm mx-auto">Your account status is currenty: <b>${status.toUpperCase()}</b>. You need an active subscription to access these materials.</p>
+                    <a href="/dashboard" class="inline-flex items-center gap-2 px-8 py-3 bg-red-600 text-white rounded-lg font-bold hover:bg-red-500 transition-all">
+                        Return to Dashboard
+                    </a>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+        function renderErrorUI(msg) {
+            document.getElementById('lessons-container').innerHTML = `
+                <div class="p-8 bg-red-900/10 border border-red-900/30 rounded-xl text-center">
+                    <p class="text-red-400 font-mono text-sm mb-4">CRITICAL_EXCEPTION: ${msg}</p>
+                    <button onclick="location.reload()" class="text-white underline text-sm">Retry Connection</button>
+                </div>`;
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
