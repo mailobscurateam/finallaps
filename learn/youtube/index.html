@@ -57,6 +57,29 @@
             box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
         }
 
+        /* Critical Lockout Overlay */
+        #lockout-screen {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 999999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .glitch-text {
+            animation: glitch 1.5s linear infinite;
+        }
+
+        @keyframes glitch {
+            2%, 64% { transform: translate(2px,0) skew(0deg); }
+            4%, 60% { transform: translate(-2px,0) skew(0deg); }
+            62% { transform: translate(0,0) skew(5deg); }
+        }
+
         .video-container {
             position: relative;
             padding-bottom: 56.25%;
@@ -91,279 +114,201 @@
             padding: 1.5rem;
         }
 
-        .video-container:hover .controls-overlay {
-            opacity: 1;
-        }
+        .video-container:hover .controls-overlay { opacity: 1; }
 
         .progress-bar-container {
-            width: 100%;
-            height: 4px;
-            background: rgba(255,255,255,0.1);
-            cursor: pointer;
-            position: relative;
-            margin-bottom: 1.25rem;
-            border-radius: 100px;
-            overflow: hidden;
-            transition: height 0.2s;
+            width: 100%; height: 4px; background: rgba(255,255,255,0.1); cursor: pointer;
+            position: relative; margin-bottom: 1.25rem; border-radius: 100px; overflow: hidden; transition: height 0.2s;
         }
-        
         .progress-bar-container:hover { height: 8px; }
-
-        .progress-filled {
-            height: 100%;
-            background: var(--primary);
-            width: 0%;
-            position: relative;
-            box-shadow: 0 0 10px var(--primary);
-        }
+        .progress-filled { height: 100%; background: var(--primary); width: 0%; position: relative; box-shadow: 0 0 10px var(--primary); }
 
         .speed-menu {
-            position: absolute;
-            bottom: 100%;
-            right: 0;
-            background: #0f0f11;
-            border: 1px solid rgba(220, 38, 38, 0.2);
-            border-radius: 8px;
-            padding: 4px;
-            margin-bottom: 12px;
-            display: none;
-            flex-direction: column;
-            min-width: 120px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+            position: absolute; bottom: 100%; right: 0; background: #0f0f11; border: 1px solid rgba(220, 38, 38, 0.2);
+            border-radius: 8px; padding: 4px; margin-bottom: 12px; display: none; flex-direction: column; min-width: 120px; box-shadow: 0 20px 40px rgba(0,0,0,0.8);
         }
-        
         .speed-menu.active { display: flex; animation: tacticalFade 0.2s ease-out; }
-
-        @keyframes tacticalFade {
-            from { opacity: 0; transform: translateY(5px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes tacticalFade { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         
-        .speed-option {
-            padding: 8px 12px;
-            font-size: 10px;
-            color: #888;
-            text-align: left;
-            border-radius: 4px;
-            transition: all 0.2s;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        
+        .speed-option { padding: 8px 12px; font-size: 10px; color: #888; text-align: left; border-radius: 4px; transition: all 0.2s; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
         .speed-option:hover { background: rgba(220, 38, 38, 0.1); color: white; }
         .speed-option.active { color: var(--primary); background: rgba(220, 38, 38, 0.15); }
 
         .watermark {
-            position: absolute;
-            z-index: 50; 
-            pointer-events: none;
-            user-select: none;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            font-weight: 700;
-            color: rgba(220, 38, 38, 0.3);
-            mix-blend-mode: color-dodge;
-            text-transform: uppercase;
-            white-space: nowrap;
-            letter-spacing: 3px;
+            position: absolute; z-index: 50; pointer-events: none; user-select: none; font-family: 'JetBrains Mono', monospace;
+            font-size: 11px; font-weight: 700; color: rgba(220, 38, 38, 0.3); mix-blend-mode: color-dodge; text-transform: uppercase; white-space: nowrap; letter-spacing: 3px;
         }
 
         .status-bar { height: 3px; background: rgba(255,255,255,0.02); position: relative; overflow: hidden; }
         .status-progress { position: absolute; height: 100%; background: var(--primary); width: 0%; transition: width 0.3s; box-shadow: 0 0 10px var(--primary); }
 
         .action-btn {
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            padding: 8px 16px; 
-            font-size: 10px; 
-            font-weight: 700;
-            text-transform: uppercase; 
-            letter-spacing: 0.15em; 
-            transition: all 0.3s ease;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #999;
+            background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); padding: 8px 16px; 
+            font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; transition: all 0.3s ease;
+            border-radius: 6px; display: flex; align-items: center; gap: 8px; color: #999;
         }
-
-        .action-btn:not(:disabled):hover { 
-            background: rgba(220, 38, 38, 0.1); 
-            border-color: var(--primary); 
-            color: white; 
-            box-shadow: 0 0 20px rgba(220, 38, 38, 0.2);
-        }
-
+        .action-btn:not(:disabled):hover { background: rgba(220, 38, 38, 0.1); border-color: var(--primary); color: white; box-shadow: 0 0 20px rgba(220, 38, 38, 0.2); }
         .action-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-
-        .action-btn.primary-active {
-            background: var(--primary);
-            color: white;
-            border-color: #ef4444;
-        }
+        .action-btn.primary-active { background: var(--primary); color: white; border-color: #ef4444; }
 
         .telemetry-card {
-            border-left: 2px solid rgba(220, 38, 38, 0.1);
-            background: linear-gradient(90deg, rgba(220,38,38,0.03) 0%, transparent 100%);
-            padding: 1rem 1.25rem;
-            border-radius: 4px;
-            transition: all 0.3s;
+            border-left: 2px solid rgba(220, 38, 38, 0.1); background: linear-gradient(90deg, rgba(220,38,38,0.03) 0%, transparent 100%);
+            padding: 1rem 1.25rem; border-radius: 4px; transition: all 0.3s;
         }
+        .telemetry-card:hover { border-left-color: var(--primary); background: linear-gradient(90deg, rgba(220,38,38,0.08) 0%, transparent 100%); }
 
-        .telemetry-card:hover {
-            border-left-color: var(--primary);
-            background: linear-gradient(90deg, rgba(220,38,38,0.08) 0%, transparent 100%);
-        }
-
-        input[type=range] { 
-            accent-color: var(--primary);
-            height: 2px;
-        }
-
-        .pulse-red {
-            animation: pulse-red 2s infinite;
-        }
-
-        @keyframes pulse-red {
-            0% { opacity: 0.3; transform: scale(0.9); }
-            50% { opacity: 1; transform: scale(1.1); }
-            100% { opacity: 0.3; transform: scale(0.9); }
-        }
-
-        .hud-label {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 9px;
-            font-weight: 800;
-            letter-spacing: 0.2em;
-            color: #555;
-            text-transform: uppercase;
-        }
+        input[type=range] { accent-color: var(--primary); height: 2px; }
+        .pulse-red { animation: pulse-red 2s infinite; }
+        @keyframes pulse-red { 0% { opacity: 0.3; transform: scale(0.9); } 50% { opacity: 1; transform: scale(1.1); } 100% { opacity: 0.3; transform: scale(0.9); } }
+        .hud-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 800; letter-spacing: 0.2em; color: #555; text-transform: uppercase; }
     </style>
 </head>
 <body class="selection:bg-red-600/40">
 
-    <!-- Header / Nav -->
-    <header class="p-5 border-b border-white/5 flex justify-between items-center bg-black/60 backdrop-blur-xl sticky top-0 z-50">
-        <div class="flex items-center gap-4">
-            <div class="w-10 h-10 rounded-lg bg-red-600/10 border border-red-600/20 flex items-center justify-center text-red-600 shadow-[0_0_15px_rgba(220,38,38,0.1)]">
-                <i data-lucide="activity" class="w-5 h-5"></i>
-            </div>
-            <div>
-                <h1 id="lesson-title" class="text-sm font-black tracking-wider text-white uppercase leading-none">Establishing Connection...</h1>
-                <div class="flex items-center gap-3 mt-1.5">
-                    <span class="mono text-[9px] text-red-500 uppercase font-bold tracking-[0.2em] bg-red-600/10 px-2 py-0.5 rounded">Secure_Link</span>
-                    <span id="info-status" class="mono text-[9px] text-zinc-500 uppercase font-bold tracking-widest flex items-center gap-2">
-                        <span class="w-1.5 h-1.5 rounded-full bg-red-600 pulse-red"></span>
-                        Syncing...
-                    </span>
+    <!-- Banned Message Overlay -->
+    <div id="lockout-screen" class="p-6">
+        <div class="p-10 glass-panel border-red-900/50 max-w-lg w-full relative overflow-hidden text-center">
+            <div class="absolute top-0 left-0 w-full h-1 bg-red-600 animate-pulse"></div>
+            
+            <div class="flex justify-center mb-8">
+                <div class="w-20 h-20 rounded-full bg-red-600/10 flex items-center justify-center border border-red-600/20 shadow-[0_0_30px_rgba(220,38,38,0.2)]">
+                    <i data-lucide="shield-off" class="w-10 h-10 text-red-600"></i>
                 </div>
             </div>
-        </div>
-        
-        <div class="flex items-center gap-6">
-            <div id="timer-display" class="hidden text-right border-r border-white/5 pr-6">
-                <p class="hud-label mb-1">Session_Time</p>
-                <p id="time-left" class="text-xl font-black text-white tracking-tighter tabular-nums leading-none">00:00:00</p>
-            </div>
-            <div class="flex gap-2">
-                <button id="btn-complete" class="action-btn" disabled>
-                    <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
-                    Seal Protocol
-                </button>
-                <button id="btn-exit" class="action-btn hover:bg-zinc-800">
-                    <i data-lucide="power" class="w-3.5 h-3.5"></i>
-                </button>
-            </div>
-        </div>
-    </header>
 
-    <div class="status-bar">
-        <div id="loading-bar" class="status-progress"></div>
+            <h1 class="mono text-red-600 font-black text-2xl mb-4 glitch-text tracking-tighter uppercase">Protocol Violation</h1>
+            
+            <div class="text-neutral-500 text-xs mb-8 leading-relaxed space-y-4 mono uppercase tracking-wider">
+                <p>Security Node <strong class="text-white">AEGIS-9</strong> has terminated your uplink.</p>
+                <p>Anomalous environment behavior or hardware-level inspection detected.</p>
+            </div>
+
+            <div class="bg-red-600/10 border border-red-600/20 p-6 rounded-lg mb-8 text-left">
+                <div class="flex justify-between items-start mb-2">
+                    <p class="mono text-[9px] text-red-500 uppercase tracking-widest font-black">Status</p>
+                    <span class="bg-red-600 text-white text-[8px] font-black px-2 py-0.5 rounded">LOCKED</span>
+                </div>
+                <p class="text-white font-bold text-lg mono">7-DAY ACCESS RESTRICTION</p>
+                <p id="ban-expiry" class="text-red-400/60 text-[10px] mt-2 italic mono">Calculating restoration window...</p>
+            </div>
+
+            <button onclick="window.location.href='https://google.com'" class="action-btn mx-auto">
+                Terminate Connection
+            </button>
+        </div>
     </div>
 
-    <main class="flex-1 p-6 md:p-12 max-w-6xl mx-auto w-full">
-        <!-- Telemetry Data -->
-        <div id="telemetry-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div class="telemetry-card glass-panel">
-                <p class="hud-label mb-2">Subject_UID</p>
-                <p id="info-id" class="text-xs font-bold text-white mono uppercase">Pending...</p>
-            </div>
-            <div class="telemetry-card glass-panel">
-                <p class="hud-label mb-2">Max_Duration</p>
-                <p id="info-limit" class="text-xs font-bold text-white mono">-- SEC</p>
-            </div>
-            <div class="telemetry-card glass-panel">
-                <p class="hud-label mb-2">Encryption</p>
-                <p id="signal-quality" class="text-xs font-bold text-red-500/80 mono">AES_256_LIVE</p>
-            </div>
-            <div class="telemetry-card glass-panel border-red-900/30">
-                <p class="hud-label mb-2">Network_Node</p>
-                <p class="text-xs font-bold text-white mono">VANGUARD_ALPHA_01</p>
-            </div>
-        </div>
-
-        <!-- Tactical Video Deck -->
-        <div id="video-wrapper" class="video-container glass-panel">
-            <!-- Loader Overlay -->
-            <div id="preloader" class="absolute inset-0 bg-[#09090b] flex flex-col items-center justify-center z-[60]">
-                <div class="relative w-12 h-12">
-                    <div class="absolute inset-0 border-2 border-red-600/10 rounded-full"></div>
-                    <div class="absolute inset-0 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+    <div id="main-interface">
+        <header class="p-5 border-b border-white/5 flex justify-between items-center bg-black/60 backdrop-blur-xl sticky top-0 z-50">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-lg bg-red-600/10 border border-red-600/20 flex items-center justify-center text-red-600 shadow-[0_0_15px_rgba(220,38,38,0.1)]">
+                    <i data-lucide="activity" class="w-5 h-5"></i>
                 </div>
-                <p class="mono text-[9px] text-red-600 font-bold tracking-[0.4em] mt-8 uppercase">Buffer_Decrypting</p>
+                <div>
+                    <h1 id="lesson-title" class="text-sm font-black tracking-wider text-white uppercase leading-none">Establishing Connection...</h1>
+                    <div class="flex items-center gap-3 mt-1.5">
+                        <span class="mono text-[9px] text-red-500 uppercase font-bold tracking-[0.2em] bg-red-600/10 px-2 py-0.5 rounded">Secure_Link</span>
+                        <span id="info-status" class="mono text-[9px] text-zinc-500 uppercase font-bold tracking-widest flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-red-600 pulse-red"></span>
+                            Syncing...
+                        </span>
+                    </div>
+                </div>
             </div>
             
-            <div id="moving-watermark" class="watermark">loading_credentials...</div>
-            <div id="youtube-player"></div>
-
-            <!-- Custom HUD -->
-            <div id="custom-controls" class="controls-overlay">
-                <div id="progress-container" class="progress-bar-container">
-                    <div id="progress-bar" class="progress-filled"></div>
+            <div class="flex items-center gap-6">
+                <div id="timer-display" class="hidden text-right border-r border-white/5 pr-6">
+                    <p class="hud-label mb-1">Session_Time</p>
+                    <p id="time-left" class="text-xl font-black text-white tracking-tighter tabular-nums leading-none">00:00:00</p>
                 </div>
-                
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-8">
-                        <button id="play-pause" class="text-white hover:text-red-500 transition-all transform active:scale-90">
-                            <i data-lucide="play" class="w-6 h-6 fill-current"></i>
-                        </button>
-                        
-                        <div class="flex items-center gap-4 group">
-                            <button id="mute-toggle" class="text-zinc-500 group-hover:text-white transition-colors">
-                                <i data-lucide="volume-2" class="w-4 h-4"></i>
-                            </button>
-                            <input id="volume-slider" type="range" min="0" max="100" value="100" class="w-16 cursor-pointer opacity-50 group-hover:opacity-100 transition-opacity">
-                        </div>
+                <div class="flex gap-2">
+                    <button id="btn-complete" class="action-btn" disabled>
+                        <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+                        Seal Protocol
+                    </button>
+                    <button id="btn-exit" class="action-btn hover:bg-zinc-800">
+                        <i data-lucide="power" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
 
-                        <span id="current-timestamp" class="mono text-[10px] font-bold text-zinc-500 bg-black/60 px-3 py-1.5 rounded border border-white/5">00:00 / 00:00</span>
+        <div class="status-bar">
+            <div id="loading-bar" class="status-progress"></div>
+        </div>
+
+        <main class="flex-1 p-6 md:p-12 max-w-6xl mx-auto w-full">
+            <div id="telemetry-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div class="telemetry-card glass-panel">
+                    <p class="hud-label mb-2">Subject_UID</p>
+                    <p id="info-id" class="text-xs font-bold text-white mono uppercase">Pending...</p>
+                </div>
+                <div class="telemetry-card glass-panel">
+                    <p class="hud-label mb-2">Max_Duration</p>
+                    <p id="info-limit" class="text-xs font-bold text-white mono">-- SEC</p>
+                </div>
+                <div class="telemetry-card glass-panel">
+                    <p class="hud-label mb-2">Encryption</p>
+                    <p id="signal-quality" class="text-xs font-bold text-red-500/80 mono">AES_256_LIVE</p>
+                </div>
+                <div class="telemetry-card glass-panel border-red-900/30">
+                    <p class="hud-label mb-2">Network_Node</p>
+                    <p class="text-xs font-bold text-white mono">VANGUARD_ALPHA_01</p>
+                </div>
+            </div>
+
+            <div id="video-wrapper" class="video-container glass-panel">
+                <div id="preloader" class="absolute inset-0 bg-[#09090b] flex flex-col items-center justify-center z-[60]">
+                    <div class="relative w-12 h-12">
+                        <div class="absolute inset-0 border-2 border-red-600/10 rounded-full"></div>
+                        <div class="absolute inset-0 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
                     </div>
+                    <p class="mono text-[9px] text-red-600 font-bold tracking-[0.4em] mt-8 uppercase">Buffer_Decrypting</p>
+                </div>
+                <div id="moving-watermark" class="watermark">loading_credentials...</div>
+                <div id="youtube-player"></div>
 
-                    <div class="flex items-center gap-3">
-                        <div class="relative">
-                            <button id="speed-btn" class="mono text-[9px] font-black text-zinc-400 hover:text-red-500 px-3 py-2 bg-white/5 border border-white/5 rounded transition-all">
-                                1.0X_SPD
+                <div id="custom-controls" class="controls-overlay">
+                    <div id="progress-container" class="progress-bar-container">
+                        <div id="progress-bar" class="progress-filled"></div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-8">
+                            <button id="play-pause" class="text-white hover:text-red-500 transition-all transform active:scale-90">
+                                <i data-lucide="play" class="w-6 h-6 fill-current"></i>
                             </button>
-                            <div id="speed-menu" class="speed-menu">
-                                <button class="speed-option" data-speed="0.75">0.75x</button>
-                                <button class="speed-option active" data-speed="1">1.00x</button>
-                                <button class="speed-option" data-speed="1.25">1.25x</button>
-                                <button class="speed-option" data-speed="1.5">1.50x</button>
-                                <button class="speed-option" data-speed="2">2.00x</button>
+                            <div class="flex items-center gap-4 group">
+                                <button id="mute-toggle" class="text-zinc-500 group-hover:text-white transition-colors">
+                                    <i data-lucide="volume-2" class="w-4 h-4"></i>
+                                </button>
+                                <input id="volume-slider" type="range" min="0" max="100" value="100" class="w-16 cursor-pointer opacity-50 group-hover:opacity-100 transition-opacity">
                             </div>
+                            <span id="current-timestamp" class="mono text-[10px] font-bold text-zinc-500 bg-black/60 px-3 py-1.5 rounded border border-white/5">00:00 / 00:00</span>
                         </div>
-
-                        <button id="fullscreen-btn" class="p-2 text-zinc-500 hover:text-red-500 transition-colors">
-                            <i data-lucide="maximize" class="w-4 h-4"></i>
-                        </button>
+                        <div class="flex items-center gap-3">
+                            <div class="relative">
+                                <button id="speed-btn" class="mono text-[9px] font-black text-zinc-400 hover:text-red-500 px-3 py-2 bg-white/5 border border-white/5 rounded transition-all">
+                                    1.0X_SPD
+                                </button>
+                                <div id="speed-menu" class="speed-menu">
+                                    <button class="speed-option" data-speed="0.75">0.75x</button>
+                                    <button class="speed-option active" data-speed="1">1.00x</button>
+                                    <button class="speed-option" data-speed="1.25">1.25x</button>
+                                    <button class="speed-option" data-speed="1.5">1.50x</button>
+                                    <button class="speed-option" data-speed="2">2.00x</button>
+                                </div>
+                            </div>
+                            <button id="fullscreen-btn" class="p-2 text-zinc-500 hover:text-red-500 transition-colors">
+                                <i data-lucide="maximize" class="w-4 h-4"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    </main>
+        </main>
+    </div>
 
     <script>
-        // Logic remains functionally identical to original for Supabase/YT parity
         const SUPABASE_URL = 'https://tsaoxjzvhxiggntibpui.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzYW94anp2aHhpZ2dudGlicHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDQ2OTAsImV4cCI6MjA5MTQyMDY5MH0.Q5Iu51O3NK4k2kcc_GoegnyAYIFIs2SUkQOV10qp2jI';
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -380,6 +325,18 @@
             if (!session) { window.location.href = 'index.html'; return; }
             currentUser = session.user;
 
+            // Check for active BANS
+            const { data: activeBan } = await sb.from('user_restrictions')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .gt('expires_at', new Date().toISOString())
+                .maybeSingle();
+
+            if (activeBan) {
+                showLockoutScreen(new Date(activeBan.expires_at));
+                return;
+            }
+
             const isApproved = await verifyCourseApproval();
             if (!isApproved) { window.location.href = '/dashboard'; return; }
 
@@ -392,6 +349,14 @@
             startWatermark();
             setupControls();
             startPageSessionTracking();
+        }
+
+        function showLockoutScreen(expiryDate) {
+            document.getElementById('main-interface').style.display = 'none';
+            document.getElementById('lockout-screen').style.display = 'flex';
+            document.getElementById('ban-expiry').innerText = `RESTORATION TIMESTAMP: ${expiryDate.toLocaleString()}`;
+            document.body.classList.add('ready');
+            lucide.createIcons();
         }
 
         async function verifyCourseApproval() {
