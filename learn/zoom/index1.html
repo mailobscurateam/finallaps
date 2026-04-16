@@ -117,76 +117,101 @@
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
-    <div id="lockout-screen">
-        <div class="p-8 glass-card border-red-900/50 max-w-md">
-            <h1 class="mono text-red-500 font-bold text-xl mb-4 glitch">ACCESS_VIOLATION_DETECTED</h1>
-            <p class="text-neutral-400 text-sm mb-6 leading-relaxed">
-                Security Protocol <strong>X-CORE-7</strong> has been engaged. 
-                Unauthorized use of developer tools or script injection detected.
-            </p>
-            <div class="bg-red-500/10 border border-red-500/20 p-4 rounded-xl mb-6">
-                <p class="mono text-[10px] text-red-400 uppercase tracking-widest">Account Status</p>
-                <p class="text-white font-bold">SUSPENDED (7 DAYS)</p>
+    <!-- Updated Lockout Message Container -->
+    <div id="lockout-screen" class="p-6">
+        <div class="p-8 glass-card border-red-900/50 max-w-md w-full relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-red-600 animate-pulse"></div>
+            
+            <div class="flex justify-center mb-6">
+                <div class="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
+                    <i data-lucide="shield-alert" class="w-8 h-8 text-red-500"></i>
+                </div>
             </div>
-            <p id="ban-expiry" class="mono text-[9px] text-neutral-600 uppercase"></p>
+
+            <h1 class="mono text-red-500 font-bold text-xl mb-4 glitch tracking-tighter uppercase">Access Violation Detected</h1>
+            
+            <div class="text-neutral-400 text-sm mb-6 leading-relaxed space-y-3">
+                <p>Security Protocol <strong class="text-white">X-CORE-7</strong> has permanently flagged this session.</p>
+                <p>Unauthorized use of developer tools, script injection, or environment inspection was detected at the hardware level.</p>
+            </div>
+
+            <div class="bg-red-500/10 border border-red-500/20 p-5 rounded-xl mb-6 text-left">
+                <div class="flex justify-between items-start mb-2">
+                    <p class="mono text-[10px] text-red-400 uppercase tracking-widest">Account Status</p>
+                    <span class="bg-red-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded">RESTRICTED</span>
+                </div>
+                <p class="text-white font-bold text-lg">TEMPORARY SUSPENSION</p>
+                <p class="text-red-300/60 text-[10px] mt-1 italic">Duration: 168 Hours (7 Days)</p>
+            </div>
+
+            <div class="border-t border-white/5 pt-6">
+                <p id="ban-expiry" class="mono text-[10px] text-neutral-500 uppercase tracking-tighter"></p>
+                <p class="text-[9px] text-neutral-600 mt-2">All telemetry logs have been forwarded to Nexus Security.</p>
+            </div>
+            
+            <button onclick="window.location.href='https://google.com'" class="mt-8 text-neutral-500 hover:text-white text-[10px] mono uppercase transition-colors">
+                Exit Terminal
+            </button>
         </div>
     </div>
 
     <div class="mesh-bg"></div>
 
-    <nav class="fixed top-0 w-full z-50 px-6 py-4 nav-blur">
-        <div class="max-w-7xl mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-4">
-                <button onclick="window.location.href='/curriculum'" class="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/5 transition-colors">
-                    <i data-lucide="arrow-left" class="w-4 h-4 text-neutral-400"></i>
-                </button>
-                <div>
-                    <h1 id="lesson-title" class="text-xs font-bold tracking-tight uppercase">Authenticating...</h1>
-                    <div class="flex items-center gap-2">
-                        <span id="info-status" class="mono text-[9px] text-yellow-500 font-bold tracking-widest uppercase">● Syncing</span>
+    <div id="main-terminal-content">
+        <nav class="fixed top-0 w-full z-50 px-6 py-4 nav-blur">
+            <div class="max-w-7xl mx-auto flex justify-between items-center">
+                <div class="flex items-center gap-4">
+                    <button onclick="window.location.href='/curriculum'" class="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/5 transition-colors">
+                        <i data-lucide="arrow-left" class="w-4 h-4 text-neutral-400"></i>
+                    </button>
+                    <div>
+                        <h1 id="lesson-title" class="text-xs font-bold tracking-tight uppercase text-neutral-400">Authenticating...</h1>
+                        <div class="flex items-center gap-2">
+                            <span id="info-status" class="mono text-[9px] text-yellow-500 font-bold tracking-widest uppercase">● Syncing Telemetry</span>
+                        </div>
                     </div>
                 </div>
-            </div>
-            
-            <div class="flex items-center gap-6">
-                <div id="timer-display" class="hidden text-right border-r border-white/10 pr-6">
-                    <p class="mono text-[8px] text-neutral-500 font-bold tracking-widest uppercase">Airtime Remaining</p>
-                    <p id="time-left" class="text-lg font-bold tracking-tighter tabular-nums">--:--:--</p>
+                
+                <div class="flex items-center gap-6">
+                    <div id="timer-display" class="hidden text-right border-r border-white/10 pr-6">
+                        <p class="mono text-[8px] text-neutral-500 font-bold tracking-widest uppercase">Airtime Remaining</p>
+                        <p id="time-left" class="text-lg font-bold tracking-tighter tabular-nums text-white">--:--:--</p>
+                    </div>
+                    <button id="btn-complete" class="btn-primary px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-2" disabled>
+                        <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Complete
+                    </button>
                 </div>
-                <button id="btn-complete" class="btn-primary px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-2" disabled>
-                    <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Complete
-                </button>
             </div>
-        </div>
-    </nav>
+        </nav>
 
-    <main class="flex-1 pt-32 pb-20 px-6 max-w-6xl mx-auto w-full">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <div class="telemetry-box">
-                <p class="mono text-[9px] text-neutral-500 font-bold uppercase tracking-[0.2em] mb-1">Signal Hash</p>
-                <p id="info-id" class="text-sm font-bold tracking-tight">X-CORE-REDACTED</p>
+        <main class="flex-1 pt-32 pb-20 px-6 max-w-6xl mx-auto w-full">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                <div class="telemetry-box">
+                    <p class="mono text-[9px] text-neutral-500 font-bold uppercase tracking-[0.2em] mb-1">Signal Hash</p>
+                    <p id="info-id" class="text-sm font-bold tracking-tight text-white">X-CORE-REDACTED</p>
+                </div>
+                <div class="telemetry-box">
+                    <p class="mono text-[9px] text-neutral-500 font-bold uppercase tracking-[0.2em] mb-1">Access Tier</p>
+                    <p id="info-limit" class="text-sm font-bold tracking-tight text-neutral-400">--</p>
+                </div>
+                <div class="telemetry-box">
+                    <p class="mono text-[9px] text-neutral-500 font-bold uppercase tracking-[0.2em] mb-1">Security Status</p>
+                    <p class="text-sm font-bold tracking-tight text-green-500 flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> STABLE_AES256
+                    </p>
+                </div>
             </div>
-            <div class="telemetry-box">
-                <p class="mono text-[9px] text-neutral-500 font-bold uppercase tracking-[0.2em] mb-1">Access Tier</p>
-                <p id="info-limit" class="text-sm font-bold tracking-tight text-neutral-300">--</p>
-            </div>
-            <div class="telemetry-box">
-                <p class="mono text-[9px] text-neutral-500 font-bold uppercase tracking-[0.2em] mb-1">Security Status</p>
-                <p class="text-sm font-bold tracking-tight text-green-500 flex items-center gap-2">
-                    <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> STABLE_AES256
-                </p>
-            </div>
-        </div>
 
-        <div id="video-wrapper" class="video-container">
-            <div id="preloader" class="preloader-overlay absolute inset-0 bg-neutral-950 flex flex-col items-center justify-center z-40">
-                <div class="w-10 h-10 border-2 border-red-500/20 border-t-red-500 rounded-full animate-spin mb-4"></div>
-                <p class="mono text-[9px] text-neutral-500 uppercase tracking-widest">Handshaking Server...</p>
+            <div id="video-wrapper" class="video-container">
+                <div id="preloader" class="preloader-overlay absolute inset-0 bg-neutral-950 flex flex-col items-center justify-center z-40">
+                    <div class="w-10 h-10 border-2 border-red-500/20 border-t-red-500 rounded-full animate-spin mb-4"></div>
+                    <p class="mono text-[9px] text-neutral-500 uppercase tracking-widest">Handshaking Server...</p>
+                </div>
+                <div id="moving-watermark" class="watermark"></div>
+                <div id="iframe-holder"></div>
             </div>
-            <div id="moving-watermark" class="watermark"></div>
-            <div id="iframe-holder"></div>
-        </div>
-    </main>
+        </main>
+    </div>
 
     <script>
         const SUPABASE_URL = 'https://tsaoxjzvhxiggntibpui.supabase.co';
@@ -202,7 +227,6 @@
         let sessionTimer = null;
         let watermarkData = { x: 10, y: 10, dx: 0.4, dy: 0.4 };
 
-        // --- SECURITY SUITE ---
         const SecurityManager = {
             isBanned: false,
 
@@ -214,40 +238,36 @@
                 expiresAt.setDate(expiresAt.getDate() + 7);
 
                 try {
-                    // 1. Send Ban Request to Supabase
                     await sb.from('user_restrictions').insert({
                         user_id: currentUser.id,
                         restriction_type: '7_DAY_BAN',
                         reason: reason,
                         expires_at: expiresAt.toISOString()
                     });
-
-                    // 2. Clear Session
                     await sb.auth.signOut();
                 } catch (e) {
-                    console.error("Auth Fail");
+                    console.error("Critical Security Upload Failure");
                 }
 
-                // 3. Trigger Hard UI Lockout
                 this.showLockout(expiresAt);
             },
 
             showLockout(expiryDate) {
                 const screen = document.getElementById('lockout-screen');
+                const main = document.getElementById('main-terminal-content');
                 const expiryLabel = document.getElementById('ban-expiry');
-                if (expiryLabel) expiryLabel.innerText = `Access Restored After: ${expiryDate.toLocaleString()}`;
+                
+                if (main) main.style.display = 'none';
+                if (expiryLabel) expiryLabel.innerText = `Restoration Timestamp: ${expiryDate.toLocaleString()}`;
                 if (screen) screen.style.display = 'flex';
+                
                 document.body.style.overflow = 'hidden';
-                // Stop any video
-                const holder = document.getElementById('iframe-holder');
-                if (holder) holder.innerHTML = '';
+                document.body.classList.add('ready');
+                lucide.createIcons();
             },
 
             init() {
-                // Block Right Click
                 document.addEventListener('contextmenu', e => e.preventDefault());
-
-                // Block DevTools Shortcuts (F12, Ctrl+Shift+I/J/C, Ctrl+U)
                 document.addEventListener('keydown', e => {
                     const devToolsKeys = (
                         e.keyCode === 123 || 
@@ -256,24 +276,22 @@
                     );
                     if (devToolsKeys) {
                         e.preventDefault();
-                        this.executeBan('DEV_TOOLS_KEYBOARD_SHORTCUT');
+                        this.executeBan('KEYBOARD_INJECTION_ATTEMPT');
                     }
                 });
 
-                // Detect Console via Debugger Trap
                 setInterval(() => {
                     const startTime = performance.now();
                     debugger;
                     const endTime = performance.now();
                     if (endTime - startTime > 100) {
-                        this.executeBan('DEBUGGER_PAUSE_DETECTED');
+                        this.executeBan('DEBUGGER_ACTIVE');
                     }
                 }, 1000);
 
-                // Detect Window Resizing (Side-docked devtools)
                 window.addEventListener('resize', () => {
                     if (window.outerWidth - window.innerWidth > 160 || window.outerHeight - window.innerHeight > 160) {
-                        this.executeBan('WINDOW_RESIZE_INSPECTION');
+                        this.executeBan('RESIZE_DETECTION');
                     }
                 });
             }
@@ -284,8 +302,7 @@
             if (!session) return window.location.href = 'login.html';
             currentUser = session.user;
 
-            // Check if user is already banned
-            const { data: activeBan } = await sb.from('user_restrictions')
+            const { data: activeBan, error } = await sb.from('user_restrictions')
                 .select('*')
                 .eq('user_id', currentUser.id)
                 .gt('expires_at', new Date().toISOString())
@@ -296,7 +313,6 @@
                 return;
             }
 
-            // Normal Flow
             document.getElementById('moving-watermark').innerText = currentUser.email;
             document.body.classList.add('ready');
             SecurityManager.init();
@@ -320,7 +336,6 @@
             allowedSeconds = (hours * 3600) + (mins * 60);
             document.getElementById('info-limit').innerText = `${hours}H ${mins}M ALLOCATED`;
 
-            // Sync progress
             const { data: sessionData } = await sb.from('watch_sessions').select('total_seconds_watched').eq('user_id', currentUser.id).eq('lesson_id', lessonId).maybeSingle();
             if (sessionData) watchedSeconds = sessionData.total_seconds_watched;
 
@@ -341,7 +356,7 @@
                 document.getElementById('preloader').style.display = 'none';
                 iframe.classList.add('visible');
                 document.getElementById('timer-display').classList.remove('hidden');
-                document.getElementById('info-status').innerText = "● ONLINE";
+                document.getElementById('info-status').innerText = "● TERMINAL_CONNECTED";
                 document.getElementById('info-status').className = "mono text-[9px] text-green-500 font-bold tracking-widest uppercase";
                 startClock();
             };
