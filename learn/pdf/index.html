@@ -121,7 +121,7 @@
     <nav class="fixed top-0 w-full z-50 px-6 py-4 nav-blur">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
             <div class="flex items-center gap-4">
-                <button onclick="window.location.href='/curriculum'" class="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/5 transition-colors">
+                <button onclick="window.history.back()" class="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/5 transition-colors">
                     <i data-lucide="arrow-left" class="w-4 h-4 text-neutral-400"></i>
                 </button>
                 <div>
@@ -181,7 +181,7 @@
                 <div id="connection-error" class="hidden mt-6 text-center">
                    <p class="text-xs text-neutral-400 mb-4 px-8">The source provider refused the connection inside this frame.</p>
                    <button id="btn-external" class="btn-primary px-6 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider">
-                       Open in New Tab
+                        Open in New Tab
                    </button>
                 </div>
             </div>
@@ -221,7 +221,7 @@
             currentUser = session.user;
 
             const isApproved = await verifyCourseApproval();
-            if (!isApproved) return window.location.href = '/dashboard';
+            if (!isApproved) return showError("COURSE_NOT_APPROVED");
 
             document.body.classList.add('ready');
             
@@ -244,7 +244,7 @@
         }
 
         async function fetchLessonData() {
-            if (!lessonId) return window.location.href = '/dashboard';
+            if (!lessonId) return showError("MISSING_ID");
 
             const { data: lesson, error } = await sb.from('lessons').select('*').eq('id', lessonId).single();
             if (error || !lesson) return showError("DOCUMENT_NOT_FOUND");
@@ -272,14 +272,12 @@
             const holder = document.getElementById('iframe-holder');
             const iframe = document.createElement('iframe');
             
-            // Use Google Docs Viewer to wrap direct download URLs so they display in-browser
-            // This bypasses the issue where direct URLs force a download or refuse connection
+            // Google Docs Viewer wrapper
             const formattedUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
             
             iframe.src = formattedUrl;
             iframe.className = "w-full h-full";
             
-            // Timeout to show "Open in New Tab" if iframe fails to trigger onload
             const loadTimeout = setTimeout(() => {
                 if (!iframe.classList.contains('visible')) {
                     document.getElementById('loader-spinner').classList.add('hidden');
@@ -297,7 +295,6 @@
                 document.getElementById('preloader').style.display = 'none';
                 iframe.classList.add('visible');
                 
-                // Show download button
                 const dlBtn = document.getElementById('btn-download');
                 dlBtn.classList.remove('hidden');
                 dlBtn.onclick = () => {
@@ -345,7 +342,7 @@
                 <div class="text-center p-12 glass-card">
                     <p class="mono text-red-500 font-black tracking-widest uppercase mb-4">ACCESS TERMINATED</p>
                     <p class="text-[10px] text-neutral-500 uppercase tracking-[4px] mb-8">${msg}</p>
-                    <button onclick="window.location.href='/curriculum'" class="btn-primary px-8 py-3 rounded-xl text-xs font-bold uppercase tracking-wider mx-auto">
+                    <button onclick="window.history.back()" class="btn-primary px-8 py-3 rounded-xl text-xs font-bold uppercase tracking-wider mx-auto">
                         Return to Hub
                     </button>
                 </div>
