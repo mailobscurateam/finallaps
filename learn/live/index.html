@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="public, max-age=3600, must-revalidate">
-    <title>Live Stream | Nexus Prime</title>
+    <title>Live Stream | Nexus Prime Security</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -26,7 +26,12 @@
             flex-direction: column;
             height: 100vh;
             overflow: hidden;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            user-select: none;
+            -webkit-user-select: none;
         }
+        body.ready { opacity: 1; }
 
         .mesh-bg {
             position: fixed;
@@ -35,6 +40,12 @@
                 radial-gradient(at 0% 0%, rgba(255, 51, 51, 0.05) 0, transparent 50%),
                 radial-gradient(at 100% 100%, rgba(255, 51, 51, 0.03) 0, transparent 50%);
             z-index: -1;
+        }
+
+        .glass-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 24px;
         }
 
         .nav-blur {
@@ -55,7 +66,10 @@
             height: 100%;
             border: 0;
             display: none;
+            opacity: 0;
+            transition: opacity 1s ease;
         }
+        #stream-frame.visible { opacity: 1; display: block; }
 
         .preloader-overlay {
             position: absolute; 
@@ -68,62 +82,99 @@
             z-index: 40;
         }
 
-        .error-container {
+        #lockout-screen {
             display: none;
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 99999;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 1rem;
             text-align: center;
-            padding: 2rem;
+        }
+
+        .glitch { animation: glitch 1s linear infinite; }
+        @keyframes glitch {
+            2%, 64% { transform: translate(2px,0) skew(0deg); }
+            4%, 60% { transform: translate(-2px,0) skew(0deg); }
+            62% { transform: translate(0,0) skew(5deg); }
         }
 
         .mono { font-family: 'JetBrains Mono', monospace; }
     </style>
 </head>
 <body>
+    <!-- Critical Lockout Overlay -->
+    <div id="lockout-screen" class="p-6">
+        <div class="p-8 glass-card border-red-900/50 max-w-md w-full relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-red-600 animate-pulse"></div>
+            <div class="flex justify-center mb-6">
+                <div class="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
+                    <i data-lucide="shield-alert" class="w-8 h-8 text-red-500"></i>
+                </div>
+            </div>
+            <h1 class="mono text-red-500 font-bold text-xl mb-4 glitch tracking-tighter uppercase">Access Violation</h1>
+            <div class="text-neutral-400 text-sm mb-6 leading-relaxed space-y-3">
+                <p>Security Protocol <strong class="text-white">X-CORE-7</strong> has flagged this session.</p>
+                <p>Unauthorized inspection or environment manipulation detected at the hardware level.</p>
+            </div>
+            <div class="bg-red-500/10 border border-red-500/20 p-5 rounded-xl mb-6 text-left">
+                <p class="mono text-[10px] text-red-400 uppercase tracking-widest mb-1">Status</p>
+                <p class="text-white font-bold text-lg">SESSION SUSPENDED</p>
+                <p id="ban-expiry" class="text-red-300/60 text-[10px] mt-2 italic"></p>
+            </div>
+            <button onclick="window.location.href='https://google.com'" class="mt-4 text-neutral-500 hover:text-white text-[10px] mono uppercase">Exit Terminal</button>
+        </div>
+    </div>
+
     <div class="mesh-bg"></div>
 
-    <!-- Header -->
-    <nav class="w-full z-50 px-6 py-4 nav-blur shrink-0">
-        <div class="max-w-[1800px] mx-auto flex items-center justify-between">
-            <button onclick="window.history.back()" class="flex items-center gap-2 text-neutral-400 hover:text-white transition-colors group">
-                <i data-lucide="arrow-left" class="w-5 h-5 group-hover:-translate-x-1 transition-transform"></i>
-                <span class="text-sm font-medium">Back</span>
-            </button>
-            <div class="text-right">
-                <p id="stream-title" class="text-xs font-bold uppercase tracking-widest text-neutral-500">Initializing Session...</p>
+    <div id="main-content" class="flex flex-col h-full">
+        <!-- Header -->
+        <nav class="w-full z-50 px-6 py-4 nav-blur shrink-0">
+            <div class="max-w-[1800px] mx-auto flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <button onclick="window.history.back()" class="flex items-center gap-2 text-neutral-400 hover:text-white transition-colors group">
+                        <i data-lucide="arrow-left" class="w-5 h-5 group-hover:-translate-x-1 transition-transform"></i>
+                        <span class="text-sm font-medium">Back</span>
+                    </button>
+                    <div class="h-4 w-[1px] bg-white/10"></div>
+                    <span id="security-indicator" class="mono text-[9px] text-green-500 font-bold tracking-widest uppercase">● Encryption Stable</span>
+                </div>
+                <div class="text-right">
+                    <p id="stream-title" class="text-xs font-bold uppercase tracking-widest text-neutral-500">Authenticating...</p>
+                </div>
             </div>
-        </div>
-    </nav>
+        </nav>
 
-    <!-- Content Area -->
-    <main class="live-container">
-        <!-- Preloader -->
-        <div id="preloader" class="preloader-overlay">
-            <div class="relative w-12 h-12 mb-6">
-                <div class="absolute inset-0 border-2 border-white/5 rounded-full"></div>
-                <div class="absolute inset-0 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+        <!-- Content Area -->
+        <main class="live-container">
+            <!-- Preloader -->
+            <div id="preloader" class="preloader-overlay">
+                <div class="relative w-12 h-12 mb-6">
+                    <div class="absolute inset-0 border-2 border-white/5 rounded-full"></div>
+                    <div class="absolute inset-0 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+                <p id="status-text" class="mono text-[9px] font-bold tracking-[0.4em] text-neutral-500 uppercase">Securing Connection</p>
             </div>
-            <p id="status-text" class="mono text-[9px] font-bold tracking-[0.4em] text-neutral-500 uppercase">Securing Connection</p>
-        </div>
 
-        <!-- Error State -->
-        <div id="error-state" class="preloader-overlay error-container">
-            <i data-lucide="alert-circle" class="w-12 h-12 text-red-500 mb-2"></i>
-            <h2 class="text-xl font-bold">Stream Unavailable</h2>
-            <p class="text-neutral-400 max-w-md">The requested lesson could not be found or the live link has expired.</p>
-            <button onclick="window.history.back()" class="mt-4 px-6 py-2 bg-neutral-800 hover:bg-neutral-700 rounded-full text-sm font-semibold transition-all">Go Back</button>
-        </div>
-        
-        <!-- Video Stream Iframe -->
-        <iframe 
-            id="stream-frame" 
-            referrerpolicy="no-referrer-when-downgrade"
-            allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write; camera; microphone"
-            allowfullscreen>
-        </iframe>
-    </main>
+            <!-- Error State -->
+            <div id="error-state" class="preloader-overlay hidden flex-col items-center justify-center gap-4 text-center p-8">
+                <i data-lucide="alert-circle" class="w-12 h-12 text-red-500 mb-2"></i>
+                <h2 class="text-xl font-bold">Stream Unavailable</h2>
+                <p class="text-neutral-400 max-w-md">The requested link is invalid or has expired.</p>
+                <button onclick="window.history.back()" class="mt-4 px-6 py-2 bg-neutral-800 hover:bg-neutral-700 rounded-full text-sm font-semibold">Go Back</button>
+            </div>
+            
+            <iframe 
+                id="stream-frame" 
+                referrerpolicy="no-referrer-when-downgrade"
+                allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write; camera; microphone"
+                allowfullscreen>
+            </iframe>
+        </main>
+    </div>
 
     <script>
         const SUPABASE_URL = 'https://tsaoxjzvhxiggntibpui.supabase.co';
@@ -132,10 +183,103 @@
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         const urlParams = new URLSearchParams(window.location.search);
         const lessonId = urlParams.get('id');
+        let currentUser = null;
+
+        const SecurityManager = {
+            isBanned: false,
+
+            async executeBan(reason) {
+                if (this.isBanned || !currentUser) return;
+                this.isBanned = true;
+
+                const expiresAt = new Date();
+                expiresAt.setDate(expiresAt.getDate() + 7);
+
+                try {
+                    await sb.from('user_restrictions').insert({
+                        user_id: currentUser.id,
+                        restriction_type: '7_DAY_BAN',
+                        reason: reason,
+                        expires_at: expiresAt.toISOString()
+                    });
+                    await sb.auth.signOut();
+                } catch (e) {
+                    console.error("Shield Failure");
+                }
+
+                this.showLockout(expiresAt);
+            },
+
+            showLockout(expiryDate) {
+                document.getElementById('main-content').style.display = 'none';
+                document.getElementById('lockout-screen').style.display = 'flex';
+                document.getElementById('ban-expiry').innerText = `Restoration: ${expiryDate.toLocaleString()}`;
+                document.body.classList.add('ready');
+                lucide.createIcons();
+            },
+
+            init() {
+                // Context Menu
+                document.addEventListener('contextmenu', e => e.preventDefault());
+
+                // Keyboard Traps
+                document.addEventListener('keydown', e => {
+                    const devToolsKeys = (
+                        e.keyCode === 123 || 
+                        (e.ctrlKey && e.shiftKey && [73, 74, 67].includes(e.keyCode)) || 
+                        (e.ctrlKey && e.keyCode === 85)
+                    );
+                    if (devToolsKeys) {
+                        e.preventDefault();
+                        this.executeBan('KEYBOARD_INJECTION');
+                    }
+                });
+
+                // Debugger Trap
+                setInterval(() => {
+                    const startTime = performance.now();
+                    debugger;
+                    const endTime = performance.now();
+                    if (endTime - startTime > 100) {
+                        this.executeBan('DEBUGGER_DETECTED');
+                    }
+                }, 1000);
+
+                // Resize Detection
+                window.addEventListener('resize', () => {
+                    if (window.outerWidth - window.innerWidth > 160 || window.outerHeight - window.innerHeight > 160) {
+                        this.executeBan('ENV_TAMPER');
+                    }
+                });
+            }
+        };
+
+        async function checkSecurityStatus() {
+            const { data: { session } } = await sb.auth.getSession();
+            if (!session) return window.location.href = '/login';
+            currentUser = session.user;
+
+            const { data: activeBan } = await sb.from('user_restrictions')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .gt('expires_at', new Date().toISOString())
+                .maybeSingle();
+
+            if (activeBan) {
+                SecurityManager.showLockout(new Date(activeBan.expires_at));
+                return false;
+            }
+
+            SecurityManager.init();
+            return true;
+        }
 
         async function init() {
             lucide.createIcons();
             
+            const isSecure = await checkSecurityStatus();
+            if (!isSecure) return;
+
             if (!lessonId) {
                 showError("Missing Lesson ID");
                 return;
@@ -152,37 +296,36 @@
 
                 if (lesson && lesson.video_url) {
                     document.getElementById('stream-title').innerText = lesson.title;
-                    
                     const frame = document.getElementById('stream-frame');
                     frame.src = lesson.video_url;
                     
                     frame.onload = () => {
                         document.getElementById('preloader').style.display = 'none';
-                        frame.style.display = 'block';
+                        frame.classList.add('visible');
+                        document.body.classList.add('ready');
                     };
 
-                    // Timeout fallback for preloader if frame takes too long
                     setTimeout(() => {
-                        if (frame.style.display !== 'block') {
+                        if (!frame.classList.contains('visible')) {
                             document.getElementById('preloader').style.display = 'none';
-                            frame.style.display = 'block';
+                            frame.classList.add('visible');
+                            document.body.classList.add('ready');
                         }
-                    }, 10000);
+                    }, 8000);
                     
                 } else {
                     showError("Lesson not found");
                 }
             } catch (err) {
-                console.error("Initialization error:", err);
                 showError("Connection failed");
             }
         }
 
         function showError(msg) {
             document.getElementById('preloader').style.display = 'none';
-            document.getElementById('error-state').style.display = 'flex';
+            document.getElementById('error-state').classList.remove('hidden');
             document.getElementById('stream-title').innerText = "Access Denied";
-            console.warn("Stream error:", msg);
+            document.body.classList.add('ready');
         }
 
         window.onload = init;
