@@ -68,6 +68,16 @@
             z-index: 40;
         }
 
+        .error-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            text-align: center;
+            padding: 2rem;
+        }
+
         .mono { font-family: 'JetBrains Mono', monospace; }
     </style>
 </head>
@@ -87,16 +97,26 @@
         </div>
     </nav>
 
-    <!-- Content Area: The URL is hidden inside this frame -->
+    <!-- Content Area -->
     <main class="live-container">
+        <!-- Preloader -->
         <div id="preloader" class="preloader-overlay">
             <div class="relative w-12 h-12 mb-6">
                 <div class="absolute inset-0 border-2 border-white/5 rounded-full"></div>
                 <div class="absolute inset-0 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
             </div>
-            <p class="mono text-[9px] font-bold tracking-[0.4em] text-neutral-500 uppercase">Securing Connection</p>
+            <p id="status-text" class="mono text-[9px] font-bold tracking-[0.4em] text-neutral-500 uppercase">Securing Connection</p>
+        </div>
+
+        <!-- Error State -->
+        <div id="error-state" class="preloader-overlay error-container">
+            <i data-lucide="alert-circle" class="w-12 h-12 text-red-500 mb-2"></i>
+            <h2 class="text-xl font-bold">Stream Unavailable</h2>
+            <p class="text-neutral-400 max-w-md">The requested lesson could not be found or the live link has expired.</p>
+            <button onclick="window.history.back()" class="mt-4 px-6 py-2 bg-neutral-800 hover:bg-neutral-700 rounded-full text-sm font-semibold transition-all">Go Back</button>
         </div>
         
+        <!-- Video Stream Iframe -->
         <iframe 
             id="stream-frame" 
             referrerpolicy="no-referrer-when-downgrade"
@@ -116,20 +136,53 @@
         async function init() {
             lucide.createIcons();
             
-            if (!lessonId) return;
-
-            const { data: lesson } = await sb.from('lessons').select('*').eq('id', lessonId).maybeSingle();
-            if (lesson && lesson.video_url) {
-                document.getElementById('stream-title').innerText = lesson.title;
-                
-                const frame = document.getElementById('stream-frame');
-                frame.src = lesson.video_url;
-                
-                frame.onload = () => {
-                    document.getElementById('preloader').style.display = 'none';
-                    frame.style.display = 'block';
-                };
+            if (!lessonId) {
+                showError("Missing Lesson ID");
+                return;
             }
+
+            try {
+                const { data: lesson, error } = await sb
+                    .from('lessons')
+                    .select('*')
+                    .eq('id', lessonId)
+                    .maybeSingle();
+
+                if (error) throw error;
+
+                if (lesson && lesson.video_url) {
+                    document.getElementById('stream-title').innerText = lesson.title;
+                    
+                    const frame = document.getElementById('stream-frame');
+                    frame.src = lesson.video_url;
+                    
+                    frame.onload = () => {
+                        document.getElementById('preloader').style.display = 'none';
+                        frame.style.display = 'block';
+                    };
+
+                    // Timeout fallback for preloader if frame takes too long
+                    setTimeout(() => {
+                        if (frame.style.display !== 'block') {
+                            document.getElementById('preloader').style.display = 'none';
+                            frame.style.display = 'block';
+                        }
+                    }, 10000);
+                    
+                } else {
+                    showError("Lesson not found");
+                }
+            } catch (err) {
+                console.error("Initialization error:", err);
+                showError("Connection failed");
+            }
+        }
+
+        function showError(msg) {
+            document.getElementById('preloader').style.display = 'none';
+            document.getElementById('error-state').style.display = 'flex';
+            document.getElementById('stream-title').innerText = "Access Denied";
+            console.warn("Stream error:", msg);
         }
 
         window.onload = init;
