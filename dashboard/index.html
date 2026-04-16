@@ -72,13 +72,24 @@
             box-shadow: 0 8px 20px -6px rgba(255, 51, 51, 0.4);
         }
 
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            border: 1px solid var(--border);
+            transition: all 0.2s ease;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
         .badge-red {
             background: rgba(255, 51, 51, 0.1);
             color: var(--accent);
             border: 1px solid rgba(255, 51, 51, 0.2);
         }
 
-        /* Module Grid Custom Animation */
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -94,17 +105,27 @@
     <!-- Minimal Nav -->
     <nav class="fixed top-0 w-full z-50 px-6 py-4 nav-blur">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-                    <i data-lucide="zap" class="w-4 h-4 text-black fill-black"></i>
+            <div class="flex items-center gap-8">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+                        <i data-lucide="zap" class="w-4 h-4 text-black fill-black"></i>
+                    </div>
+                    <span class="font-bold tracking-tight text-sm">NEXUS<span class="text-neutral-500">PRIME</span></span>
                 </div>
-                <span class="font-bold tracking-tight text-sm">NEXUS<span class="text-neutral-500">PRIME</span></span>
+                
+                <!-- Nav Links -->
+                <div class="hidden md:flex items-center gap-6">
+                    <a href="/dashboard" class="text-xs font-bold uppercase tracking-widest text-white border-b-2 border-red-500 pb-1">Dashboard</a>
+                    <a href="/courses" class="text-xs font-bold uppercase tracking-widest text-neutral-500 hover:text-white transition-colors pb-1">Sectors</a>
+                    <a href="/status" class="text-xs font-bold uppercase tracking-widest text-neutral-500 hover:text-white transition-colors pb-1">History</a>
+                </div>
             </div>
             
             <div class="flex items-center gap-4">
                 <div class="h-8 w-[1px] bg-white/10 mx-2"></div>
-                <button onclick="handleLogout()" class="text-neutral-400 hover:text-white transition-colors">
-                    <i data-lucide="log-out" class="w-5 h-5"></i>
+                <button onclick="handleLogout()" class="text-neutral-400 hover:text-white transition-colors flex items-center gap-2">
+                    <span class="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">Logout</span>
+                    <i data-lucide="log-out" class="w-4 h-4"></i>
                 </button>
             </div>
         </div>
@@ -133,8 +154,8 @@
                             <span class="badge-red px-2 py-0.5 rounded-md text-[10px] font-bold">L-4 AUTH</span>
                         </div>
                         <div class="flex justify-between items-center p-3 rounded-xl bg-white/5 border border-white/5">
-                            <span class="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">Uptime</span>
-                            <span class="text-[11px] font-bold text-green-500">99.9%</span>
+                            <span class="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">Status</span>
+                            <span class="text-[11px] font-bold text-green-500">OPERATIONAL</span>
                         </div>
                     </div>
                 </div>
@@ -142,36 +163,52 @@
                 <!-- Simple Stats Grid -->
                 <div class="grid grid-cols-2 gap-4">
                     <div class="stat-card p-6 rounded-3xl">
-                        <p class="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1">Approved</p>
+                        <p class="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1">Active</p>
                         <p id="stat-approved" class="text-3xl font-bold tracking-tighter">0</p>
                     </div>
                     <div class="stat-card p-6 rounded-3xl">
-                        <p class="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1">Pending</p>
+                        <p class="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1">Queue</p>
                         <p id="stat-pending" class="text-3xl font-bold tracking-tighter text-neutral-600">0</p>
                     </div>
                 </div>
 
-                <!-- Action Button -->
-                <a href="/status" class="flex items-center justify-between p-5 glass-card group">
-                    <span class="text-xs font-bold text-neutral-300">Enrollment History</span>
-                    <i data-lucide="chevron-right" class="w-4 h-4 text-neutral-600 group-hover:text-white transition-all group-hover:translate-x-1"></i>
-                </a>
+                <!-- Navigation Quick Links -->
+                <div class="space-y-3">
+                    <a href="/courses" class="flex items-center justify-between p-5 glass-card group">
+                        <div class="flex items-center gap-3">
+                            <i data-lucide="plus-circle" class="w-4 h-4 text-neutral-500"></i>
+                            <span class="text-xs font-bold text-neutral-300">Enroll in New Sector</span>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-neutral-600 group-hover:text-white transition-all group-hover:translate-x-1"></i>
+                    </a>
+                    <a href="/status" class="flex items-center justify-between p-5 glass-card group">
+                        <div class="flex items-center gap-3">
+                            <i data-lucide="history" class="w-4 h-4 text-neutral-500"></i>
+                            <span class="text-xs font-bold text-neutral-300">Clearance History</span>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-neutral-600 group-hover:text-white transition-all group-hover:translate-x-1"></i>
+                    </a>
+                </div>
             </div>
 
             <!-- MAIN CONTENT: Modules -->
             <div class="lg:col-span-8 space-y-8">
-                <header class="flex justify-between items-end">
+                <header class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <h1 class="text-4xl font-extrabold tracking-tight">Active Sectors</h1>
-                        <p class="text-neutral-500 text-sm mt-1">Your authorized training environments.</p>
+                        <p class="text-neutral-500 text-sm mt-1">Authorized environments currently assigned to your profile.</p>
                     </div>
+                    <a href="/courses" class="btn-secondary px-6 py-3 rounded-xl text-[11px] font-bold uppercase tracking-wider flex items-center justify-center gap-2">
+                        <i data-lucide="search" class="w-3.5 h-3.5"></i>
+                        Browse All
+                    </a>
                 </header>
 
                 <div id="modules-container" class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Loading State -->
                     <div id="loading-state" class="col-span-full py-32 flex flex-col items-center justify-center">
                         <div class="w-6 h-6 border-2 border-white/10 border-t-white rounded-full animate-spin mb-4"></div>
-                        <p class="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Accessing Registry</p>
+                        <p class="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Synchronizing Registry</p>
                     </div>
                 </div>
 
@@ -182,10 +219,10 @@
                     </div>
                     <h3 class="text-lg font-bold mb-2">No Active Access</h3>
                     <p class="text-neutral-500 text-sm max-w-xs mx-auto mb-8">
-                        Authorized modules will appear here once your enrollment is finalized.
+                        You currently have no approved training sectors. Browse the catalog to request clearance.
                     </p>
                     <a href="/courses" class="btn-primary inline-flex items-center gap-2 px-8 py-3 rounded-xl text-xs font-bold uppercase tracking-wider">
-                        Request Clearance
+                        Access Course Catalog
                     </a>
                 </div>
             </div>
@@ -203,7 +240,6 @@
             
             const user = session.user;
             
-            // Priority: Fetch from public.profiles -> metadata -> email fallback
             try {
                 const { data: profile } = await sb
                     .from('profiles')
@@ -285,7 +321,7 @@
                     <div class="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center">
                         <i data-lucide="layers" class="w-5 h-5 text-neutral-400"></i>
                     </div>
-                    <span class="mono text-[9px] text-neutral-600 font-medium">REF#${id.slice(0,5)}</span>
+                    <span class="mono text-[9px] text-neutral-600 font-medium">REF#${id.slice(0,5).toUpperCase()}</span>
                 </div>
 
                 <h3 class="text-xl font-bold tracking-tight mb-1">${name}</h3>
