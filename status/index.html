@@ -49,7 +49,7 @@
                 <table class="w-full text-left border-collapse">
                     <thead>
                         <tr class="bg-white/5">
-                            <th class="px-8 py-5 mono text-[10px] text-gray-400 uppercase tracking-widest font-bold">Course Name</th>
+                            <th class="px-8 py-5 mono text-[10px] text-gray-400 uppercase tracking-widest font-bold">Course Module</th>
                             <th class="px-8 py-5 mono text-[10px] text-gray-400 uppercase tracking-widest font-bold">Requested Time</th>
                             <th class="px-8 py-5 mono text-[10px] text-gray-400 uppercase tracking-widest font-bold">Status</th>
                             <th class="px-8 py-5 mono text-[10px] text-gray-400 uppercase tracking-widest font-bold text-right">Action</th>
@@ -86,6 +86,7 @@
             document.getElementById('user-email').textContent = session.user.email;
             fetchEnrollments(session.user.id);
 
+            // Real-time listener for status changes
             sb.channel('registry-updates')
                 .on('postgres_changes', { 
                     event: '*', 
@@ -97,9 +98,16 @@
         }
 
         async function fetchEnrollments(userId) {
+            // Updated query to perform a join with the courses table via foreign key
+            // This assumes course_status has a course_id that matches courses table
             const { data, error } = await sb
                 .from('course_status')
-                .select('*')
+                .select(`
+                    *,
+                    courses (
+                        course_name
+                    )
+                `)
                 .eq('user_id', userId)
                 .order('created_at', { ascending: false });
 
@@ -154,10 +162,13 @@
             };
 
             const s = states[item.status] || states.pending;
+            
+            // Get the course name from the joined courses object, or fallback to status course_name or ID
+            const courseName = item.courses?.course_name || item.course_name || 'Unidentified Module';
 
             tr.innerHTML = `
                 <td class="px-8 py-6">
-                    <div class="font-bold text-white text-sm tracking-tight">${item.course_name || 'Technical Module'}</div>
+                    <div class="font-bold text-white text-sm tracking-tight">${courseName}</div>
                     <div class="mono text-[9px] text-gray-600 tracking-tighter uppercase mt-1">Ref: ${item.course_id}</div>
                 </td>
                 <td class="px-8 py-6 mono text-xs text-gray-400">
