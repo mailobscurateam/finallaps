@@ -86,7 +86,6 @@
             document.getElementById('user-email').textContent = session.user.email;
             fetchEnrollments(session.user.id);
 
-            // Real-time listener for status changes
             sb.channel('registry-updates')
                 .on('postgres_changes', { 
                     event: '*', 
@@ -98,14 +97,13 @@
         }
 
         async function fetchEnrollments(userId) {
-            // Updated query to perform a join with the courses table via foreign key
-            // This assumes course_status has a course_id that matches courses table
+            // Updated query: selecting the 'name' column from the 'courses' table via the course_id relationship
             const { data, error } = await sb
                 .from('course_status')
                 .select(`
                     *,
                     courses (
-                        course_name
+                        name
                     )
                 `)
                 .eq('user_id', userId)
@@ -163,8 +161,8 @@
 
             const s = states[item.status] || states.pending;
             
-            // Get the course name from the joined courses object, or fallback to status course_name or ID
-            const courseName = item.courses?.course_name || item.course_name || 'Unidentified Module';
+            // Map the joined data correctly: item.courses.name
+            const courseName = item.courses?.name || 'Unknown Module';
 
             tr.innerHTML = `
                 <td class="px-8 py-6">
