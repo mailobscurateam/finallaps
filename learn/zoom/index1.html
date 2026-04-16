@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stream Terminal | Nexus Prime</title>
+    <title>Stream Terminal | Nexus Prime Security</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -23,7 +23,8 @@
             letter-spacing: -0.01em;
             opacity: 0;
             transition: opacity 0.5s ease-in-out;
-            user-select: none; /* Block text selection for security */
+            user-select: none;
+            -webkit-user-select: none;
         }
         body.ready { opacity: 1; }
 
@@ -52,13 +53,12 @@
 
         .video-container {
             position: relative;
-            padding-bottom: 56.25%; /* 16:9 */
+            padding-bottom: 56.25%;
             height: 0;
             overflow: hidden;
             background: #000;
             border-radius: 24px;
             border: 1px solid var(--border);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
 
         .video-container iframe {
@@ -72,10 +72,9 @@
             position: absolute;
             z-index: 30;
             pointer-events: none;
-            user-select: none;
             font-family: 'JetBrains Mono', monospace;
             font-size: 10px;
-            color: rgba(255, 51, 51, 0.2);
+            color: rgba(255, 51, 51, 0.15);
             text-transform: lowercase;
             white-space: nowrap;
         }
@@ -85,19 +84,6 @@
             color: #000;
             transition: all 0.2s ease;
         }
-        .btn-primary:hover:not(:disabled) {
-            background: var(--accent);
-            color: #fff;
-            transform: translateY(-1px);
-        }
-        .btn-primary:disabled { opacity: 0.3; cursor: not-allowed; }
-
-        .btn-secondary {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--border);
-            transition: all 0.2s;
-        }
-        .btn-secondary:hover { background: rgba(255, 255, 255, 0.08); }
 
         .telemetry-box {
             background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 100%);
@@ -106,44 +92,48 @@
             border-radius: 20px;
         }
 
-        .preloader-overlay {
-            position: absolute; inset: 0; background: var(--bg);
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 40;
+        /* Critical Lockout Overlay */
+        #lockout-screen {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 99999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
         }
 
-        .progress-line {
-            height: 2px;
-            background: rgba(255, 51, 51, 0.1);
-            position: relative;
-            overflow: hidden;
-        }
-        .progress-line-fill {
-            position: absolute;
-            height: 100%;
-            background: var(--accent);
-            width: 0%;
-            transition: width 0.4s ease;
-        }
-
-        /* Access Denied Animation */
-        .glitch-text {
+        .glitch {
             animation: glitch 1s linear infinite;
         }
+
         @keyframes glitch {
-            0% { transform: translate(0) }
-            20% { transform: translate(-2px, 2px) }
-            40% { transform: translate(-2px, -2px) }
-            60% { transform: translate(2px, 2px) }
-            80% { transform: translate(2px, -2px) }
-            100% { transform: translate(0) }
+            2%, 64% { transform: translate(2px,0) skew(0deg); }
+            4%, 60% { transform: translate(-2px,0) skew(0deg); }
+            62% { transform: translate(0,0) skew(5deg); }
         }
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
+    <div id="lockout-screen">
+        <div class="p-8 glass-card border-red-900/50 max-w-md">
+            <h1 class="mono text-red-500 font-bold text-xl mb-4 glitch">ACCESS_VIOLATION_DETECTED</h1>
+            <p class="text-neutral-400 text-sm mb-6 leading-relaxed">
+                Security Protocol <strong>X-CORE-7</strong> has been engaged. 
+                Unauthorized use of developer tools or script injection detected.
+            </p>
+            <div class="bg-red-500/10 border border-red-500/20 p-4 rounded-xl mb-6">
+                <p class="mono text-[10px] text-red-400 uppercase tracking-widest">Account Status</p>
+                <p class="text-white font-bold">SUSPENDED (7 DAYS)</p>
+            </div>
+            <p id="ban-expiry" class="mono text-[9px] text-neutral-600 uppercase"></p>
+        </div>
+    </div>
+
     <div class="mesh-bg"></div>
 
-    <!-- Terminal Nav -->
     <nav class="fixed top-0 w-full z-50 px-6 py-4 nav-blur">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
             <div class="flex items-center gap-4">
@@ -163,23 +153,14 @@
                     <p class="mono text-[8px] text-neutral-500 font-bold tracking-widest uppercase">Airtime Remaining</p>
                     <p id="time-left" class="text-lg font-bold tracking-tighter tabular-nums">--:--:--</p>
                 </div>
-                
-                <div class="flex items-center gap-3">
-                    <button id="btn-complete" class="btn-primary px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-2" disabled>
-                        <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
-                        Complete
-                    </button>
-                </div>
+                <button id="btn-complete" class="btn-primary px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-2" disabled>
+                    <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Complete
+                </button>
             </div>
         </div>
     </nav>
 
-    <div class="fixed top-[73px] w-full z-40 progress-line">
-        <div id="loading-bar" class="progress-line-fill"></div>
-    </div>
-
     <main class="flex-1 pt-32 pb-20 px-6 max-w-6xl mx-auto w-full">
-        <!-- Telemetry Data -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             <div class="telemetry-box">
                 <p class="mono text-[9px] text-neutral-500 font-bold uppercase tracking-[0.2em] mb-1">Signal Hash</p>
@@ -192,37 +173,18 @@
             <div class="telemetry-box">
                 <p class="mono text-[9px] text-neutral-500 font-bold uppercase tracking-[0.2em] mb-1">Security Status</p>
                 <p class="text-sm font-bold tracking-tight text-green-500 flex items-center gap-2">
-                    <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                    STABLE_AES256
+                    <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> STABLE_AES256
                 </p>
             </div>
         </div>
 
-        <!-- Video Stage -->
         <div id="video-wrapper" class="video-container">
-            <div id="preloader" class="preloader-overlay">
-                <div class="relative w-12 h-12 mb-6">
-                    <div class="absolute inset-0 border-2 border-white/5 rounded-full"></div>
-                    <div class="absolute inset-0 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
-                </div>
-                <p id="loader-text" class="mono text-[9px] font-bold tracking-[0.4em] text-neutral-500 uppercase">Handshaking Server</p>
+            <div id="preloader" class="preloader-overlay absolute inset-0 bg-neutral-950 flex flex-col items-center justify-center z-40">
+                <div class="w-10 h-10 border-2 border-red-500/20 border-t-red-500 rounded-full animate-spin mb-4"></div>
+                <p class="mono text-[9px] text-neutral-500 uppercase tracking-widest">Handshaking Server...</p>
             </div>
-            
-            <div id="moving-watermark" class="watermark">initializing_nexus_layer</div>
+            <div id="moving-watermark" class="watermark"></div>
             <div id="iframe-holder"></div>
-        </div>
-
-        <div class="mt-8 flex justify-between items-center text-neutral-600">
-            <div class="flex items-center gap-6">
-                <div class="flex items-center gap-2">
-                    <i data-lucide="eye" class="w-4 h-4"></i>
-                    <span class="text-[10px] font-bold uppercase tracking-widest">Active Stream</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <i data-lucide="shield-check" class="w-4 h-4"></i>
-                    <span class="text-[10px] font-bold uppercase tracking-widest">Encrypted Session</span>
-                </div>
-            </div>
         </div>
     </main>
 
@@ -239,76 +201,81 @@
         let watchedSeconds = 0;
         let sessionTimer = null;
         let watermarkData = { x: 10, y: 10, dx: 0.4, dy: 0.4 };
-        let isCompleted = false;
 
         // --- SECURITY SUITE ---
         const SecurityManager = {
-            async triggerBan() {
-                if (!currentUser) return;
-                
-                const banUntil = new Date();
-                banUntil.setDate(banUntil.getDate() + 7);
-                
-                // Record ban in Supabase
-                await sb.from('user_restrictions').upsert({
-                    user_id: currentUser.id,
-                    restriction_type: '7_DAY_BAN',
-                    reason: 'DEV_TOOLS_ACCESS_VIOLATION',
-                    expires_at: banUntil.toISOString()
-                });
+            isBanned: false,
 
-                // Immediate logout and lockout
-                await sb.auth.signOut();
-                document.body.innerHTML = `
-                    <div class="fixed inset-0 bg-black flex items-center justify-center z-[9999]">
-                        <div class="text-center p-12 glass-card max-w-md mx-auto">
-                            <p class="mono text-red-500 font-black tracking-widest uppercase mb-4 glitch-text">CRITICAL SECURITY BREACH</p>
-                            <p class="text-[11px] text-neutral-400 uppercase tracking-widest leading-relaxed mb-8">
-                                Unauthorized tool access detected. Your account has been flagged and suspended for 7 days. 
-                                <br><br>
-                                UNTIL: ${banUntil.toLocaleString()}
-                            </p>
-                            <div class="h-[1px] bg-red-500/20 w-full mb-8"></div>
-                            <p class="mono text-[9px] text-neutral-600 uppercase">Nexus Security Protocol X-CORE-7</p>
-                        </div>
-                    </div>
-                `;
+            async executeBan(reason) {
+                if (this.isBanned || !currentUser) return;
+                this.isBanned = true;
+
+                const expiresAt = new Date();
+                expiresAt.setDate(expiresAt.getDate() + 7);
+
+                try {
+                    // 1. Send Ban Request to Supabase
+                    await sb.from('user_restrictions').insert({
+                        user_id: currentUser.id,
+                        restriction_type: '7_DAY_BAN',
+                        reason: reason,
+                        expires_at: expiresAt.toISOString()
+                    });
+
+                    // 2. Clear Session
+                    await sb.auth.signOut();
+                } catch (e) {
+                    console.error("Auth Fail");
+                }
+
+                // 3. Trigger Hard UI Lockout
+                this.showLockout(expiresAt);
+            },
+
+            showLockout(expiryDate) {
+                const screen = document.getElementById('lockout-screen');
+                const expiryLabel = document.getElementById('ban-expiry');
+                if (expiryLabel) expiryLabel.innerText = `Access Restored After: ${expiryDate.toLocaleString()}`;
+                if (screen) screen.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+                // Stop any video
+                const holder = document.getElementById('iframe-holder');
+                if (holder) holder.innerHTML = '';
             },
 
             init() {
-                // 1. Block Right Click (Silently)
+                // Block Right Click
                 document.addEventListener('contextmenu', e => e.preventDefault());
 
-                // 2. Block Keyboard Shortcuts (F12, Ctrl+Shift+I/J/C, Ctrl+U)
+                // Block DevTools Shortcuts (F12, Ctrl+Shift+I/J/C, Ctrl+U)
                 document.addEventListener('keydown', e => {
-                    const forbidden = (
-                        e.keyCode === 123 || // F12
-                        (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) || // I, J, C
-                        (e.ctrlKey && e.keyCode === 85) // Ctrl+U
+                    const devToolsKeys = (
+                        e.keyCode === 123 || 
+                        (e.ctrlKey && e.shiftKey && [73, 74, 67].includes(e.keyCode)) || 
+                        (e.ctrlKey && e.keyCode === 85)
                     );
-                    if (forbidden) {
+                    if (devToolsKeys) {
                         e.preventDefault();
-                        this.triggerBan();
+                        this.executeBan('DEV_TOOLS_KEYBOARD_SHORTCUT');
                     }
                 });
 
-                // 3. Detect Console Opening via Resize
-                let threshold = 160;
-                window.addEventListener('resize', () => {
-                    if (window.outerWidth - window.innerWidth > threshold || window.outerHeight - window.innerHeight > threshold) {
-                        this.triggerBan();
-                    }
-                });
-
-                // 4. Debugger Trap (Anti-DevTools)
+                // Detect Console via Debugger Trap
                 setInterval(() => {
-                    const start = performance.now();
+                    const startTime = performance.now();
                     debugger;
-                    const end = performance.now();
-                    if (end - start > 100) {
-                        this.triggerBan();
+                    const endTime = performance.now();
+                    if (endTime - startTime > 100) {
+                        this.executeBan('DEBUGGER_PAUSE_DETECTED');
                     }
                 }, 1000);
+
+                // Detect Window Resizing (Side-docked devtools)
+                window.addEventListener('resize', () => {
+                    if (window.outerWidth - window.innerWidth > 160 || window.outerHeight - window.innerHeight > 160) {
+                        this.executeBan('WINDOW_RESIZE_INSPECTION');
+                    }
+                });
             }
         };
 
@@ -317,107 +284,65 @@
             if (!session) return window.location.href = 'login.html';
             currentUser = session.user;
 
-            // Check existing bans
-            const { data: ban } = await sb.from('user_restrictions')
+            // Check if user is already banned
+            const { data: activeBan } = await sb.from('user_restrictions')
                 .select('*')
                 .eq('user_id', currentUser.id)
                 .gt('expires_at', new Date().toISOString())
                 .maybeSingle();
 
-            if (ban) {
-                SecurityManager.triggerBan();
+            if (activeBan) {
+                SecurityManager.showLockout(new Date(activeBan.expires_at));
                 return;
             }
 
-            const isApproved = await verifyCourseApproval();
-            if (!isApproved) return window.location.href = '/dashboard';
-
+            // Normal Flow
             document.getElementById('moving-watermark').innerText = currentUser.email;
             document.body.classList.add('ready');
+            SecurityManager.init();
             
-            lucide.createIcons();
             fetchLessonData();
             checkCompletionStatus();
             startWatermark();
-            
-            // Initialize Security Suite
-            SecurityManager.init();
-        }
-
-        async function verifyCourseApproval() {
-            try {
-                const { data: lesson } = await sb.from('lessons').select('course_id').eq('id', lessonId).single();
-                if (!lesson) return false;
-
-                const { data: approval } = await sb.from('course_status')
-                    .select('status').eq('user_id', currentUser.id)
-                    .eq('course_id', lesson.course_id).eq('status', 'approved').maybeSingle();
-
-                return !!approval;
-            } catch (e) { return false; }
+            lucide.createIcons();
         }
 
         async function fetchLessonData() {
-            if (!lessonId) return window.location.href = '/dashboard';
-
-            const { data: lesson, error } = await sb.from('lessons').select('*').eq('id', lessonId).single();
-            if (error || !lesson) return showError("LESSON_NOT_FOUND");
-
-            const hours = parseInt(lesson.watchtime_hours) || 0;
-            const minutes = parseInt(lesson.watchtime_minutes) || 0;
-            allowedSeconds = (hours * 3600) + (minutes * 60);
+            if (!lessonId) return;
+            const { data: lesson } = await sb.from('lessons').select('*').eq('id', lessonId).single();
+            if (!lesson) return;
 
             document.getElementById('lesson-title').innerText = lesson.title;
             document.getElementById('info-id').innerText = `X-CORE-${lesson.order_index || '000'}`;
-            document.getElementById('info-limit').innerText = `${hours}H ${minutes}M ALLOCATED`;
+            
+            const hours = parseInt(lesson.watchtime_hours) || 0;
+            const mins = parseInt(lesson.watchtime_minutes) || 0;
+            allowedSeconds = (hours * 3600) + (mins * 60);
+            document.getElementById('info-limit').innerText = `${hours}H ${mins}M ALLOCATED`;
 
-            await syncProgress();
+            // Sync progress
+            const { data: sessionData } = await sb.from('watch_sessions').select('total_seconds_watched').eq('user_id', currentUser.id).eq('lesson_id', lessonId).maybeSingle();
+            if (sessionData) watchedSeconds = sessionData.total_seconds_watched;
 
             if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) {
-                showError("AIRTIME_DEPLETED");
+                document.getElementById('preloader').innerHTML = `<p class="text-red-500 mono text-xs uppercase">Airtime Depleted</p>`;
                 return;
             }
 
             initStream(lesson.video_url);
         }
 
-        async function checkCompletionStatus() {
-            const { data } = await sb.from('lesson_completions').select('*')
-                .eq('user_id', currentUser.id).eq('lesson_id', lessonId).maybeSingle();
-
-            if (data) {
-                setCompleteUI(true);
-            } else {
-                setTimeout(() => { document.getElementById('btn-complete').disabled = false; }, 5000);
-            }
-        }
-
-        async function syncProgress() {
-            const { data } = await sb.from('watch_sessions').select('total_seconds_watched')
-                .eq('user_id', currentUser.id).eq('lesson_id', lessonId).maybeSingle();
-
-            if (data) {
-                watchedSeconds = data.total_seconds_watched;
-            } else {
-                await sb.from('watch_sessions').insert({
-                    user_id: currentUser.id, lesson_id: lessonId, total_seconds_watched: 0
-                });
-            }
-        }
-
         function initStream(url) {
             const holder = document.getElementById('iframe-holder');
             const iframe = document.createElement('iframe');
             iframe.src = url;
-            iframe.allow = "autoplay; fullscreen; microphone; camera; display-capture";
-            
+            iframe.allow = "autoplay; fullscreen";
             iframe.onload = () => {
-                document.getElementById('loading-bar').style.width = '100%';
-                document.getElementById('info-status').innerText = "● ONLINE";
-                document.getElementById('info-status').className = "mono text-[9px] text-green-500 font-bold tracking-widest uppercase";
                 document.getElementById('preloader').style.display = 'none';
                 iframe.classList.add('visible');
                 document.getElementById('timer-display').classList.remove('hidden');
+                document.getElementById('info-status').innerText = "● ONLINE";
+                document.getElementById('info-status').className = "mono text-[9px] text-green-500 font-bold tracking-widest uppercase";
                 startClock();
             };
             holder.appendChild(iframe);
@@ -425,22 +350,18 @@
 
         function startClock() {
             sessionTimer = setInterval(async () => {
-                watchedSeconds += 1;
-                updateUI();
-
+                watchedSeconds++;
+                updateTimerUI();
                 if (watchedSeconds % 15 === 0) {
-                    await sb.from('watch_sessions').update({ total_seconds_watched: watchedSeconds, last_watched_at: new Date().toISOString() })
-                        .eq('user_id', currentUser.id).eq('lesson_id', lessonId);
+                    await sb.from('watch_sessions').upsert({ user_id: currentUser.id, lesson_id: lessonId, total_seconds_watched: watchedSeconds, last_watched_at: new Date().toISOString() });
                 }
-
                 if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) {
-                    clearInterval(sessionTimer);
-                    showError("WATCH_LIMIT_EXCEEDED");
+                    location.reload();
                 }
             }, 1000);
         }
 
-        function updateUI() {
+        function updateTimerUI() {
             const remaining = Math.max(0, allowedSeconds - watchedSeconds);
             const h = Math.floor(remaining / 3600);
             const m = Math.floor((remaining % 3600) / 60);
@@ -465,50 +386,23 @@
             animate();
         }
 
-        function setCompleteUI(alreadyDone = false) {
-            const btn = document.getElementById('btn-complete');
-            btn.innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5"></i> COMPLETED`;
-            btn.classList.replace('btn-primary', 'btn-secondary');
-            btn.classList.add('text-green-500');
-            btn.disabled = true;
-            isCompleted = true;
-            lucide.createIcons();
-        }
-
-        async function markAsComplete() {
-            if (isCompleted) return;
-            const btn = document.getElementById('btn-complete');
-            btn.disabled = true;
-            btn.innerText = "SYNCING...";
-
-            const { error } = await sb.from('lesson_completions').insert({
-                user_id: currentUser.id, lesson_id: lessonId
-            });
-
-            if (error) {
-                btn.innerText = "ERROR - RETRY";
-                btn.disabled = false;
-                return;
+        async function checkCompletionStatus() {
+            const { data } = await sb.from('lesson_completions').select('*').eq('user_id', currentUser.id).eq('lesson_id', lessonId).maybeSingle();
+            if (data) {
+                const btn = document.getElementById('btn-complete');
+                btn.disabled = true;
+                btn.innerText = "COMPLETED";
+                btn.classList.add('text-green-500');
+            } else {
+                document.getElementById('btn-complete').disabled = false;
             }
-            setCompleteUI();
         }
 
-        function showError(msg) {
-            document.getElementById('preloader').style.display = 'flex';
-            document.getElementById('preloader').innerHTML = `
-                <div class="text-center p-12 glass-card">
-                    <p class="mono text-red-500 font-black tracking-widest uppercase mb-4">ACCESS TERMINATED</p>
-                    <p class="text-[10px] text-neutral-500 uppercase tracking-[4px] mb-8">${msg}</p>
-                    <button onclick="window.location.href='/curriculum'" class="btn-primary px-8 py-3 rounded-xl text-xs font-bold uppercase tracking-wider mx-auto">
-                        Return to Hub
-                    </button>
-                </div>
-            `;
-            document.getElementById('info-status').innerText = "● OFFLINE";
-            document.getElementById('info-status').className = "mono text-[9px] text-red-500 font-bold tracking-widest uppercase";
-        }
+        document.getElementById('btn-complete').onclick = async () => {
+            await sb.from('lesson_completions').insert({ user_id: currentUser.id, lesson_id: lessonId });
+            location.reload();
+        };
 
-        document.getElementById('btn-complete').onclick = markAsComplete;
         window.onload = checkAuth;
     </script>
 </body>
