@@ -109,7 +109,7 @@
             try {
                 // 1. Fetch Course Approvals
                 const { data: courses, error: courseErr } = await sb
-                    .from('course_approvals')
+                    .from('course_status')
                     .select('*, courses(name)')
                     .eq('user_id', user.id);
 
