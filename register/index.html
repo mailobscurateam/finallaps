@@ -267,38 +267,31 @@
                 submitBtn.style.opacity = '0.7';
 
                 try {
+                    // Added redirectTo: window.location.origin + '/verify'
+                    // This ensures the link in the confirmation email points to your verification route
                     const { data, error } = await supabaseInstance.auth.signUp({
                         email: document.getElementById('email').value,
                         password: passInput.value,
-                        options: { data: { full_name: document.getElementById('fullname').value } }
+                        options: { 
+                            data: { full_name: document.getElementById('fullname').value },
+                            emailRedirectTo: window.location.origin + '/verify' 
+                        }
                     });
                     
                     if (error) throw error;
                     
                     // Success state
                     statusContainer.className = 'flex items-center space-x-3 p-4 rounded-2xl bg-green-500/10 border-green-500/20 text-green-400 text-xs';
-                    
-                    // Start countdown for redirection
-                    let countdown = 3;
+                    statusText.textContent = "Confirmation sent! Verify your email to access the portal.";
                     statusMsg.classList.remove('hidden');
                     
-                    const updateStatus = () => {
-                        statusText.textContent = `Identity initialized. Redirecting to terminal in ${countdown}s...`;
-                    };
-                    
-                    updateStatus();
-                    
-                    const interval = setInterval(() => {
-                        countdown--;
-                        if (countdown <= 0) {
-                            clearInterval(interval);
-                            window.location.href = '/login'; // Redirect to login
-                        } else {
-                            updateStatus();
-                        }
-                    }, 1000);
-
+                    spinner.style.display = 'none';
                     form.reset();
+
+                    // Optional: Countdown to redirect user back to login while they wait for email
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 5000);
 
                 } catch (err) {
                     statusContainer.className = 'flex items-center space-x-3 p-4 rounded-2xl bg-red-500/10 border-red-500/20 text-red-400 text-xs';
