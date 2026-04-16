@@ -184,6 +184,14 @@
         </div>
     </main>
 
+    <!-- Global Feedback Notification -->
+    <div id="feedback-toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] hidden">
+        <div class="bg-slate-900 border border-slate-800 px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3">
+            <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center"></div>
+            <div id="toast-message" class="text-sm font-semibold text-white"></div>
+        </div>
+    </div>
+
     <script>
         const SUPABASE_URL = 'https://tsaoxjzvhxiggntibpui.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzYW94anp2aHhpZ2dudGlicHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDQ2OTAsImV4cCI6MjA5MTQyMDY5MH0.Q5Iu51O3NK4k2kcc_GoegnyAYIFIs2SUkQOV10qp2jI';
@@ -191,24 +199,28 @@
 
         let allLessons = [];
         let approvedMonths = [];
+        let pendingMonths = [];
+        let currentUser = null;
+        let activeCourseId = null;
         const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
         async function init() {
             const { data: { session } } = await sb.auth.getSession();
             if (!session) return window.location.href = 'login.html';
             
+            currentUser = session.user;
             document.getElementById('user-display').textContent = session.user.email;
 
             const urlParams = new URLSearchParams(window.location.search);
             const courseId = urlParams.get('course_id') || urlParams.get('id') || localStorage.getItem('active_session_id');
             if (!courseId) return window.location.href = '/dashboard';
+            activeCourseId = courseId;
             localStorage.setItem('active_session_id', courseId);
 
             try {
-                // 1. Check Global Course Status (Is the student even allowed in this course?)
                 const { data: statusCheck } = await sb.from('course_status')
                     .select('status')
-                    .eq('user_id', session.user.id)
+                    .eq('user_id', currentUser.id)
                     .eq('course_id', courseId)
                     .single();
 
@@ -217,16 +229,8 @@
                     return;
                 }
 
-                // 2. Fetch Approved Months (Specific monthly lesson access)
-                const { data: approvals } = await sb.from('monthly_approvals')
-                    .select('month_number')
-                    .eq('user_id', session.user.id)
-                    .eq('course_id', courseId)
-                    .eq('is_approved', true);
-                
-                approvedMonths = approvals ? approvals.map(a => parseInt(a.month_number)) : [];
+                await fetchApprovals();
 
-                // 3. Fetch Course & Lessons
                 const { data: course } = await sb.from('courses').select('*').eq('id', courseId).single();
                 document.getElementById('course-title').textContent = course.name;
                 document.getElementById('course-desc').textContent = course.description;
@@ -237,7 +241,6 @@
                 allLessons = lessons;
                 generateMonthFilters(lessons);
                 
-                // Set initial view to the first available month automatically
                 const uniqueMonths = [...new Set(lessons.map(l => l.month))].filter(m => m != null).sort((a, b) => a - b);
                 if (uniqueMonths.length > 0) {
                     filterByMonth(uniqueMonths[0]);
@@ -251,21 +254,37 @@
             }
         }
 
+        async function fetchApprovals() {
+            const { data: approvals } = await sb.from('monthly_approvals')
+                .select('month_number, status')
+                .eq('user_id', currentUser.id)
+                .eq('course_id', activeCourseId);
+            
+            approvedMonths = approvals ? approvals.filter(a => a.status === 'approved').map(a => parseInt(a.month_number)) : [];
+            pendingMonths = approvals ? approvals.filter(a => a.status === 'pending').map(a => parseInt(a.month_number)) : [];
+        }
+
         function generateMonthFilters(lessons) {
             const filterContainer = document.getElementById('month-filter');
             filterContainer.innerHTML = '';
             const uniqueMonths = [...new Set(lessons.map(l => l.month))].filter(m => m != null).sort((a, b) => a - b);
             
             uniqueMonths.forEach(monthNum => {
-                const isLocked = !approvedMonths.includes(parseInt(monthNum));
+                const isApproved = approvedMonths.includes(parseInt(monthNum));
+                const isPending = pendingMonths.includes(parseInt(monthNum));
+                const isLocked = !isApproved;
+
                 const btn = document.createElement('button');
                 btn.onclick = () => filterByMonth(monthNum);
                 btn.setAttribute('data-month', monthNum);
-                btn.className = `category-pill ${isLocked ? 'is-locked opacity-70' : ''}`;
-                btn.innerHTML = `
-                    ${isLocked ? '<i data-lucide="lock" class="w-3 h-3 mr-2 text-slate-500"></i>' : ''}
-                    ${MONTH_NAMES[monthNum - 1]}
-                `;
+                btn.className = `category-pill ${isLocked ? 'is-locked opacity-70' : ''} ${isPending ? 'border-amber-500/50' : ''}`;
+                
+                let icon = '';
+                if (isApproved) icon = '';
+                else if (isPending) icon = '<i data-lucide="clock" class="w-3 h-3 mr-2 text-amber-500"></i>';
+                else icon = '<i data-lucide="lock" class="w-3 h-3 mr-2 text-slate-500"></i>';
+
+                btn.innerHTML = `${icon} ${MONTH_NAMES[monthNum - 1]}`;
                 filterContainer.appendChild(btn);
             });
             lucide.createIcons();
@@ -273,16 +292,68 @@
 
         function filterByMonth(val) {
             const isApproved = approvedMonths.includes(parseInt(val));
+            const isPending = pendingMonths.includes(parseInt(val));
             
             document.querySelectorAll('.category-pill').forEach(t => {
                 t.classList.toggle('active', t.getAttribute('data-month') == val);
             });
             
             const filtered = allLessons.filter(l => l.month == val);
-            renderCategorizedLessons(filtered, isApproved, val);
+            renderCategorizedLessons(filtered, isApproved, val, isPending);
         }
 
-        function renderCategorizedLessons(lessons, isApproved, selectedMonthNum) {
+        async function requestActivation(monthNum, btnElement) {
+            if (!currentUser || !activeCourseId) return;
+
+            const originalContent = btnElement.innerHTML;
+            btnElement.disabled = true;
+            btnElement.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Submitting...`;
+            lucide.createIcons();
+
+            try {
+                const { error } = await sb.from('monthly_approvals').insert([{
+                    user_id: currentUser.id,
+                    course_id: activeCourseId,
+                    month_number: parseInt(monthNum),
+                    status: 'pending'
+                }]);
+
+                if (error) {
+                    if (error.code === '23505') throw new Error("A request for this module is already pending.");
+                    throw error;
+                }
+
+                showToast("Activation request sent successfully!", "success");
+                
+                // Update local state and refresh UI
+                await fetchApprovals();
+                generateMonthFilters(allLessons);
+                filterByMonth(monthNum);
+
+            } catch (err) {
+                showToast(err.message, "error");
+                btnElement.disabled = false;
+                btnElement.innerHTML = originalContent;
+                lucide.createIcons();
+            }
+        }
+
+        function showToast(msg, type) {
+            const toast = document.getElementById('feedback-toast');
+            const icon = document.getElementById('toast-icon');
+            const message = document.getElementById('toast-message');
+
+            message.textContent = msg;
+            icon.className = `w-8 h-8 rounded-full flex items-center justify-center ${type === 'success' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-red-500/20 text-red-500'}`;
+            icon.innerHTML = `<i data-lucide="${type === 'success' ? 'check' : 'alert-circle'}" class="w-4 h-4"></i>`;
+            
+            toast.classList.remove('hidden');
+            lucide.createIcons();
+
+            setTimeout(() => toast.classList.add('hidden'), 4000);
+        }
+
+        function renderCategorizedLessons(lessons, isApproved, selectedMonthNum, isPending = false) {
             const container = document.getElementById('lessons-container');
             
             if (!lessons.length) {
@@ -294,15 +365,28 @@
             }
 
             if (!isApproved) {
+                const title = isPending ? "Request Under Review" : `${MONTH_NAMES[selectedMonthNum-1]} Access Required`;
+                const desc = isPending 
+                    ? "Your request for this module has been sent and is currently under review by our administration. You will be notified once access is granted."
+                    : "This module is currently locked. Click the button below to send an activation request to the administrators.";
+                const btnText = isPending ? "Request Pending Approval" : "Request Monthly Activation";
+                const icon = isPending ? "clock" : "lock";
+                const iconClass = isPending ? "bg-amber-600/10 text-amber-500" : "bg-red-600/10 text-red-500";
+
                 container.innerHTML = `
-                    <div class="animate-fade-in text-center py-20 px-6 bg-red-950/10 border border-red-900/20 rounded-2xl">
-                        <div class="w-16 h-16 bg-red-600/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <i data-lucide="lock" class="w-8 h-8"></i>
+                    <div class="animate-fade-in text-center py-20 px-6 bg-slate-900/30 border border-white/5 rounded-2xl">
+                        <div class="w-16 h-16 ${iconClass} rounded-full flex items-center justify-center mx-auto mb-6">
+                            <i data-lucide="${icon}" class="w-8 h-8"></i>
                         </div>
-                        <h3 class="text-2xl font-bold text-white mb-2">${MONTH_NAMES[selectedMonthNum-1]} Access Required</h3>
-                        <p class="text-slate-400 mb-8 max-w-md mx-auto">Your enrollment for this specific month hasn't been activated yet. Please complete previous modules or contact support to unlock this content.</p>
-                        <button onclick="window.open('https://wa.me/yourlink', '_blank')" class="inline-flex items-center gap-2 px-8 py-3 bg-red-600 text-white rounded-lg font-bold hover:bg-red-500 transition-all shadow-lg shadow-red-600/20">
-                            Request Monthly Activation
+                        <h3 class="text-2xl font-bold text-white mb-2">${title}</h3>
+                        <p class="text-slate-400 mb-8 max-w-md mx-auto">${desc}</p>
+                        <button 
+                            id="activation-btn"
+                            ${isPending ? 'disabled' : `onclick="requestActivation(${selectedMonthNum}, this)"`}
+                            class="inline-flex items-center gap-2 px-8 py-3 ${isPending ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-red-600 hover:bg-red-500 text-white'} rounded-lg font-bold transition-all shadow-lg shadow-black/20"
+                        >
+                            ${isPending ? '<i data-lucide="clock" class="w-4 h-4"></i>' : ''}
+                            ${btnText}
                         </button>
                     </div>
                 `;
