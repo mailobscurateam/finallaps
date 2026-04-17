@@ -101,14 +101,13 @@
         </div>
 
         <!-- 
-             Iframe with broad permissions to ensure functionality.
-             Note: Some sites use 'X-Frame-Options: DENY' which cannot be bypassed client-side.
+             Iframe with broad permissions. 
+             Note: Sandbox attribute is removed to support Proton's authentication and complex scripting needs.
         -->
         <iframe 
             id="portal-frame" 
             referrerpolicy="no-referrer"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
-            sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation allow-same-origin allow-scripts"
         ></iframe>
     </main>
 
