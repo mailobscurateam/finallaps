@@ -236,7 +236,7 @@
             if (!url) return;
             localStorage.setItem('external_lesson_url', url);
             localStorage.setItem('current_lesson_id', lessonId);
-            window.location.href = `/external?id=${lessonId}`;
+            window.location.href = `/learn/external?id=${lessonId}`;
         };
 
         function renderCategorizedLessons(lessons, isApproved, selectedMonthNum, isPending) {
