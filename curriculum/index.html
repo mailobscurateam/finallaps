@@ -110,6 +110,7 @@
 
         .badge-red { background: rgba(153, 27, 27, 0.3); color: #fca5a5; border: 1px solid rgba(252, 165, 165, 0.2); }
         .badge-amber { background: rgba(146, 64, 14, 0.3); color: #fcd34d; border: 1px solid rgba(252, 211, 77, 0.2); }
+        .badge-blue { background: rgba(30, 58, 138, 0.3); color: #93c5fd; border: 1px solid rgba(147, 197, 253, 0.2); }
         .badge-locked { background: #0f0f12; color: #64748b; border: 1px solid #2d2d35; }
 
         @keyframes fadeIn {
@@ -325,7 +326,6 @@
 
                 showToast("Activation request sent successfully!", "success");
                 
-                // Update local state and refresh UI
                 await fetchApprovals();
                 generateMonthFilters(allLessons);
                 filterByMonth(monthNum);
@@ -418,7 +418,25 @@
 
         function renderLessonItem(l, isApproved) {
             const type = (l.lesson_type || 'video').toLowerCase();
-            const icon = type === 'pdf' ? 'file-text' : (['zoom', 'live'].includes(type) ? 'radio' : 'play');
+            
+            // Define icons based on type
+            let icon = 'play';
+            let badgeClass = 'badge-amber';
+            
+            if (type === 'pdf') {
+                icon = 'file-text';
+                badgeClass = 'badge-red';
+            } else if (['zoom', 'live'].includes(type)) {
+                icon = 'radio';
+                badgeClass = 'badge-amber';
+            } else if (type === 'external') {
+                icon = 'external-link';
+                badgeClass = 'badge-blue';
+            }
+
+            // Define URL logic
+            const targetUrl = type === 'external' ? l.video_url : `/learn/${type}?id=${l.id}`;
+            const targetAttr = type === 'external' ? 'target="_blank" rel="noopener noreferrer"' : '';
             
             return `
                 <div class="custom-card p-5 md:p-6 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-6 group">
@@ -431,7 +449,7 @@
                                 <h4 class="font-bold text-lg text-white group-hover:text-red-400 transition-colors">
                                     ${l.title}
                                 </h4>
-                                <span class="badge ${type === 'pdf' ? 'badge-red' : 'badge-amber'}">${type}</span>
+                                <span class="badge ${badgeClass}">${type}</span>
                             </div>
                             <div class="flex items-center gap-4 text-sm text-slate-500 font-medium">
                                 <span class="flex items-center gap-1.5">
@@ -448,10 +466,10 @@
                         </div>
                     </div>
 
-                    <a href="/learn/${type}?id=${l.id}" 
+                    <a href="${targetUrl}" ${targetAttr}
                        class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white text-black font-bold text-sm hover:bg-red-600 hover:text-white transition-all shadow-lg shadow-black/20">
-                        Launch Unit
-                        <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                        ${type === 'external' ? 'Open Portal' : 'Launch Unit'}
+                        <i data-lucide="${type === 'external' ? 'external-link' : 'arrow-right'}" class="w-4 h-4"></i>
                     </a>
                 </div>
             `;
