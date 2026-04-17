@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Learning Portal | Nexus</title>
+    <title>Secure Gateway | Nexus</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@700&display=swap" rel="stylesheet">
@@ -12,39 +12,17 @@
             font-family: 'Inter', sans-serif; 
             background-color: #0f0f12; 
             color: #f8fafc;
-            overflow: hidden;
         }
-        .portal-header {
-            background: rgba(15, 15, 18, 0.9);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid #2d2d35;
-            height: 64px;
-        }
-        .frame-wrapper {
-            height: calc(100vh - 64px);
-            width: 100%;
-            position: relative;
-            background: #000;
-        }
-        iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-        }
-        .loading-overlay {
-            position: absolute;
-            inset: 0;
+        .gateway-container {
+            height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            background: #0f0f12;
-            z-index: 40;
-            transition: opacity 0.4s ease;
         }
         .spinner {
-            width: 32px;
-            height: 32px;
+            width: 40px;
+            height: 40px;
             border: 3px solid rgba(239, 68, 68, 0.1);
             border-top-color: #ef4444;
             border-radius: 50%;
@@ -55,103 +33,67 @@
         }
     </style>
 </head>
-<body class="h-screen flex flex-col">
+<body>
 
-    <!-- Persistent Header to hide raw URL and provide Exit -->
-    <header class="portal-header flex items-center justify-between px-6 shrink-0 z-50">
-        <div class="flex items-center gap-4">
-            <button onclick="goBack()" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all text-sm font-medium">
-                <i data-lucide="arrow-left" class="w-4 h-4"></i>
-                Exit Resource
-            </button>
-            <div class="h-4 w-[1px] bg-slate-800"></div>
-            <div class="flex items-center gap-2">
-                <div class="w-6 h-6 bg-red-600/20 text-red-500 rounded flex items-center justify-center">
-                    <i data-lucide="shield" class="w-3.5 h-3.5"></i>
-                </div>
-                <span class="text-sm font-bold tracking-tight text-slate-200">Secure Learning Portal</span>
+    <div id="loading-state" class="gateway-container p-6 text-center">
+        <div class="flex items-center gap-2 mb-8 justify-center">
+            <div class="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center shadow-lg shadow-red-900/20">
+                <i data-lucide="shield-check" class="w-6 h-6 text-white"></i>
             </div>
+            <span class="text-xl font-bold tracking-tight">Nexus Secure Gateway</span>
         </div>
+        
+        <div class="spinner mb-6"></div>
+        <h2 class="text-xl font-bold mb-2 text-white">Handshaking Session</h2>
+        <p class="text-slate-400 max-w-xs mx-auto text-sm">Verifying your credentials and establishing a secure connection to the resource...</p>
+    </div>
 
-        <div class="flex items-center gap-4">
-            <div id="status-indicator" class="flex items-center gap-2 text-[10px] uppercase tracking-widest text-slate-500 font-bold">
-                <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                Encrypted Session
-            </div>
+    <!-- Error State -->
+    <div id="error-screen" class="hidden gateway-container p-6 text-center">
+        <div class="w-16 h-16 bg-red-900/20 text-red-500 rounded-full flex items-center justify-center mb-6 mx-auto">
+            <i data-lucide="alert-circle" class="w-8 h-8"></i>
         </div>
-    </header>
-
-    <!-- Content Area -->
-    <main class="frame-wrapper">
-        <div id="loading-state" class="loading-overlay">
-            <div class="spinner mb-4"></div>
-            <p class="text-sm text-slate-400 font-medium">Loading secure resource...</p>
-        </div>
-
-        <!-- Error State -->
-        <div id="error-screen" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-[#0f0f12] p-6 text-center z-50">
-            <div class="w-16 h-16 bg-red-900/20 text-red-500 rounded-full flex items-center justify-center mb-6">
-                <i data-lucide="alert-circle" class="w-8 h-8"></i>
-            </div>
-            <h2 class="text-xl font-bold mb-2">Access Error</h2>
-            <p class="text-slate-400 max-w-md mb-8">This resource cannot be loaded directly or the session has timed out.</p>
-            <button onclick="goBack()" class="bg-white text-black px-6 py-2 rounded-lg font-bold hover:bg-slate-200 transition-colors">
-                Return to Dashboard
-            </button>
-        </div>
-
-        <!-- 
-             Iframe with broad permissions. 
-             Note: Sandbox attribute is removed to support Proton's authentication and complex scripting needs.
-        -->
-        <iframe 
-            id="portal-frame" 
-            referrerpolicy="no-referrer"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
-        ></iframe>
-    </main>
+        <h2 class="text-xl font-bold mb-2">Secure Link Expired</h2>
+        <p class="text-slate-400 max-w-md mb-8 mx-auto text-sm">We couldn't retrieve the secure access token for this resource. Please relaunch the unit from your dashboard.</p>
+        <button onclick="goBack()" class="bg-white text-black px-6 py-2 rounded-lg font-bold hover:bg-slate-200 transition-colors inline-flex items-center gap-2 text-sm">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i>
+            Return to Dashboard
+        </button>
+    </div>
 
     <script>
-        function initPortal() {
+        async function handleGatewayRedirect() {
             lucide.createIcons();
             
+            // 1. Retrieve the protected URL from cache
             const url = localStorage.getItem('external_lesson_url');
-            const iframe = document.getElementById('portal-frame');
             const loading = document.getElementById('loading-state');
             const errorScreen = document.getElementById('error-screen');
 
-            if (!url || url.trim() === "") {
-                loading.classList.add('hidden');
-                errorScreen.classList.remove('hidden');
-                return;
-            }
-
-            // Set source
-            iframe.src = url;
-
-            // Handle successful load
-            iframe.onload = () => {
-                loading.style.opacity = '0';
-                setTimeout(() => loading.classList.add('hidden'), 400);
-            };
-
-            // Fail-safe for loading indicator
+            // 2. Small artificial delay to ensure the user perceives the security handshake
+            // and to allow the browser to process the localStorage read.
             setTimeout(() => {
-                if (!loading.classList.contains('hidden')) {
-                    loading.style.opacity = '0';
-                    setTimeout(() => loading.classList.add('hidden'), 400);
+                if (url && url.startsWith('http')) {
+                    // 3. Clear the sensitive URL from cache BEFORE redirecting
+                    // This ensures the link isn't sitting in storage indefinitely.
+                    localStorage.removeItem('external_lesson_url');
+                    
+                    // 4. Perform the redirect at the window level.
+                    // .replace() is used so the gateway page isn't in the back-button history.
+                    window.location.replace(url);
+                } else {
+                    loading.classList.add('hidden');
+                    errorScreen.classList.remove('hidden');
                 }
-            }, 5000);
+            }, 1200);
         }
 
         function goBack() {
             const courseId = localStorage.getItem('active_session_id');
-            // We clear the cache on exit to further protect the URL
-            localStorage.removeItem('external_lesson_url');
             window.location.href = courseId ? `/curriculum?id=${courseId}` : '/dashboard';
         }
 
-        window.onload = initPortal;
+        window.onload = handleGatewayRedirect;
     </script>
 </body>
 </html>
