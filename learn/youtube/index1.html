@@ -32,7 +32,6 @@
                 radial-gradient(circle at 50% -20%, rgba(220, 38, 38, 0.12), transparent 60%),
                 radial-gradient(circle at 100% 100%, rgba(220, 38, 38, 0.04), transparent 40%);
             overflow-x: hidden;
-            user-select: none; /* Anti-copy */
         }
         
         body::before {
@@ -129,6 +128,7 @@
             border-radius: 8px; padding: 4px; margin-bottom: 12px; display: none; flex-direction: column; min-width: 120px; box-shadow: 0 20px 40px rgba(0,0,0,0.8);
         }
         .speed-menu.active { display: flex; animation: tacticalFade 0.2s ease-out; }
+        @keyframes tacticalFade { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         
         .speed-option { padding: 8px 12px; font-size: 10px; color: #888; text-align: left; border-radius: 4px; transition: all 0.2s; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
         .speed-option:hover { background: rgba(220, 38, 38, 0.1); color: white; }
@@ -136,7 +136,7 @@
 
         .watermark {
             position: absolute; z-index: 50; pointer-events: none; user-select: none; font-family: 'JetBrains Mono', monospace;
-            font-size: 11px; font-weight: 700; color: rgba(220, 38, 38, 0.25); mix-blend-mode: color-dodge; text-transform: uppercase; white-space: nowrap; letter-spacing: 3px;
+            font-size: 11px; font-weight: 700; color: rgba(220, 38, 38, 0.3); mix-blend-mode: color-dodge; text-transform: uppercase; white-space: nowrap; letter-spacing: 3px;
         }
 
         .status-bar { height: 3px; background: rgba(255,255,255,0.02); position: relative; overflow: hidden; }
@@ -155,6 +155,7 @@
             border-left: 2px solid rgba(220, 38, 38, 0.1); background: linear-gradient(90deg, rgba(220,38,38,0.03) 0%, transparent 100%);
             padding: 1rem 1.25rem; border-radius: 4px; transition: all 0.3s;
         }
+        .telemetry-card:hover { border-left-color: var(--primary); background: linear-gradient(90deg, rgba(220,38,38,0.08) 0%, transparent 100%); }
 
         input[type=range] { accent-color: var(--primary); height: 2px; }
         .pulse-red { animation: pulse-red 2s infinite; }
@@ -162,9 +163,9 @@
         .hud-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 800; letter-spacing: 0.2em; color: #555; text-transform: uppercase; }
     </style>
 </head>
-<body class="selection:bg-red-600/40" oncontextmenu="return false;">
+<body class="selection:bg-red-600/40">
 
-    <!-- Security Lockdown Overlay -->
+    <!-- Banned Message Overlay -->
     <div id="lockout-screen" class="p-6">
         <div class="p-10 glass-panel border-red-900/50 max-w-lg w-full relative overflow-hidden text-center">
             <div class="absolute top-0 left-0 w-full h-1 bg-red-600 animate-pulse"></div>
@@ -180,6 +181,7 @@
             <div class="text-neutral-500 text-xs mb-8 leading-relaxed space-y-4 mono uppercase tracking-wider">
                 <p>Security Node <strong class="text-white">AEGIS-9</strong> has terminated your uplink.</p>
                 <p>Anomalous environment behavior or hardware-level inspection detected.</p>
+                <p id="ban-reason" class="text-red-500/50 font-bold"></p>
             </div>
 
             <div class="bg-red-600/10 border border-red-600/20 p-6 rounded-lg mb-8 text-left">
@@ -187,12 +189,12 @@
                     <p class="mono text-[9px] text-red-500 uppercase tracking-widest font-black">Status</p>
                     <span class="bg-red-600 text-white text-[8px] font-black px-2 py-0.5 rounded">LOCKED</span>
                 </div>
-                <p class="text-white font-bold text-lg mono">ACCESS RESTRICTION</p>
+                <p class="text-white font-bold text-lg mono">7-DAY ACCESS RESTRICTION</p>
                 <p id="ban-expiry" class="text-red-400/60 text-[10px] mt-2 italic mono">Calculating restoration window...</p>
             </div>
 
-            <button onclick="window.location.reload()" class="action-btn mx-auto">
-                Attempt Re-Verification
+            <button onclick="window.location.href='/dashboard'" class="action-btn mx-auto">
+                Terminate Connection
             </button>
         </div>
     </div>
@@ -247,8 +249,8 @@
                     <p id="info-limit" class="text-xs font-bold text-white mono">-- SEC</p>
                 </div>
                 <div class="telemetry-card glass-panel">
-                    <p class="hud-label mb-2">Security_Mode</p>
-                    <p id="signal-quality" class="text-xs font-bold text-red-500/80 mono">ANTI_TAMPER_ON</p>
+                    <p class="hud-label mb-2">Encryption</p>
+                    <p id="signal-quality" class="text-xs font-bold text-red-500/80 mono">AES_256_LIVE</p>
                 </div>
                 <div class="telemetry-card glass-panel border-red-900/30">
                     <p class="hud-label mb-2">Network_Node</p>
@@ -312,54 +314,30 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzYW94anp2aHhpZ2dudGlicHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDQ2OTAsImV4cCI6MjA5MTQyMDY5MH0.Q5Iu51O3NK4k2kcc_GoegnyAYIFIs2SUkQOV10qp2jI';
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         const urlParams = new URLSearchParams(window.location.search);
-        const lessonId = urlParams.get('id') || '30b8d523-a55e-4903-8874-a6c3f3f05477'; // Fallback for dev
+        const lessonId = urlParams.get('id');
 
-        let player, currentUser, allowedSeconds = 0, watchedSeconds = 0;
+        let player, currentUser, allowedSeconds, watchedSeconds = 0;
         let watermarkData = { x: 50, y: 50, dx: 0.6, dy: 0.5 };
         let sessionTrackingActive = false;
         let isLessonAlreadyCompleted = false;
 
         /**
-         * ANTI-TAMPER SECURITY MODULE
+         * SECURITY MANAGER: ANTI-TAMPER LOGIC
          */
-        const SecurityProtocol = {
+        const SecurityManager = {
             init() {
+                this.disableContextMenu();
                 this.detectDevTools();
-                this.blockShortcuts();
-                this.preventDrag();
-            },
-            
-            triggerViolation() {
-                if (player && player.pauseVideo) player.pauseVideo();
-                document.getElementById('main-interface').style.display = 'none';
-                document.getElementById('lockout-screen').style.display = 'flex';
-                document.getElementById('ban-expiry').innerText = `PROTOCOL VIOLATION DETECTED: TERMINATING UPLINK`;
-                
-                // Potential logic here: sb.from('user_restrictions').insert(...)
+                this.preventShortcuts();
+                this.monitorResize();
             },
 
-            detectDevTools() {
-                const threshold = 160;
-                const check = () => {
-                    if (window.outerWidth - window.innerWidth > threshold || 
-                        window.outerHeight - window.innerHeight > threshold) {
-                        this.triggerViolation();
-                    }
-                };
-                window.addEventListener('resize', check);
-                setInterval(check, 1000);
-                
-                // Script debugging detection
-                let devtools = function() {};
-                devtools.toString = function() {
-                    SecurityProtocol.triggerViolation();
-                    return "Locked";
-                }
-                console.log("%c", devtools);
+            disableContextMenu() {
+                document.addEventListener('contextmenu', (e) => e.preventDefault());
             },
 
-            blockShortcuts() {
-                window.addEventListener('keydown', (e) => {
+            preventShortcuts() {
+                document.addEventListener('keydown', (e) => {
                     // Block F12, Ctrl+Shift+I/J/C, Ctrl+U
                     if (
                         e.keyCode === 123 || 
@@ -367,26 +345,72 @@
                         (e.ctrlKey && e.keyCode === 85)
                     ) {
                         e.preventDefault();
-                        this.triggerViolation();
+                        this.executeBan('SHORTCUT_VIOLATION');
                     }
                 });
             },
 
-            preventDrag() {
-                document.addEventListener('dragstart', (e) => e.preventDefault());
+            detectDevTools() {
+                // Debugger Trap
+                setInterval(() => {
+                    const startTime = performance.now();
+                    debugger; // This will pause execution if DevTools are open
+                    const endTime = performance.now();
+                    if (endTime - startTime > 100) {
+                        this.executeBan('DEBUGGER_ACTIVE');
+                    }
+                }, 2000);
+            },
+
+            monitorResize() {
+                // Resize Detection (DevTools docking)
+                window.addEventListener('resize', () => {
+                    const threshold = 160;
+                    const widthDiff = window.outerWidth - window.innerWidth;
+                    const heightDiff = window.outerHeight - window.innerHeight;
+
+                    if (widthDiff > threshold || heightDiff > threshold) {
+                        this.executeBan('RESIZE_DETECTION');
+                    }
+                });
+            },
+
+            async executeBan(reasonCode) {
+                if (!currentUser) return;
+                
+                // 7-day expiry
+                const expiresAt = new Date();
+                expiresAt.setDate(expiresAt.getDate() + 7);
+
+                try {
+                    // Persistence in Supabase
+                    await sb.from('user_restrictions').insert({
+                        user_id: currentUser.id,
+                        restriction_type: '7_DAY_BAN',
+                        reason: `TACTICAL_AUTO_LOCK: ${reasonCode}`,
+                        expires_at: expiresAt.toISOString()
+                    });
+
+                    // Terminate Auth Session
+                    await sb.auth.signOut();
+                    
+                    // Trigger UI Lockout
+                    showLockoutScreen(expiresAt, reasonCode);
+                } catch (e) {
+                    console.error("Shield Failure", e);
+                    // Fallback visual lockout even if DB update fails
+                    showLockoutScreen(expiresAt, reasonCode);
+                }
             }
         };
 
         async function init() {
-            SecurityProtocol.init();
-
             const { data: { session } } = await sb.auth.getSession();
-            if (!session) { 
-                // Redirecting to login if no session - simulated for preview
-                console.log("No auth session found");
-                // window.location.href = 'index.html'; 
-            }
-            currentUser = session?.user || { id: 'dev-user', email: 'vanguard_operative@protocol.sys' };
+            if (!session) { window.location.href = 'index.html'; return; }
+            currentUser = session.user;
+
+            // Security Init
+            SecurityManager.init();
 
             // Check for active BANS
             const { data: activeBan } = await sb.from('user_restrictions')
@@ -396,14 +420,14 @@
                 .maybeSingle();
 
             if (activeBan) {
-                showLockoutScreen(new Date(activeBan.expires_at));
+                showLockoutScreen(new Date(activeBan.expires_at), activeBan.reason);
                 return;
             }
 
             const isApproved = await verifyCourseApproval();
-            if (!isApproved && currentUser.id !== 'dev-user') { window.location.href = '/dashboard'; return; }
+            if (!isApproved) { window.location.href = '/dashboard'; return; }
 
-            document.getElementById('moving-watermark').innerText = `NODE_UPLINK: ${currentUser.email}`;
+            document.getElementById('moving-watermark').innerText = `ID_TRACE: ${currentUser.email}`;
             document.body.classList.add('ready');
             lucide.createIcons();
             
@@ -414,10 +438,11 @@
             startPageSessionTracking();
         }
 
-        function showLockoutScreen(expiryDate) {
+        function showLockoutScreen(expiryDate, reason = "") {
             document.getElementById('main-interface').style.display = 'none';
             document.getElementById('lockout-screen').style.display = 'flex';
             document.getElementById('ban-expiry').innerText = `RESTORATION TIMESTAMP: ${expiryDate.toLocaleString()}`;
+            if (reason) document.getElementById('ban-reason').innerText = `REASON: ${reason}`;
             document.body.classList.add('ready');
             lucide.createIcons();
         }
@@ -444,17 +469,17 @@
 
         async function fetchLessonData() {
             const { data: lesson } = await sb.from('lessons').select('*').eq('id', lessonId).single();
-            const videoUrl = lesson?.video_url || "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
-            allowedSeconds = (parseInt(lesson?.watchtime_hours || 0) * 3600) + (parseInt(lesson?.watchtime_minutes || 10) * 60);
+            if (!lesson) return;
+            allowedSeconds = (parseInt(lesson.watchtime_hours) * 3600) + (parseInt(lesson.watchtime_minutes) * 60);
             
-            document.getElementById('lesson-title').innerText = lesson?.title || "Classified Intel Stream";
-            document.getElementById('info-id').innerText = `NODE_${String(lesson?.order_index || '01').padStart(2, '0')}`;
+            document.getElementById('lesson-title').innerText = lesson.title;
+            document.getElementById('info-id').innerText = `NODE_${String(lesson.order_index || '00').padStart(2, '0')}`;
             document.getElementById('info-limit').innerText = `${allowedSeconds} SEC`;
             
             const { data: sessionData } = await sb.from('watch_sessions')
                 .select('total_seconds_watched').eq('user_id', currentUser.id).eq('lesson_id', lessonId).maybeSingle();
             if (sessionData) watchedSeconds = sessionData.total_seconds_watched;
-            loadYouTubeAPI(videoUrl);
+            loadYouTubeAPI(lesson.video_url);
         }
 
         function loadYouTubeAPI(videoUrl) {
@@ -462,15 +487,7 @@
             window.onYouTubeIframeAPIReady = () => {
                 player = new YT.Player('youtube-player', {
                     videoId: vid,
-                    playerVars: { 
-                        'autoplay': 0, 
-                        'controls': 0, 
-                        'disablekb': 1, 
-                        'rel': 0, 
-                        'modestbranding': 1, 
-                        'iv_load_policy': 3,
-                        'origin': window.location.origin
-                    },
+                    playerVars: { 'autoplay': 0, 'controls': 0, 'disablekb': 1, 'rel': 0, 'modestbranding': 1, 'iv_load_policy': 3 },
                     events: { 'onReady': onPlayerReady, 'onStateChange': onPlayerStateChange }
                 });
             };
@@ -507,21 +524,19 @@
                     const btn = document.getElementById('btn-complete');
                     btn.disabled = false;
                     btn.onclick = handleMarkComplete;
-                }, 15000); // 15s minimum engagement
+                }, 10000);
             }
 
             setInterval(async () => {
-                if (player && player.getPlayerState() === 1) { // Only track if playing
-                    watchedSeconds += 1;
-                    updateTimerUI();
-                    if (watchedSeconds % 15 === 0) { // Upsert every 15s
-                        await sb.from('watch_sessions').upsert({ 
-                            user_id: currentUser.id, lesson_id: lessonId, 
-                            total_seconds_watched: watchedSeconds, last_watched_at: new Date().toISOString()
-                        }, { onConflict: 'user_id,lesson_id' });
-                    }
-                    if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) handleSessionExpired();
+                watchedSeconds += 1;
+                updateTimerUI();
+                if (watchedSeconds % 10 === 0) {
+                    await sb.from('watch_sessions').upsert({ 
+                        user_id: currentUser.id, lesson_id: lessonId, 
+                        total_seconds_watched: watchedSeconds, last_watched_at: new Date().toISOString()
+                    }, { onConflict: 'user_id,lesson_id' });
                 }
+                if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) handleSessionExpired();
             }, 1000);
         }
 
@@ -532,7 +547,7 @@
                     <i data-lucide="lock" class="w-12 h-12 text-red-600 mb-6"></i>
                     <p class="mono text-red-600 font-black tracking-widest mb-3 uppercase text-lg">Allocation Depleted</p>
                     <p class="text-[10px] text-zinc-500 max-w-xs uppercase leading-relaxed tracking-wider">Your viewing token for this node has expired. Contact administrative terminal for renewal.</p>
-                    <button onclick="window.location.reload()" class="mt-8 action-btn primary-active px-10 py-3">Return to Hub</button>
+                    <button onclick="window.location.href='/curriculum'" class="mt-8 action-btn primary-active px-10 py-3">Return to Hub</button>
                 </div>
             `;
             lucide.createIcons();
