@@ -174,8 +174,9 @@
         <div id="lessons-container" class="space-y-16"></div>
     </main>
 
+    <!-- Feedback Toast -->
     <div id="feedback-toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] hidden">
-        <div class="bg-slate-900 border border-slate-800 px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3">
+        <div id="toast-bg" class="bg-slate-900 border border-slate-800 px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 min-w-[300px]">
             <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center"></div>
             <div id="toast-message" class="text-sm font-semibold text-white"></div>
         </div>
@@ -267,6 +268,52 @@
             renderCategorizedLessons(filtered, isApproved, val, isPending);
         }
 
+        async function requestApproval(monthNum) {
+            const btn = document.getElementById('request-btn');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Sending...';
+                lucide.createIcons();
+            }
+
+            try {
+                const { error } = await sb.from('monthly_approvals').insert({
+                    user_id: currentUser.id,
+                    course_id: activeCourseId,
+                    month_number: monthNum,
+                    status: 'pending'
+                });
+
+                if (error) throw error;
+                
+                showToast("Request submitted successfully!", "success");
+                await fetchApprovals();
+                filterByMonth(monthNum);
+                generateMonthFilters(allLessons);
+            } catch (err) {
+                showToast(err.message, "error");
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = 'Request Unlock';
+                    lucide.createIcons();
+                }
+            }
+        }
+
+        function showToast(msg, type) {
+            const toast = document.getElementById('feedback-toast');
+            const message = document.getElementById('toast-message');
+            const icon = document.getElementById('toast-icon');
+            
+            message.textContent = msg;
+            icon.innerHTML = type === 'success' ? '<i data-lucide="check" class="w-4 h-4 text-green-500"></i>' : '<i data-lucide="alert-circle" class="w-4 h-4 text-red-500"></i>';
+            icon.className = `w-8 h-8 rounded-full flex items-center justify-center ${type === 'success' ? 'bg-green-500/20' : 'bg-red-500/20'}`;
+            
+            toast.classList.remove('hidden');
+            lucide.createIcons();
+            setTimeout(() => toast.classList.add('hidden'), 3000);
+        }
+
         window.launchExternal = function(url, lessonId) {
             if (!url) return;
             localStorage.setItem('external_lesson_url', url);
@@ -277,16 +324,28 @@
         function renderCategorizedLessons(lessons, isApproved, selectedMonthNum, isPending) {
             const container = document.getElementById('lessons-container');
             if (!isApproved) {
-                container.innerHTML = `<div class="text-center py-20 bg-slate-900/30 rounded-2xl border border-white/5">
-                    <div class="w-16 h-16 bg-red-600/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6"><i data-lucide="lock" class="w-8 h-8"></i></div>
-                    <h3 class="text-2xl font-bold text-white mb-2">${MONTH_NAMES[selectedMonthNum-1]} Locked</h3>
-                    <p class="text-slate-400 mb-8 max-w-md mx-auto">Access requires administrative activation.</p>
+                container.innerHTML = `
+                <div class="text-center py-20 bg-slate-900/30 rounded-2xl border border-white/5 animate-fade-in">
+                    <div class="w-20 h-20 bg-red-600/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <i data-lucide="lock" class="w-10 h-10"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-white mb-2">${MONTH_NAMES[selectedMonthNum-1]} Content Locked</h3>
+                    <p class="text-slate-400 mb-8 max-w-md mx-auto">This module is currently locked. You can request access from your mentor below.</p>
+                    
+                    ${isPending ? 
+                        `<div class="inline-flex items-center gap-2 px-8 py-3 rounded-lg bg-amber-500/10 text-amber-500 font-bold border border-amber-500/20">
+                            <i data-lucide="clock" class="w-5 h-5"></i> Request Pending
+                        </div>` :
+                        `<button id="request-btn" onclick="requestApproval(${selectedMonthNum})" class="inline-flex items-center gap-2 px-8 py-3 rounded-lg bg-red-600 text-white font-bold hover:bg-red-700 transition-all shadow-xl shadow-red-900/20">
+                            Request Unlock <i data-lucide="send" class="w-4 h-4"></i>
+                        </button>`
+                    }
                 </div>`;
                 lucide.createIcons();
                 return;
             }
 
-            // 1. Group lessons into categories first
+            // Grouping and sorting logic remains same
             const grouped = lessons.reduce((acc, l) => {
                 const c = l.categories || 'Core Curriculum';
                 if (!acc[c]) acc[c] = [];
@@ -294,39 +353,19 @@
                 return acc;
             }, {});
 
-            // 2. Sort the lessons WITHIN each category 
-            // RULE: PDF type first, then by Created At asc
             Object.keys(grouped).forEach(cat => {
                 grouped[cat].sort((a, b) => {
                     const typeA = (a.lesson_type || '').toLowerCase();
                     const typeB = (b.lesson_type || '').toLowerCase();
-
-                    // If one is PDF and other isn't, PDF wins
                     if (typeA === 'pdf' && typeB !== 'pdf') return -1;
                     if (typeB === 'pdf' && typeA !== 'pdf') return 1;
-
-                    // Otherwise sort by created_at ascending
-                    const dateA = new Date(a.created_at || 0);
-                    const dateB = new Date(b.created_at || 0);
-                    return dateA - dateB;
+                    return new Date(a.created_at || 0) - new Date(b.created_at || 0);
                 });
             });
 
-            // 3. Sort the CATEGORIES themselves based on the created time of their earliest lesson
             const sortedCategories = Object.entries(grouped).sort((a, b) => {
-                const lessonsA = a[1];
-                const lessonsB = b[1];
-
-                const earliestA = lessonsA.reduce((min, l) => {
-                    const current = new Date(l.created_at || 0).getTime();
-                    return current < min ? current : min;
-                }, Infinity);
-
-                const earliestB = lessonsB.reduce((min, l) => {
-                    const current = new Date(l.created_at || 0).getTime();
-                    return current < min ? current : min;
-                }, Infinity);
-
+                const earliestA = a[1].reduce((min, l) => Math.min(min, new Date(l.created_at || 0).getTime()), Infinity);
+                const earliestB = b[1].reduce((min, l) => Math.min(min, new Date(l.created_at || 0).getTime()), Infinity);
                 return earliestA - earliestB;
             });
 
