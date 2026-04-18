@@ -54,6 +54,7 @@
             font-weight: 500;
             color: var(--text-muted);
             transition: all 0.2s;
+            cursor: pointer;
         }
 
         .category-pill.active {
@@ -188,7 +189,7 @@
                 document.getElementById('course-title').textContent = course.name;
                 document.getElementById('course-desc').textContent = course.description;
 
-                const { data: lessons } = await sb.from('lessons').select('*').eq('course_id', courseId).order('order_index', { ascending: true });
+                const { data: lessons } = await sb.from('lessons').select('*').eq('course_id', courseId);
                 allLessons = lessons;
                 generateMonthFilters(lessons);
                 
@@ -228,10 +229,6 @@
             renderCategorizedLessons(allLessons.filter(l => l.month == val), isApproved, val, isPending);
         }
 
-        /**
-         * Action for External Lessons
-         * Saves URL to localStorage and redirects to /external
-         */
         window.launchExternal = function(url, lessonId) {
             if (!url) return;
             localStorage.setItem('external_lesson_url', url);
@@ -251,6 +248,7 @@
                 return;
             }
 
+            // 1. Group lessons into categories first
             const grouped = lessons.reduce((acc, l) => {
                 const c = l.categories || 'Core Curriculum';
                 if (!acc[c]) acc[c] = [];
@@ -258,7 +256,45 @@
                 return acc;
             }, {});
 
-            container.innerHTML = Object.entries(grouped).map(([name, items]) => `
+            // 2. Sort the lessons WITHIN each category 
+            // (Type asc -> Title asc -> Created At asc)
+            Object.keys(grouped).forEach(cat => {
+                grouped[cat].sort((a, b) => {
+                    const typeA = (a.lesson_type || '').toLowerCase();
+                    const typeB = (b.lesson_type || '').toLowerCase();
+                    if (typeA !== typeB) return typeA.localeCompare(typeB);
+
+                    const titleA = (a.title || '').toLowerCase();
+                    const titleB = (b.title || '').toLowerCase();
+                    if (titleA !== titleB) return titleA.localeCompare(titleB);
+
+                    const dateA = new Date(a.created_at || 0);
+                    const dateB = new Date(b.created_at || 0);
+                    return dateA - dateB;
+                });
+            });
+
+            // 3. Sort the CATEGORIES themselves based on the created time of their earliest lesson
+            const sortedCategories = Object.entries(grouped).sort((a, b) => {
+                const lessonsA = a[1];
+                const lessonsB = b[1];
+
+                // Find earliest lesson in category A
+                const earliestA = lessonsA.reduce((min, l) => {
+                    const current = new Date(l.created_at || 0).getTime();
+                    return current < min ? current : min;
+                }, Infinity);
+
+                // Find earliest lesson in category B
+                const earliestB = lessonsB.reduce((min, l) => {
+                    const current = new Date(l.created_at || 0).getTime();
+                    return current < min ? current : min;
+                }, Infinity);
+
+                return earliestA - earliestB;
+            });
+
+            container.innerHTML = sortedCategories.map(([name, items]) => `
                 <section class="animate-fade-in">
                     <div class="flex items-center gap-4 mb-6">
                         <h3 class="text-xl font-bold text-red-50/90">${name}</h3>
@@ -278,7 +314,6 @@
             if (type === 'pdf') { icon = 'file-text'; badgeClass = 'badge-red'; }
             else if (type === 'external') { icon = 'external-link'; badgeClass = 'badge-blue'; }
 
-            // Logic for Button
             const onClickAttr = type === 'external' 
                 ? `onclick="launchExternal('${l.video_url}', '${l.id}')"` 
                 : `href="/learn/${type}?id=${l.id}"`;
@@ -299,14 +334,16 @@
                             </div>
                         </div>
                     </div>
-                    ${type === 'external' 
-                        ? `<button ${onClickAttr} class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white text-black font-bold text-sm hover:bg-blue-600 hover:text-white transition-all shadow-lg">
-                             Open Portal <i data-lucide="external-link" class="w-4 h-4"></i>
-                           </button>`
-                        : `<a ${onClickAttr} class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white text-black font-bold text-sm hover:bg-red-600 hover:text-white transition-all shadow-lg">
-                             Launch Unit <i data-lucide="arrow-right" class="w-4 h-4"></i>
-                           </a>`
-                    }
+                    <div class="flex items-center gap-3">
+                         ${type === 'external' 
+                            ? `<button ${onClickAttr} class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white text-black font-bold text-sm hover:bg-blue-600 hover:text-white transition-all shadow-lg">
+                                Open Portal <i data-lucide="external-link" class="w-4 h-4"></i>
+                               </button>`
+                            : `<a ${onClickAttr} class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white text-black font-bold text-sm hover:bg-red-600 hover:text-white transition-all shadow-lg">
+                                Launch Unit <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                               </a>`
+                        }
+                    </div>
                 </div>
             `;
         }
