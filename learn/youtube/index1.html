@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stream Protocol | Tactical Interface</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #dc2626; /* Tactical Red */
+            --primary-glow: rgba(220, 38, 38, 0.4);
+            --bg-dark: #0a0a0b;
+            --card-bg: rgba(15, 15, 18, 0.8);
+            --border-white: rgba(255, 255, 255, 0.08);
+        }
+
+        body { 
+            font-family: 'Outfit', sans-serif; 
+            background-color: var(--bg-dark); 
+            color: #ececec; 
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            transition: opacity 1s ease-out;
+            background-image: 
+                radial-gradient(circle at 50% -20%, rgba(220, 38, 38, 0.12), transparent 60%),
+                radial-gradient(circle at 100% 100%, rgba(220, 38, 38, 0.04), transparent 40%);
+            overflow-x: hidden;
+            user-select: none; /* Anti-copy */
+        }
+        
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
+            z-index: 9999;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+            opacity: 0.3;
+        }
+
+        body.ready { opacity: 1; }
+        
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        
+        .glass-panel { 
+            background: var(--card-bg); 
+            backdrop-filter: blur(16px); 
+            border: 1px solid var(--border-white); 
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Critical Lockout Overlay */
+        #lockout-screen {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 999999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .glitch-text {
+            animation: glitch 1.5s linear infinite;
+        }
+
+        @keyframes glitch {
+            2%, 64% { transform: translate(2px,0) skew(0deg); }
+            4%, 60% { transform: translate(-2px,0) skew(0deg); }
+            62% { transform: translate(0,0) skew(5deg); }
+        }
+
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%;
+            height: 0;
+            overflow: hidden;
+            background: #000;
+            border-radius: 1rem;
+            border: 1px solid rgba(220, 38, 38, 0.15);
+            box-shadow: 0 0 50px -15px rgba(220, 38, 38, 0.2);
+        }
+
+        #youtube-player {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            border: 0; opacity: 0; transition: opacity 1.5s ease;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        #youtube-player.visible { opacity: 1; }
+
+        .controls-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.4) 30%, transparent 60%);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 1.5rem;
+        }
+
+        .video-container:hover .controls-overlay { opacity: 1; }
+
+        .progress-bar-container {
+            width: 100%; height: 4px; background: rgba(255,255,255,0.1); cursor: pointer;
+            position: relative; margin-bottom: 1.25rem; border-radius: 100px; overflow: hidden; transition: height 0.2s;
+        }
+        .progress-bar-container:hover { height: 8px; }
+        .progress-filled { height: 100%; background: var(--primary); width: 0%; position: relative; box-shadow: 0 0 10px var(--primary); }
+
+        .speed-menu {
+            position: absolute; bottom: 100%; right: 0; background: #0f0f11; border: 1px solid rgba(220, 38, 38, 0.2);
+            border-radius: 8px; padding: 4px; margin-bottom: 12px; display: none; flex-direction: column; min-width: 120px; box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+        }
+        .speed-menu.active { display: flex; animation: tacticalFade 0.2s ease-out; }
+        
+        .speed-option { padding: 8px 12px; font-size: 10px; color: #888; text-align: left; border-radius: 4px; transition: all 0.2s; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+        .speed-option:hover { background: rgba(220, 38, 38, 0.1); color: white; }
+        .speed-option.active { color: var(--primary); background: rgba(220, 38, 38, 0.15); }
+
+        .watermark {
+            position: absolute; z-index: 50; pointer-events: none; user-select: none; font-family: 'JetBrains Mono', monospace;
+            font-size: 11px; font-weight: 700; color: rgba(220, 38, 38, 0.25); mix-blend-mode: color-dodge; text-transform: uppercase; white-space: nowrap; letter-spacing: 3px;
+        }
+
+        .status-bar { height: 3px; background: rgba(255,255,255,0.02); position: relative; overflow: hidden; }
+        .status-progress { position: absolute; height: 100%; background: var(--primary); width: 0%; transition: width 0.3s; box-shadow: 0 0 10px var(--primary); }
+
+        .action-btn {
+            background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); padding: 8px 16px; 
+            font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; transition: all 0.3s ease;
+            border-radius: 6px; display: flex; align-items: center; gap: 8px; color: #999;
+        }
+        .action-btn:not(:disabled):hover { background: rgba(220, 38, 38, 0.1); border-color: var(--primary); color: white; box-shadow: 0 0 20px rgba(220, 38, 38, 0.2); }
+        .action-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .action-btn.primary-active { background: var(--primary); color: white; border-color: #ef4444; }
+
+        .telemetry-card {
+            border-left: 2px solid rgba(220, 38, 38, 0.1); background: linear-gradient(90deg, rgba(220,38,38,0.03) 0%, transparent 100%);
+            padding: 1rem 1.25rem; border-radius: 4px; transition: all 0.3s;
+        }
+
+        input[type=range] { accent-color: var(--primary); height: 2px; }
+        .pulse-red { animation: pulse-red 2s infinite; }
+        @keyframes pulse-red { 0% { opacity: 0.3; transform: scale(0.9); } 50% { opacity: 1; transform: scale(1.1); } 100% { opacity: 0.3; transform: scale(0.9); } }
+        .hud-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 800; letter-spacing: 0.2em; color: #555; text-transform: uppercase; }
+    </style>
+</head>
+<body class="selection:bg-red-600/40" oncontextmenu="return false;">
+
+    <!-- Security Lockdown Overlay -->
+    <div id="lockout-screen" class="p-6">
+        <div class="p-10 glass-panel border-red-900/50 max-w-lg w-full relative overflow-hidden text-center">
+            <div class="absolute top-0 left-0 w-full h-1 bg-red-600 animate-pulse"></div>
+            
+            <div class="flex justify-center mb-8">
+                <div class="w-20 h-20 rounded-full bg-red-600/10 flex items-center justify-center border border-red-600/20 shadow-[0_0_30px_rgba(220,38,38,0.2)]">
+                    <i data-lucide="shield-off" class="w-10 h-10 text-red-600"></i>
+                </div>
+            </div>
+
+            <h1 class="mono text-red-600 font-black text-2xl mb-4 glitch-text tracking-tighter uppercase">Protocol Violation</h1>
+            
+            <div class="text-neutral-500 text-xs mb-8 leading-relaxed space-y-4 mono uppercase tracking-wider">
+                <p>Security Node <strong class="text-white">AEGIS-9</strong> has terminated your uplink.</p>
+                <p>Anomalous environment behavior or hardware-level inspection detected.</p>
+            </div>
+
+            <div class="bg-red-600/10 border border-red-600/20 p-6 rounded-lg mb-8 text-left">
+                <div class="flex justify-between items-start mb-2">
+                    <p class="mono text-[9px] text-red-500 uppercase tracking-widest font-black">Status</p>
+                    <span class="bg-red-600 text-white text-[8px] font-black px-2 py-0.5 rounded">LOCKED</span>
+                </div>
+                <p class="text-white font-bold text-lg mono">ACCESS RESTRICTION</p>
+                <p id="ban-expiry" class="text-red-400/60 text-[10px] mt-2 italic mono">Calculating restoration window...</p>
+            </div>
+
+            <button onclick="window.location.reload()" class="action-btn mx-auto">
+                Attempt Re-Verification
+            </button>
+        </div>
+    </div>
+
+    <div id="main-interface">
+        <header class="p-5 border-b border-white/5 flex justify-between items-center bg-black/60 backdrop-blur-xl sticky top-0 z-50">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-lg bg-red-600/10 border border-red-600/20 flex items-center justify-center text-red-600 shadow-[0_0_15px_rgba(220,38,38,0.1)]">
+                    <i data-lucide="activity" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h1 id="lesson-title" class="text-sm font-black tracking-wider text-white uppercase leading-none">Establishing Connection...</h1>
+                    <div class="flex items-center gap-3 mt-1.5">
+                        <span class="mono text-[9px] text-red-500 uppercase font-bold tracking-[0.2em] bg-red-600/10 px-2 py-0.5 rounded">Secure_Link</span>
+                        <span id="info-status" class="mono text-[9px] text-zinc-500 uppercase font-bold tracking-widest flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-red-600 pulse-red"></span>
+                            Syncing...
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-6">
+                <div id="timer-display" class="hidden text-right border-r border-white/5 pr-6">
+                    <p class="hud-label mb-1">Session_Time</p>
+                    <p id="time-left" class="text-xl font-black text-white tracking-tighter tabular-nums leading-none">00:00:00</p>
+                </div>
+                <div class="flex gap-2">
+                    <button id="btn-complete" class="action-btn" disabled>
+                        <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+                        Seal Protocol
+                    </button>
+                    <button id="btn-exit" class="action-btn hover:bg-zinc-800">
+                        <i data-lucide="power" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div class="status-bar">
+            <div id="loading-bar" class="status-progress"></div>
+        </div>
+
+        <main class="flex-1 p-6 md:p-12 max-w-6xl mx-auto w-full">
+            <div id="telemetry-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div class="telemetry-card glass-panel">
+                    <p class="hud-label mb-2">Subject_UID</p>
+                    <p id="info-id" class="text-xs font-bold text-white mono uppercase">Pending...</p>
+                </div>
+                <div class="telemetry-card glass-panel">
+                    <p class="hud-label mb-2">Max_Duration</p>
+                    <p id="info-limit" class="text-xs font-bold text-white mono">-- SEC</p>
+                </div>
+                <div class="telemetry-card glass-panel">
+                    <p class="hud-label mb-2">Security_Mode</p>
+                    <p id="signal-quality" class="text-xs font-bold text-red-500/80 mono">ANTI_TAMPER_ON</p>
+                </div>
+                <div class="telemetry-card glass-panel border-red-900/30">
+                    <p class="hud-label mb-2">Network_Node</p>
+                    <p class="text-xs font-bold text-white mono">VANGUARD_ALPHA_01</p>
+                </div>
+            </div>
+
+            <div id="video-wrapper" class="video-container glass-panel">
+                <div id="preloader" class="absolute inset-0 bg-[#09090b] flex flex-col items-center justify-center z-[60]">
+                    <div class="relative w-12 h-12">
+                        <div class="absolute inset-0 border-2 border-red-600/10 rounded-full"></div>
+                        <div class="absolute inset-0 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                    <p class="mono text-[9px] text-red-600 font-bold tracking-[0.4em] mt-8 uppercase">Buffer_Decrypting</p>
+                </div>
+                <div id="moving-watermark" class="watermark">loading_credentials...</div>
+                <div id="youtube-player"></div>
+
+                <div id="custom-controls" class="controls-overlay">
+                    <div id="progress-container" class="progress-bar-container">
+                        <div id="progress-bar" class="progress-filled"></div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-8">
+                            <button id="play-pause" class="text-white hover:text-red-500 transition-all transform active:scale-90">
+                                <i data-lucide="play" class="w-6 h-6 fill-current"></i>
+                            </button>
+                            <div class="flex items-center gap-4 group">
+                                <button id="mute-toggle" class="text-zinc-500 group-hover:text-white transition-colors">
+                                    <i data-lucide="volume-2" class="w-4 h-4"></i>
+                                </button>
+                                <input id="volume-slider" type="range" min="0" max="100" value="100" class="w-16 cursor-pointer opacity-50 group-hover:opacity-100 transition-opacity">
+                            </div>
+                            <span id="current-timestamp" class="mono text-[10px] font-bold text-zinc-500 bg-black/60 px-3 py-1.5 rounded border border-white/5">00:00 / 00:00</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="relative">
+                                <button id="speed-btn" class="mono text-[9px] font-black text-zinc-400 hover:text-red-500 px-3 py-2 bg-white/5 border border-white/5 rounded transition-all">
+                                    1.0X_SPD
+                                </button>
+                                <div id="speed-menu" class="speed-menu">
+                                    <button class="speed-option" data-speed="0.75">0.75x</button>
+                                    <button class="speed-option active" data-speed="1">1.00x</button>
+                                    <button class="speed-option" data-speed="1.25">1.25x</button>
+                                    <button class="speed-option" data-speed="1.5">1.50x</button>
+                                    <button class="speed-option" data-speed="2">2.00x</button>
+                                </div>
+                            </div>
+                            <button id="fullscreen-btn" class="p-2 text-zinc-500 hover:text-red-500 transition-colors">
+                                <i data-lucide="maximize" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://tsaoxjzvhxiggntibpui.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzYW94anp2aHhpZ2dudGlicHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDQ2OTAsImV4cCI6MjA5MTQyMDY5MH0.Q5Iu51O3NK4k2kcc_GoegnyAYIFIs2SUkQOV10qp2jI';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const urlParams = new URLSearchParams(window.location.search);
+        const lessonId = urlParams.get('id') || '30b8d523-a55e-4903-8874-a6c3f3f05477'; // Fallback for dev
+
+        let player, currentUser, allowedSeconds = 0, watchedSeconds = 0;
+        let watermarkData = { x: 50, y: 50, dx: 0.6, dy: 0.5 };
+        let sessionTrackingActive = false;
+        let isLessonAlreadyCompleted = false;
+
+        /**
+         * ANTI-TAMPER SECURITY MODULE
+         */
+        const SecurityProtocol = {
+            init() {
+                this.detectDevTools();
+                this.blockShortcuts();
+                this.preventDrag();
+            },
+            
+            triggerViolation() {
+                if (player && player.pauseVideo) player.pauseVideo();
+                document.getElementById('main-interface').style.display = 'none';
+                document.getElementById('lockout-screen').style.display = 'flex';
+                document.getElementById('ban-expiry').innerText = `PROTOCOL VIOLATION DETECTED: TERMINATING UPLINK`;
+                
+                // Potential logic here: sb.from('user_restrictions').insert(...)
+            },
+
+            detectDevTools() {
+                const threshold = 160;
+                const check = () => {
+                    if (window.outerWidth - window.innerWidth > threshold || 
+                        window.outerHeight - window.innerHeight > threshold) {
+                        this.triggerViolation();
+                    }
+                };
+                window.addEventListener('resize', check);
+                setInterval(check, 1000);
+                
+                // Script debugging detection
+                let devtools = function() {};
+                devtools.toString = function() {
+                    SecurityProtocol.triggerViolation();
+                    return "Locked";
+                }
+                console.log("%c", devtools);
+            },
+
+            blockShortcuts() {
+                window.addEventListener('keydown', (e) => {
+                    // Block F12, Ctrl+Shift+I/J/C, Ctrl+U
+                    if (
+                        e.keyCode === 123 || 
+                        (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) ||
+                        (e.ctrlKey && e.keyCode === 85)
+                    ) {
+                        e.preventDefault();
+                        this.triggerViolation();
+                    }
+                });
+            },
+
+            preventDrag() {
+                document.addEventListener('dragstart', (e) => e.preventDefault());
+            }
+        };
+
+        async function init() {
+            SecurityProtocol.init();
+
+            const { data: { session } } = await sb.auth.getSession();
+            if (!session) { 
+                // Redirecting to login if no session - simulated for preview
+                console.log("No auth session found");
+                // window.location.href = 'index.html'; 
+            }
+            currentUser = session?.user || { id: 'dev-user', email: 'vanguard_operative@protocol.sys' };
+
+            // Check for active BANS
+            const { data: activeBan } = await sb.from('user_restrictions')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .gt('expires_at', new Date().toISOString())
+                .maybeSingle();
+
+            if (activeBan) {
+                showLockoutScreen(new Date(activeBan.expires_at));
+                return;
+            }
+
+            const isApproved = await verifyCourseApproval();
+            if (!isApproved && currentUser.id !== 'dev-user') { window.location.href = '/dashboard'; return; }
+
+            document.getElementById('moving-watermark').innerText = `NODE_UPLINK: ${currentUser.email}`;
+            document.body.classList.add('ready');
+            lucide.createIcons();
+            
+            await checkInitialCompletionStatus();
+            await fetchLessonData();
+            startWatermark();
+            setupControls();
+            startPageSessionTracking();
+        }
+
+        function showLockoutScreen(expiryDate) {
+            document.getElementById('main-interface').style.display = 'none';
+            document.getElementById('lockout-screen').style.display = 'flex';
+            document.getElementById('ban-expiry').innerText = `RESTORATION TIMESTAMP: ${expiryDate.toLocaleString()}`;
+            document.body.classList.add('ready');
+            lucide.createIcons();
+        }
+
+        async function verifyCourseApproval() {
+            try {
+                const { data: lesson } = await sb.from('lessons').select('course_id').eq('id', lessonId).single();
+                if (!lesson) return false;
+                const { data: approval } = await sb.from('course_status')
+                    .select('status').eq('user_id', currentUser.id)
+                    .eq('course_id', lesson.course_id).eq('status', 'approved').maybeSingle();
+                return !!approval;
+            } catch (e) { return false; }
+        }
+
+        async function checkInitialCompletionStatus() {
+            const { data: completion } = await sb.from('lesson_completions')
+                .select('*').eq('user_id', currentUser.id).eq('lesson_id', lessonId).maybeSingle();
+            if (completion) {
+                isLessonAlreadyCompleted = true;
+                setCompleteUI();
+            }
+        }
+
+        async function fetchLessonData() {
+            const { data: lesson } = await sb.from('lessons').select('*').eq('id', lessonId).single();
+            const videoUrl = lesson?.video_url || "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+            allowedSeconds = (parseInt(lesson?.watchtime_hours || 0) * 3600) + (parseInt(lesson?.watchtime_minutes || 10) * 60);
+            
+            document.getElementById('lesson-title').innerText = lesson?.title || "Classified Intel Stream";
+            document.getElementById('info-id').innerText = `NODE_${String(lesson?.order_index || '01').padStart(2, '0')}`;
+            document.getElementById('info-limit').innerText = `${allowedSeconds} SEC`;
+            
+            const { data: sessionData } = await sb.from('watch_sessions')
+                .select('total_seconds_watched').eq('user_id', currentUser.id).eq('lesson_id', lessonId).maybeSingle();
+            if (sessionData) watchedSeconds = sessionData.total_seconds_watched;
+            loadYouTubeAPI(videoUrl);
+        }
+
+        function loadYouTubeAPI(videoUrl) {
+            let vid = videoUrl.includes('v=') ? videoUrl.split('v=')[1].split('&')[0] : videoUrl.split('/').pop();
+            window.onYouTubeIframeAPIReady = () => {
+                player = new YT.Player('youtube-player', {
+                    videoId: vid,
+                    playerVars: { 
+                        'autoplay': 0, 
+                        'controls': 0, 
+                        'disablekb': 1, 
+                        'rel': 0, 
+                        'modestbranding': 1, 
+                        'iv_load_policy': 3,
+                        'origin': window.location.origin
+                    },
+                    events: { 'onReady': onPlayerReady, 'onStateChange': onPlayerStateChange }
+                });
+            };
+            const tag = document.createElement('script');
+            tag.src = "https://www.youtube.com/iframe_api";
+            document.body.appendChild(tag);
+        }
+
+        function onPlayerReady() {
+            document.getElementById('preloader').style.opacity = '0';
+            setTimeout(() => document.getElementById('preloader').style.display = 'none', 500);
+            document.getElementById('youtube-player').classList.add('visible');
+            const status = document.getElementById('info-status');
+            status.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e]"></span> LIVE_LINK`;
+            
+            setInterval(() => {
+                if (player && player.getCurrentTime) {
+                    const curr = player.getCurrentTime();
+                    const dur = player.getDuration();
+                    document.getElementById('progress-bar').style.width = (curr/dur*100) + '%';
+                    document.getElementById('current-timestamp').innerText = `${Math.floor(curr/60)}:${Math.floor(curr%60).toString().padStart(2,'0')} / ${Math.floor(dur/60)}:${Math.floor(dur%60).toString().padStart(2,'0')}`;
+                }
+            }, 1000);
+        }
+
+        function startPageSessionTracking() {
+            if (sessionTrackingActive) return;
+            sessionTrackingActive = true;
+            document.getElementById('timer-display').classList.remove('hidden');
+            updateTimerUI();
+
+            if (!isLessonAlreadyCompleted) {
+                setTimeout(() => {
+                    const btn = document.getElementById('btn-complete');
+                    btn.disabled = false;
+                    btn.onclick = handleMarkComplete;
+                }, 15000); // 15s minimum engagement
+            }
+
+            setInterval(async () => {
+                if (player && player.getPlayerState() === 1) { // Only track if playing
+                    watchedSeconds += 1;
+                    updateTimerUI();
+                    if (watchedSeconds % 15 === 0) { // Upsert every 15s
+                        await sb.from('watch_sessions').upsert({ 
+                            user_id: currentUser.id, lesson_id: lessonId, 
+                            total_seconds_watched: watchedSeconds, last_watched_at: new Date().toISOString()
+                        }, { onConflict: 'user_id,lesson_id' });
+                    }
+                    if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) handleSessionExpired();
+                }
+            }, 1000);
+        }
+
+        function handleSessionExpired() {
+            if (player && player.pauseVideo) player.pauseVideo();
+            document.getElementById('video-wrapper').innerHTML = `
+                <div class="absolute inset-0 bg-black flex flex-col items-center justify-center z-[70] text-center p-8 backdrop-blur-xl">
+                    <i data-lucide="lock" class="w-12 h-12 text-red-600 mb-6"></i>
+                    <p class="mono text-red-600 font-black tracking-widest mb-3 uppercase text-lg">Allocation Depleted</p>
+                    <p class="text-[10px] text-zinc-500 max-w-xs uppercase leading-relaxed tracking-wider">Your viewing token for this node has expired. Contact administrative terminal for renewal.</p>
+                    <button onclick="window.location.reload()" class="mt-8 action-btn primary-active px-10 py-3">Return to Hub</button>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+        async function handleMarkComplete() {
+            const btn = document.getElementById('btn-complete');
+            btn.disabled = true;
+            btn.innerHTML = `<span class="animate-spin w-3 h-3 border-2 border-white/20 border-t-white rounded-full"></span>`;
+            const { error } = await sb.from('lesson_completions').insert({ user_id: currentUser.id, lesson_id: lessonId });
+            if (error) { btn.disabled = false; btn.innerText = "Retry Sync"; return; }
+            setCompleteUI();
+        }
+
+        function setCompleteUI() {
+            const btn = document.getElementById('btn-complete');
+            btn.innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5"></i> SECURED`;
+            btn.classList.add('primary-active');
+            btn.disabled = true;
+            lucide.createIcons();
+        }
+
+        function onPlayerStateChange(ev) {
+            const btn = document.getElementById('play-pause');
+            btn.innerHTML = ev.data === YT.PlayerState.PLAYING 
+                ? `<i data-lucide="pause" class="w-6 h-6 fill-current"></i>` 
+                : `<i data-lucide="play" class="w-6 h-6 fill-current"></i>`;
+            lucide.createIcons();
+        }
+
+        function updateTimerUI() {
+            const rem = Math.max(0, allowedSeconds - watchedSeconds);
+            const h = Math.floor(rem / 3600).toString().padStart(2, '0');
+            const m = Math.floor((rem % 3600) / 60).toString().padStart(2, '0');
+            const s = (rem % 60).toString().padStart(2, '0');
+            document.getElementById('time-left').innerText = `${h}:${m}:${s}`;
+            const total = allowedSeconds || 3600;
+            document.getElementById('loading-bar').style.width = `${(watchedSeconds / total) * 100}%`;
+        }
+
+        function setupControls() {
+            document.getElementById('play-pause').onclick = () => player.getPlayerState() === 1 ? player.pauseVideo() : player.playVideo();
+            document.getElementById('mute-toggle').onclick = () => {
+                player.isMuted() ? player.unMute() : player.mute();
+                document.getElementById('mute-toggle').innerHTML = player.isMuted() 
+                    ? `<i data-lucide="volume-x" class="w-4 h-4 text-red-600"></i>` : `<i data-lucide="volume-2" class="w-4 h-4"></i>`;
+                lucide.createIcons();
+            };
+            document.getElementById('volume-slider').oninput = (e) => player.setVolume(e.target.value);
+            document.getElementById('progress-container').onclick = (e) => player.seekTo(player.getDuration() * (e.offsetX / e.currentTarget.offsetWidth), true);
+            document.getElementById('fullscreen-btn').onclick = () => {
+                const wrapper = document.getElementById('video-wrapper');
+                if (!document.fullscreenElement) wrapper.requestFullscreen();
+                else document.exitFullscreen();
+            };
+
+            const speedBtn = document.getElementById('speed-btn');
+            const speedMenu = document.getElementById('speed-menu');
+            speedBtn.onclick = (e) => { e.stopPropagation(); speedMenu.classList.toggle('active'); };
+            document.querySelectorAll('.speed-option').forEach(opt => {
+                opt.onclick = () => {
+                    const speed = parseFloat(opt.dataset.speed);
+                    player.setPlaybackRate(speed);
+                    speedBtn.innerText = `${speed.toFixed(1)}X_SPD`;
+                    document.querySelectorAll('.speed-option').forEach(o => o.classList.remove('active'));
+                    opt.classList.add('active');
+                    speedMenu.classList.remove('active');
+                };
+            });
+            window.onclick = () => speedMenu.classList.remove('active');
+        }
+
+        function startWatermark() {
+            const el = document.getElementById('moving-watermark');
+            const wrap = document.getElementById('video-wrapper');
+            function anim() {
+                const r = wrap.getBoundingClientRect();
+                const er = el.getBoundingClientRect();
+                watermarkData.x += watermarkData.dx;
+                watermarkData.y += watermarkData.dy;
+                if (watermarkData.x <= 0 || watermarkData.x >= r.width - er.width) watermarkData.dx *= -1;
+                if (watermarkData.y <= 0 || watermarkData.y >= r.height - er.height) watermarkData.dy *= -1;
+                el.style.transform = `translate(${watermarkData.x}px, ${watermarkData.y}px)`;
+                requestAnimationFrame(anim);
+            }
+            anim();
+        }
+
+        document.getElementById('btn-exit').onclick = () => window.location.href = '/curriculum';
+        window.onload = init;
+    </script>
+</body>
+</html>
