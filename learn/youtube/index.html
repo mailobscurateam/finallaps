@@ -181,6 +181,7 @@
             <div class="text-neutral-500 text-xs mb-8 leading-relaxed space-y-4 mono uppercase tracking-wider">
                 <p>Security Node <strong class="text-white">AEGIS-9</strong> has terminated your uplink.</p>
                 <p>Anomalous environment behavior or hardware-level inspection detected.</p>
+                <p id="ban-reason" class="text-red-500/50 font-bold"></p>
             </div>
 
             <div class="bg-red-600/10 border border-red-600/20 p-6 rounded-lg mb-8 text-left">
@@ -320,10 +321,96 @@
         let sessionTrackingActive = false;
         let isLessonAlreadyCompleted = false;
 
+        /**
+         * SECURITY MANAGER: ANTI-TAMPER LOGIC
+         */
+        const SecurityManager = {
+            init() {
+                this.disableContextMenu();
+                this.detectDevTools();
+                this.preventShortcuts();
+                this.monitorResize();
+            },
+
+            disableContextMenu() {
+                document.addEventListener('contextmenu', (e) => e.preventDefault());
+            },
+
+            preventShortcuts() {
+                document.addEventListener('keydown', (e) => {
+                    // Block F12, Ctrl+Shift+I/J/C, Ctrl+U
+                    if (
+                        e.keyCode === 123 || 
+                        (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) ||
+                        (e.ctrlKey && e.keyCode === 85)
+                    ) {
+                        e.preventDefault();
+                        this.executeBan('SHORTCUT_VIOLATION');
+                    }
+                });
+            },
+
+            detectDevTools() {
+                // Debugger Trap
+                setInterval(() => {
+                    const startTime = performance.now();
+                    debugger; // This will pause execution if DevTools are open
+                    const endTime = performance.now();
+                    if (endTime - startTime > 100) {
+                        this.executeBan('DEBUGGER_ACTIVE');
+                    }
+                }, 2000);
+            },
+
+            monitorResize() {
+                // Resize Detection (DevTools docking)
+                window.addEventListener('resize', () => {
+                    const threshold = 160;
+                    const widthDiff = window.outerWidth - window.innerWidth;
+                    const heightDiff = window.outerHeight - window.innerHeight;
+
+                    if (widthDiff > threshold || heightDiff > threshold) {
+                        this.executeBan('RESIZE_DETECTION');
+                    }
+                });
+            },
+
+            async executeBan(reasonCode) {
+                if (!currentUser) return;
+                
+                // 7-day expiry
+                const expiresAt = new Date();
+                expiresAt.setDate(expiresAt.getDate() + 7);
+
+                try {
+                    // Persistence in Supabase
+                    await sb.from('user_restrictions').insert({
+                        user_id: currentUser.id,
+                        restriction_type: '7_DAY_BAN',
+                        reason: `TACTICAL_AUTO_LOCK: ${reasonCode}`,
+                        expires_at: expiresAt.toISOString()
+                    });
+
+                    // Terminate Auth Session
+                    await sb.auth.signOut();
+                    
+                    // Trigger UI Lockout
+                    showLockoutScreen(expiresAt, reasonCode);
+                } catch (e) {
+                    console.error("Shield Failure", e);
+                    // Fallback visual lockout even if DB update fails
+                    showLockoutScreen(expiresAt, reasonCode);
+                }
+            }
+        };
+
         async function init() {
             const { data: { session } } = await sb.auth.getSession();
             if (!session) { window.location.href = 'index.html'; return; }
             currentUser = session.user;
+
+            // Security Init
+            SecurityManager.init();
 
             // Check for active BANS
             const { data: activeBan } = await sb.from('user_restrictions')
@@ -333,7 +420,7 @@
                 .maybeSingle();
 
             if (activeBan) {
-                showLockoutScreen(new Date(activeBan.expires_at));
+                showLockoutScreen(new Date(activeBan.expires_at), activeBan.reason);
                 return;
             }
 
@@ -351,10 +438,11 @@
             startPageSessionTracking();
         }
 
-        function showLockoutScreen(expiryDate) {
+        function showLockoutScreen(expiryDate, reason = "") {
             document.getElementById('main-interface').style.display = 'none';
             document.getElementById('lockout-screen').style.display = 'flex';
             document.getElementById('ban-expiry').innerText = `RESTORATION TIMESTAMP: ${expiryDate.toLocaleString()}`;
+            if (reason) document.getElementById('ban-reason').innerText = `REASON: ${reason}`;
             document.body.classList.add('ready');
             lucide.createIcons();
         }
