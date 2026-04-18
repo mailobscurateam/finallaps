@@ -108,6 +108,21 @@
             to { opacity: 1; transform: translateY(0); }
         }
         .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+
+        .live-card-glow {
+            position: relative;
+            overflow: hidden;
+        }
+        .live-card-glow::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(239, 68, 68, 0.1) 0%, transparent 70%);
+            pointer-events: none;
+        }
     </style>
 </head>
 <body class="min-h-screen">
@@ -136,26 +151,7 @@
     </nav>
 
     <main class="max-w-5xl mx-auto px-4 py-12">
-        <!-- Live Alert Container -->
-        <div id="live-alert-container" class="mb-8 hidden">
-            <div class="bg-red-600/10 border border-red-500/50 p-4 rounded-xl flex items-center justify-between gap-4 animate-fade-in">
-                <div class="flex items-center gap-3">
-                    <div class="relative flex h-3 w-3">
-                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                    </div>
-                    <div>
-                        <p class="text-white font-bold text-sm">LIVE SESSION DETECTED</p>
-                        <p class="text-red-200/70 text-xs">There is a live unit available in this module.</p>
-                    </div>
-                </div>
-                <div class="text-xs font-bold text-red-500 uppercase tracking-widest bg-red-500/10 px-3 py-1 rounded-full border border-red-500/20">
-                    Active
-                </div>
-            </div>
-        </div>
-
-        <header class="mb-12">
+        <header class="mb-8">
             <div class="flex items-center gap-2 text-red-500 font-semibold text-sm mb-4">
                 <i data-lucide="graduation-cap" class="w-4 h-4"></i>
                 CURRICULUM ENROLLMENT
@@ -163,6 +159,32 @@
             <h1 id="course-title" class="text-4xl md:text-5xl font-extrabold text-white mb-6 tracking-tight">Loading...</h1>
             <p id="course-desc" class="text-lg text-slate-400 leading-relaxed max-w-3xl"></p>
         </header>
+
+        <!-- Live Class Highlight Banner -->
+        <div id="active-live-highlight" class="mb-10 hidden">
+            <div class="custom-card live-card-glow border-red-500/30 bg-red-500/5 p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6 animate-fade-in">
+                <div class="flex items-center gap-5">
+                    <div class="w-16 h-16 rounded-xl bg-red-600 flex items-center justify-center shadow-2xl shadow-red-600/40 relative">
+                        <i data-lucide="radio" class="w-8 h-8 text-white"></i>
+                        <span class="absolute -top-1 -right-1 flex h-4 w-4">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-4 w-4 bg-red-500"></span>
+                        </span>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-3 mb-1">
+                            <h2 id="live-lesson-title" class="text-xl font-bold text-white">Live Session Active</h2>
+                            <span class="badge-live px-2 py-0.5 rounded text-[10px] uppercase font-bold">Live Now</span>
+                        </div>
+                        <p class="text-slate-400 text-sm">A live unit is currently available for your current module. Join now to interact with your mentor.</p>
+                    </div>
+                </div>
+                <a id="live-join-btn" class="w-full md:w-auto px-10 py-4 bg-white text-black hover:bg-red-600 hover:text-white transition-all font-extrabold rounded-xl shadow-2xl flex items-center justify-center gap-2 group">
+                    JOIN LIVE CLASS
+                    <i data-lucide="arrow-right" class="w-5 h-5 group-hover:translate-x-1 transition-transform"></i>
+                </a>
+            </div>
+        </div>
 
         <div class="mb-12">
             <div class="flex items-center justify-between mb-4">
@@ -174,7 +196,6 @@
         <div id="lessons-container" class="space-y-16"></div>
     </main>
 
-    <!-- Feedback Toast -->
     <div id="feedback-toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] hidden">
         <div id="toast-bg" class="bg-slate-900 border border-slate-800 px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 min-w-[300px]">
             <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center"></div>
@@ -256,13 +277,19 @@
             
             const filtered = allLessons.filter(l => l.month == val);
             
-            // Check for live lessons and update alert
-            const hasLive = filtered.some(l => (l.lesson_type || '').toLowerCase() === 'live');
-            const alertEl = document.getElementById('live-alert-container');
-            if (hasLive && isApproved) {
-                alertEl.classList.remove('hidden');
+            // Highlight Logic: Active live lesson for current module
+            const activeLive = filtered.find(l => (l.lesson_type || '').toLowerCase() === 'live');
+            const highlightContainer = document.getElementById('active-live-highlight');
+            const liveTitle = document.getElementById('live-lesson-title');
+            const liveBtn = document.getElementById('live-join-btn');
+
+            if (activeLive && isApproved) {
+                highlightContainer.classList.remove('hidden');
+                liveTitle.textContent = activeLive.title || 'Live Session Active';
+                // Direct to /learn/live
+                liveBtn.href = `/learn/live?id=${activeLive.id}`;
             } else {
-                alertEl.classList.add('hidden');
+                highlightContainer.classList.add('hidden');
             }
 
             renderCategorizedLessons(filtered, isApproved, val, isPending);
@@ -283,9 +310,7 @@
                     month_number: monthNum,
                     status: 'pending'
                 });
-
                 if (error) throw error;
-                
                 showToast("Request submitted successfully!", "success");
                 await fetchApprovals();
                 filterByMonth(monthNum);
@@ -304,11 +329,9 @@
             const toast = document.getElementById('feedback-toast');
             const message = document.getElementById('toast-message');
             const icon = document.getElementById('toast-icon');
-            
             message.textContent = msg;
             icon.innerHTML = type === 'success' ? '<i data-lucide="check" class="w-4 h-4 text-green-500"></i>' : '<i data-lucide="alert-circle" class="w-4 h-4 text-red-500"></i>';
             icon.className = `w-8 h-8 rounded-full flex items-center justify-center ${type === 'success' ? 'bg-green-500/20' : 'bg-red-500/20'}`;
-            
             toast.classList.remove('hidden');
             lucide.createIcons();
             setTimeout(() => toast.classList.add('hidden'), 3000);
@@ -331,7 +354,6 @@
                     </div>
                     <h3 class="text-2xl font-bold text-white mb-2">${MONTH_NAMES[selectedMonthNum-1]} Content Locked</h3>
                     <p class="text-slate-400 mb-8 max-w-md mx-auto">This module is currently locked. You can request access from your mentor below.</p>
-                    
                     ${isPending ? 
                         `<div class="inline-flex items-center gap-2 px-8 py-3 rounded-lg bg-amber-500/10 text-amber-500 font-bold border border-amber-500/20">
                             <i data-lucide="clock" class="w-5 h-5"></i> Request Pending
@@ -345,23 +367,12 @@
                 return;
             }
 
-            // Grouping and sorting logic remains same
             const grouped = lessons.reduce((acc, l) => {
                 const c = l.categories || 'Core Curriculum';
                 if (!acc[c]) acc[c] = [];
                 acc[c].push(l);
                 return acc;
             }, {});
-
-            Object.keys(grouped).forEach(cat => {
-                grouped[cat].sort((a, b) => {
-                    const typeA = (a.lesson_type || '').toLowerCase();
-                    const typeB = (b.lesson_type || '').toLowerCase();
-                    if (typeA === 'pdf' && typeB !== 'pdf') return -1;
-                    if (typeB === 'pdf' && typeA !== 'pdf') return 1;
-                    return new Date(a.created_at || 0) - new Date(b.created_at || 0);
-                });
-            });
 
             const sortedCategories = Object.entries(grouped).sort((a, b) => {
                 const earliestA = a[1].reduce((min, l) => Math.min(min, new Date(l.created_at || 0).getTime()), Infinity);
@@ -390,9 +401,19 @@
             else if (type === 'external') { icon = 'external-link'; badgeClass = 'badge-blue'; }
             else if (type === 'live') { icon = 'radio'; badgeClass = 'badge-live'; }
 
-            const onClickAttr = type === 'external' || type === 'live'
-                ? `onclick="launchExternal('${l.video_url}', '${l.id}')"` 
-                : `href="/learn/${type}?id=${l.id}"`;
+            // ROUTING LOGIC: If live, go to learn/live. If external, use external portal. Others go to learn/{type}.
+            let onClickAction = `href="/learn/${type}?id=${l.id}"`;
+            let buttonLabel = 'Launch Unit';
+            let actionIcon = 'arrow-right';
+
+            if (type === 'external') {
+                onClickAction = `onclick="launchExternal('${l.video_url}', '${l.id}')"`;
+                buttonLabel = 'Open Portal';
+                actionIcon = 'external-link';
+            } else if (type === 'live') {
+                buttonLabel = 'Join Now';
+                actionIcon = 'radio';
+            }
 
             return `
                 <div class="custom-card p-5 md:p-6 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-6 group">
@@ -411,12 +432,12 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-3">
-                         ${type === 'external' || type === 'live'
-                            ? `<button ${onClickAttr} class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white text-black font-bold text-sm hover:bg-red-600 hover:text-white transition-all shadow-lg">
-                                ${type === 'live' ? 'Join Now' : 'Open Portal'} <i data-lucide="external-link" class="w-4 h-4"></i>
+                        ${type === 'external' 
+                            ? `<button ${onClickAction} class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white text-black font-bold text-sm hover:bg-red-600 hover:text-white transition-all shadow-lg">
+                                ${buttonLabel} <i data-lucide="${actionIcon}" class="w-4 h-4"></i>
                                </button>`
-                            : `<a ${onClickAttr} class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white text-black font-bold text-sm hover:bg-red-600 hover:text-white transition-all shadow-lg">
-                                Launch Unit <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                            : `<a ${onClickAction} class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white text-black font-bold text-sm hover:bg-red-600 hover:text-white transition-all shadow-lg">
+                                ${buttonLabel} <i data-lucide="${actionIcon}" class="w-4 h-4"></i>
                                </a>`
                         }
                     </div>
