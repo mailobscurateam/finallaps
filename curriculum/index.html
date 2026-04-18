@@ -95,6 +95,13 @@
         .badge-red { background: rgba(153, 27, 27, 0.3); color: #fca5a5; border: 1px solid rgba(252, 165, 165, 0.2); }
         .badge-amber { background: rgba(146, 64, 14, 0.3); color: #fcd34d; border: 1px solid rgba(252, 211, 77, 0.2); }
         .badge-blue { background: rgba(30, 58, 138, 0.3); color: #93c5fd; border: 1px solid rgba(147, 197, 253, 0.2); }
+        .badge-live { background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); animation: pulse-red 2s infinite; }
+
+        @keyframes pulse-red {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
 
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
@@ -129,6 +136,25 @@
     </nav>
 
     <main class="max-w-5xl mx-auto px-4 py-12">
+        <!-- Live Alert Container -->
+        <div id="live-alert-container" class="mb-8 hidden">
+            <div class="bg-red-600/10 border border-red-500/50 p-4 rounded-xl flex items-center justify-between gap-4 animate-fade-in">
+                <div class="flex items-center gap-3">
+                    <div class="relative flex h-3 w-3">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                    </div>
+                    <div>
+                        <p class="text-white font-bold text-sm">LIVE SESSION DETECTED</p>
+                        <p class="text-red-200/70 text-xs">There is a live unit available in this module.</p>
+                    </div>
+                </div>
+                <div class="text-xs font-bold text-red-500 uppercase tracking-widest bg-red-500/10 px-3 py-1 rounded-full border border-red-500/20">
+                    Active
+                </div>
+            </div>
+        </div>
+
         <header class="mb-12">
             <div class="flex items-center gap-2 text-red-500 font-semibold text-sm mb-4">
                 <i data-lucide="graduation-cap" class="w-4 h-4"></i>
@@ -226,7 +252,19 @@
             document.querySelectorAll('.category-pill').forEach(t => t.classList.toggle('active', t.getAttribute('data-month') == val));
             const isApproved = approvedMonths.includes(parseInt(val));
             const isPending = pendingMonths.includes(parseInt(val));
-            renderCategorizedLessons(allLessons.filter(l => l.month == val), isApproved, val, isPending);
+            
+            const filtered = allLessons.filter(l => l.month == val);
+            
+            // Check for live lessons and update alert
+            const hasLive = filtered.some(l => (l.lesson_type || '').toLowerCase() === 'live');
+            const alertEl = document.getElementById('live-alert-container');
+            if (hasLive && isApproved) {
+                alertEl.classList.remove('hidden');
+            } else {
+                alertEl.classList.add('hidden');
+            }
+
+            renderCategorizedLessons(filtered, isApproved, val, isPending);
         }
 
         window.launchExternal = function(url, lessonId) {
@@ -257,17 +295,17 @@
             }, {});
 
             // 2. Sort the lessons WITHIN each category 
-            // (Type asc -> Title asc -> Created At asc)
+            // RULE: PDF type first, then by Created At asc
             Object.keys(grouped).forEach(cat => {
                 grouped[cat].sort((a, b) => {
                     const typeA = (a.lesson_type || '').toLowerCase();
                     const typeB = (b.lesson_type || '').toLowerCase();
-                    if (typeA !== typeB) return typeA.localeCompare(typeB);
 
-                    const titleA = (a.title || '').toLowerCase();
-                    const titleB = (b.title || '').toLowerCase();
-                    if (titleA !== titleB) return titleA.localeCompare(titleB);
+                    // If one is PDF and other isn't, PDF wins
+                    if (typeA === 'pdf' && typeB !== 'pdf') return -1;
+                    if (typeB === 'pdf' && typeA !== 'pdf') return 1;
 
+                    // Otherwise sort by created_at ascending
                     const dateA = new Date(a.created_at || 0);
                     const dateB = new Date(b.created_at || 0);
                     return dateA - dateB;
@@ -279,13 +317,11 @@
                 const lessonsA = a[1];
                 const lessonsB = b[1];
 
-                // Find earliest lesson in category A
                 const earliestA = lessonsA.reduce((min, l) => {
                     const current = new Date(l.created_at || 0).getTime();
                     return current < min ? current : min;
                 }, Infinity);
 
-                // Find earliest lesson in category B
                 const earliestB = lessonsB.reduce((min, l) => {
                     const current = new Date(l.created_at || 0).getTime();
                     return current < min ? current : min;
@@ -313,8 +349,9 @@
             
             if (type === 'pdf') { icon = 'file-text'; badgeClass = 'badge-red'; }
             else if (type === 'external') { icon = 'external-link'; badgeClass = 'badge-blue'; }
+            else if (type === 'live') { icon = 'radio'; badgeClass = 'badge-live'; }
 
-            const onClickAttr = type === 'external' 
+            const onClickAttr = type === 'external' || type === 'live'
                 ? `onclick="launchExternal('${l.video_url}', '${l.id}')"` 
                 : `href="/learn/${type}?id=${l.id}"`;
 
@@ -335,9 +372,9 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-3">
-                         ${type === 'external' 
-                            ? `<button ${onClickAttr} class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white text-black font-bold text-sm hover:bg-blue-600 hover:text-white transition-all shadow-lg">
-                                Open Portal <i data-lucide="external-link" class="w-4 h-4"></i>
+                         ${type === 'external' || type === 'live'
+                            ? `<button ${onClickAttr} class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white text-black font-bold text-sm hover:bg-red-600 hover:text-white transition-all shadow-lg">
+                                ${type === 'live' ? 'Join Now' : 'Open Portal'} <i data-lucide="external-link" class="w-4 h-4"></i>
                                </button>`
                             : `<a ${onClickAttr} class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white text-black font-bold text-sm hover:bg-red-600 hover:text-white transition-all shadow-lg">
                                 Launch Unit <i data-lucide="arrow-right" class="w-4 h-4"></i>
