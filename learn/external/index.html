@@ -104,7 +104,7 @@
             <i data-lucide="shield-alert" class="w-10 h-10"></i>
         </div>
         <h1 class="text-3xl font-bold text-white mb-4">ACCESS TERMINATED</h1>
-        <p class="text-slate-400 max-w-md mb-6">A security violation has been detected. Your session has been flagged for administrative review and your hardware ID has been temporarily restricted.</p>
+        <p class="text-slate-400 max-w-md mb-6" id="lockout-message">A security violation has been detected. Your session has been flagged for administrative review and your hardware ID has been temporarily restricted.</p>
         <div class="bg-red-900/10 border border-red-900/50 rounded p-4 mb-8">
             <p class="text-red-400 text-sm font-mono" id="ban-reason">REASON: UNAUTHORIZED_DEBUGGER_ATTACH</p>
         </div>
@@ -119,12 +119,15 @@
         const SecurityManager = {
             isBanned: false,
 
-            init() {
+            async init() {
                 this.preventContextMenus();
                 this.blockKeyboardShortcuts();
                 this.startDebuggerTrap();
                 this.monitorWindowSize();
                 this.initWatermark();
+                
+                // Check database for existing bans before proceeding
+                await this.checkExistingRestrictions();
             },
 
             preventContextMenus() {
@@ -133,15 +136,10 @@
 
             blockKeyboardShortcuts() {
                 document.addEventListener('keydown', (e) => {
-                    // F12
                     if (e.keyCode === 123) this.executeBan('KEYBOARD_SHORTCUT_F12');
-                    
-                    // Ctrl+Shift+I (Inspect), Ctrl+Shift+J (Console), Ctrl+Shift+C (Elements)
                     if (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) {
                         this.executeBan('DEVTOOLS_SHORTCUT');
                     }
-
-                    // Ctrl+U (View Source)
                     if (e.ctrlKey && e.keyCode === 85) this.executeBan('VIEW_SOURCE_ATTEMPT');
                 });
             },
@@ -149,11 +147,8 @@
             startDebuggerTrap() {
                 setInterval(() => {
                     const startTime = performance.now();
-                    // This statement triggers the browser's debugger if DevTools is open
                     debugger; 
                     const endTime = performance.now();
-                    
-                    // If the time taken to execute is more than 100ms, execution was paused by a debugger
                     if (endTime - startTime > 100) {
                         this.executeBan('DEBUGGER_ACTIVE');
                     }
@@ -165,35 +160,55 @@
                 window.addEventListener('resize', () => {
                     const widthDiff = window.outerWidth - window.innerWidth;
                     const heightDiff = window.outerHeight - window.innerHeight;
-
                     if (widthDiff > threshold || heightDiff > threshold) {
                         this.executeBan('RESIZE_DETECTION');
                     }
                 });
             },
 
-            executeBan(reason) {
+            async checkExistingRestrictions() {
+                try {
+                    // Logic to check Supabase/Database for existing restrictions
+                    // This is a placeholder for the actual database check
+                    // const { data: restriction } = await sb.from('user_restrictions')
+                    //    .select('*')
+                    //    .eq('user_id', currentUser.id)
+                    //    .single();
+
+                    const mockHasRestriction = localStorage.getItem('nexus_user_banned') === 'true';
+                    
+                    if (mockHasRestriction) {
+                        this.executeBan('PREVIOUS_RESTRICTION_FOUND', 'Your account is currently restricted from accessing secure resources due to a previous violation.');
+                    }
+                } catch (err) {
+                    console.error("Security handshake error:", err);
+                }
+            },
+
+            executeBan(reason, customMessage = null) {
                 if (this.isBanned) return;
                 this.isBanned = true;
 
                 console.error(`[SECURITY] ${reason}`);
                 
+                // Persistence (Mocking database update)
+                localStorage.setItem('nexus_user_banned', 'true');
+                
                 // Show Lockout UI
                 document.getElementById('main-terminal-content').style.display = 'none';
                 document.getElementById('lockout-screen').style.display = 'flex';
                 document.getElementById('ban-reason').innerText = `VIOLATION_ID: ${reason}`;
-
-                // In a production environment with Supabase, you would call:
-                // await sb.from('user_restrictions').insert({ user_id: currentUser.id, type: '7_DAY_BAN', reason: reason });
-                // await sb.auth.signOut();
                 
+                if (customMessage) {
+                    document.getElementById('lockout-message').innerText = customMessage;
+                }
+
                 // Clear any stored secure URLs immediately
                 localStorage.removeItem('external_lesson_url');
             },
 
             initWatermark() {
                 const watermark = document.getElementById('secure-watermark');
-                // Use a mock email or fetch from your auth session
                 const userEmail = "dev_admin@nexus.internal";
                 watermark.innerText = userEmail;
 
@@ -205,13 +220,10 @@
                 function animateWatermark() {
                     posX += velX;
                     posY += velY;
-
                     if (posX <= 0 || posX + watermark.offsetWidth >= window.innerWidth) velX *= -1;
                     if (posY <= 0 || posY + watermark.offsetHeight >= window.innerHeight) velY *= -1;
-
                     watermark.style.left = posX + 'px';
                     watermark.style.top = posY + 'px';
-
                     requestAnimationFrame(animateWatermark);
                 }
                 animateWatermark();
@@ -223,7 +235,9 @@
          */
         async function handleGatewayRedirect() {
             lucide.createIcons();
-            SecurityManager.init();
+            
+            // Wait for security initialization and DB check
+            await SecurityManager.init();
             
             // Retrieve protected URL
             const url = localStorage.getItem('external_lesson_url');
@@ -231,19 +245,17 @@
             const errorScreen = document.getElementById('error-screen');
 
             setTimeout(() => {
+                // Final check: Do not redirect if banned during initialization
                 if (SecurityManager.isBanned) return;
 
                 if (url && url.startsWith('http')) {
-                    // Wipe token from storage immediately to prevent replay
                     localStorage.removeItem('external_lesson_url');
-                    
-                    // Redirect
                     window.location.replace(url);
                 } else {
                     loading.classList.add('hidden');
                     errorScreen.classList.remove('hidden');
                 }
-            }, 2000); // Slightly longer delay for security checks to settle
+            }, 2000);
         }
 
         function goBack() {
