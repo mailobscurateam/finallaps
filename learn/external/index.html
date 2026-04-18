@@ -7,18 +7,13 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@700&display=swap" rel="stylesheet">
-    
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"></script>
-
     <style>
         body { 
             font-family: 'Inter', sans-serif; 
             background-color: #0f0f12; 
             color: #f8fafc;
             overflow: hidden;
+            user-select: none; /* Prevent text selection */
         }
         .gateway-container {
             height: 100vh;
@@ -26,6 +21,8 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            position: relative;
+            z-index: 10;
         }
         .spinner {
             width: 40px;
@@ -38,37 +35,57 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-        .lockout-overlay {
+
+        /* Lockout Screen Overlay */
+        #lockout-screen {
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, 0.95);
+            background: #000;
             z-index: 9999;
-            backdrop-filter: blur(10px);
-            display: flex;
+            display: none;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        /* Watermark Styles */
+        #secure-watermark {
+            position: fixed;
+            pointer-events: none;
+            z-index: 9998;
+            opacity: 0.15;
+            font-weight: bold;
+            font-size: 14px;
+            color: #ef4444;
+            white-space: nowrap;
+            text-shadow: 1px 1px 0px rgba(0,0,0,0.5);
         }
     </style>
 </head>
 <body>
 
-    <!-- Main Handshake State -->
-    <div id="main-terminal-content" class="gateway-container p-6 text-center">
-        <div class="flex items-center gap-2 mb-8 justify-center">
-            <div class="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center shadow-lg shadow-red-900/20">
-                <i data-lucide="shield-check" class="w-6 h-6 text-white"></i>
+    <!-- Watermark Layer -->
+    <div id="secure-watermark">user@nexus.internal</div>
+
+    <!-- Main Content -->
+    <div id="main-terminal-content">
+        <div id="loading-state" class="gateway-container p-6 text-center">
+            <div class="flex items-center gap-2 mb-8 justify-center">
+                <div class="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center shadow-lg shadow-red-900/20">
+                    <i data-lucide="shield-check" class="w-6 h-6 text-white"></i>
+                </div>
+                <span class="text-xl font-bold tracking-tight text-white">Nexus Secure Gateway</span>
             </div>
-            <span class="text-xl font-bold tracking-tight">Nexus Secure Gateway</span>
-        </div>
-        
-        <div id="loading-state">
-            <div class="spinner mb-6 mx-auto"></div>
+            
+            <div class="spinner mb-6"></div>
             <h2 class="text-xl font-bold mb-2 text-white">Handshaking Session</h2>
             <p class="text-slate-400 max-w-xs mx-auto text-sm">Verifying your credentials and establishing a secure connection to the resource...</p>
         </div>
 
         <!-- Error State -->
-        <div id="error-screen" class="hidden">
+        <div id="error-screen" class="hidden gateway-container p-6 text-center">
             <div class="w-16 h-16 bg-red-900/20 text-red-500 rounded-full flex items-center justify-center mb-6 mx-auto">
                 <i data-lucide="alert-circle" class="w-8 h-8"></i>
             </div>
@@ -81,138 +98,160 @@
         </div>
     </div>
 
-    <!-- Lockout Screen (The Ban UI) -->
-    <div id="lockout-screen" class="hidden lockout-overlay p-6 text-center">
-        <div class="max-w-md">
-            <div class="w-20 h-20 bg-red-600 text-white rounded-2xl flex items-center justify-center mb-6 mx-auto shadow-2xl shadow-red-600/20">
-                <i data-lucide="lock" class="w-10 h-10"></i>
-            </div>
-            <h1 class="text-3xl font-bold mb-4 tracking-tight">Access Restricted</h1>
-            <p class="text-slate-400 mb-6 leading-relaxed">
-                This account has been flagged for a security protocol violation. Access to Nexus resources has been suspended.
-            </p>
-            <div class="bg-red-950/30 border border-red-500/20 rounded-xl p-4 mb-8 text-left">
-                <div class="flex items-center gap-2 text-red-400 mb-1 font-semibold text-sm">
-                    <i data-lucide="clock" class="w-4 h-4"></i>
-                    Restriction Period: 7 Days
-                </div>
-                <p class="text-xs text-slate-500">Your session has been terminated. Please contact system administration for appeal details.</p>
-            </div>
-            <button onclick="window.location.href='/support'" class="w-full bg-slate-800 text-white px-6 py-3 rounded-lg font-bold hover:bg-slate-700 transition-all">
-                Contact Support
-            </button>
+    <!-- Lockout Screen (Shown on Ban) -->
+    <div id="lockout-screen">
+        <div class="w-20 h-20 bg-red-600/20 text-red-500 rounded-full flex items-center justify-center mb-6">
+            <i data-lucide="shield-alert" class="w-10 h-10"></i>
         </div>
+        <h1 class="text-3xl font-bold text-white mb-4">ACCESS TERMINATED</h1>
+        <p class="text-slate-400 max-w-md mb-6">A security violation has been detected. Your session has been flagged for administrative review and your hardware ID has been temporarily restricted.</p>
+        <div class="bg-red-900/10 border border-red-900/50 rounded p-4 mb-8">
+            <p class="text-red-400 text-sm font-mono" id="ban-reason">REASON: UNAUTHORIZED_DEBUGGER_ATTACH</p>
+        </div>
+        <p class="text-slate-500 text-xs italic">Attempting to bypass security protocols is a violation of the Nexus Terms of Service.</p>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    <script>
+        /**
+         * SECURITY MANAGER
+         * Handles Anti-Tamper, DevTools Detection, and Banning Logic
+         */
+        const SecurityManager = {
+            isBanned: false,
 
-        // Global Config Retrieval
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            init() {
+                this.preventContextMenus();
+                this.blockKeyboardShortcuts();
+                this.startDebuggerTrap();
+                this.monitorWindowSize();
+                this.initWatermark();
+            },
 
-        let currentUser = null;
+            preventContextMenus() {
+                document.addEventListener('contextmenu', (e) => e.preventDefault());
+            },
 
-        // Initialize Icons
-        lucide.createIcons();
-
-        // 1. Auth Setup
-        async function initAuth() {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                await signInWithCustomToken(auth, __initial_auth_token);
-            } else {
-                await signInAnonymously(auth);
-            }
-        }
-
-        onAuthStateChanged(auth, (user) => {
-            currentUser = user;
-            if (user) {
-                checkBanStatus(user.uid);
-            }
-        });
-
-        // 2. Check for existing restrictions
-        async function checkBanStatus(uid) {
-            const restrictionDoc = doc(db, 'artifacts', appId, 'users', uid, 'security', 'restriction');
-            try {
-                const snap = await getDoc(restrictionDoc);
-                if (snap.exists()) {
-                    const data = snap.data();
-                    if (data.expiry > Date.now()) {
-                        showLockout();
-                    } else {
-                        handleGatewayRedirect();
+            blockKeyboardShortcuts() {
+                document.addEventListener('keydown', (e) => {
+                    // F12
+                    if (e.keyCode === 123) this.executeBan('KEYBOARD_SHORTCUT_F12');
+                    
+                    // Ctrl+Shift+I (Inspect), Ctrl+Shift+J (Console), Ctrl+Shift+C (Elements)
+                    if (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) {
+                        this.executeBan('DEVTOOLS_SHORTCUT');
                     }
-                } else {
-                    handleGatewayRedirect();
-                }
-            } catch (err) {
-                console.error("Security check failed", err);
-                handleGatewayRedirect(); // Fail open for the gateway unless explicitly banned
-            }
-        }
 
-        // 3. The executeBan function (Persist the lockout)
-        window.executeBan = async function() {
-            if (!currentUser) return;
-
-            const expiry = Date.now() + (7 * 24 * 60 * 60 * 1000); // 7 Days
-            const restrictionDoc = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'security', 'restriction');
-
-            try {
-                // Save to Firestore
-                await setDoc(restrictionDoc, {
-                    type: '7_DAY_BAN',
-                    reason: 'Security Handshake Violation',
-                    timestamp: Date.now(),
-                    expiry: expiry
+                    // Ctrl+U (View Source)
+                    if (e.ctrlKey && e.keyCode === 85) this.executeBan('VIEW_SOURCE_ATTEMPT');
                 });
+            },
 
-                // Visual Lockout
-                showLockout();
+            startDebuggerTrap() {
+                setInterval(() => {
+                    const startTime = performance.now();
+                    // This statement triggers the browser's debugger if DevTools is open
+                    debugger; 
+                    const endTime = performance.now();
+                    
+                    // If the time taken to execute is more than 100ms, execution was paused by a debugger
+                    if (endTime - startTime > 100) {
+                        this.executeBan('DEBUGGER_ACTIVE');
+                    }
+                }, 1000);
+            },
 
-                // Terminate Session
-                await signOut(auth);
-            } catch (err) {
-                console.error("Ban execution failed", err);
+            monitorWindowSize() {
+                const threshold = 160;
+                window.addEventListener('resize', () => {
+                    const widthDiff = window.outerWidth - window.innerWidth;
+                    const heightDiff = window.outerHeight - window.innerHeight;
+
+                    if (widthDiff > threshold || heightDiff > threshold) {
+                        this.executeBan('RESIZE_DETECTION');
+                    }
+                });
+            },
+
+            executeBan(reason) {
+                if (this.isBanned) return;
+                this.isBanned = true;
+
+                console.error(`[SECURITY] ${reason}`);
+                
+                // Show Lockout UI
+                document.getElementById('main-terminal-content').style.display = 'none';
+                document.getElementById('lockout-screen').style.display = 'flex';
+                document.getElementById('ban-reason').innerText = `VIOLATION_ID: ${reason}`;
+
+                // In a production environment with Supabase, you would call:
+                // await sb.from('user_restrictions').insert({ user_id: currentUser.id, type: '7_DAY_BAN', reason: reason });
+                // await sb.auth.signOut();
+                
+                // Clear any stored secure URLs immediately
+                localStorage.removeItem('external_lesson_url');
+            },
+
+            initWatermark() {
+                const watermark = document.getElementById('secure-watermark');
+                // Use a mock email or fetch from your auth session
+                const userEmail = "dev_admin@nexus.internal";
+                watermark.innerText = userEmail;
+
+                let posX = Math.random() * (window.innerWidth - 200);
+                let posY = Math.random() * (window.innerHeight - 50);
+                let velX = 1.5;
+                let velY = 1.5;
+
+                function animateWatermark() {
+                    posX += velX;
+                    posY += velY;
+
+                    if (posX <= 0 || posX + watermark.offsetWidth >= window.innerWidth) velX *= -1;
+                    if (posY <= 0 || posY + watermark.offsetHeight >= window.innerHeight) velY *= -1;
+
+                    watermark.style.left = posX + 'px';
+                    watermark.style.top = posY + 'px';
+
+                    requestAnimationFrame(animateWatermark);
+                }
+                animateWatermark();
             }
         };
 
-        function showLockout() {
-            document.getElementById('main-terminal-content').classList.add('hidden');
-            document.getElementById('lockout-screen').classList.remove('hidden');
-            lucide.createIcons();
-        }
-
+        /**
+         * GATEWAY REDIRECT LOGIC
+         */
         async function handleGatewayRedirect() {
+            lucide.createIcons();
+            SecurityManager.init();
+            
+            // Retrieve protected URL
             const url = localStorage.getItem('external_lesson_url');
             const loading = document.getElementById('loading-state');
             const errorScreen = document.getElementById('error-screen');
 
             setTimeout(() => {
+                if (SecurityManager.isBanned) return;
+
                 if (url && url.startsWith('http')) {
+                    // Wipe token from storage immediately to prevent replay
                     localStorage.removeItem('external_lesson_url');
+                    
+                    // Redirect
                     window.location.replace(url);
                 } else {
                     loading.classList.add('hidden');
                     errorScreen.classList.remove('hidden');
                 }
-            }, 1200);
+            }, 2000); // Slightly longer delay for security checks to settle
         }
 
-        window.goBack = function() {
+        function goBack() {
             const courseId = localStorage.getItem('active_session_id');
             window.location.href = courseId ? `/curriculum?id=${courseId}` : '/dashboard';
         }
 
-        // Boot
-        initAuth();
+        window.onload = handleGatewayRedirect;
     </script>
 </body>
 </html>
