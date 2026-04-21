@@ -286,7 +286,6 @@
             if (activeLive && isApproved) {
                 highlightContainer.classList.remove('hidden');
                 liveTitle.textContent = activeLive.title || 'Live Session Active';
-                // Direct to /learn/live
                 liveBtn.href = `/learn/live?id=${activeLive.id}`;
             } else {
                 highlightContainer.classList.add('hidden');
@@ -380,15 +379,31 @@
                 return earliestA - earliestB;
             });
 
-            container.innerHTML = sortedCategories.map(([name, items]) => `
+            container.innerHTML = sortedCategories.map(([name, items]) => {
+                // Sorting logic: prioritize Live/PDF, then Title (Ascending)
+                const sortedItems = [...items].sort((a, b) => {
+                    const typeA = (a.lesson_type || '').toLowerCase();
+                    const typeB = (b.lesson_type || '').toLowerCase();
+                    const isSpecialA = typeA === 'live' || typeA === 'pdf';
+                    const isSpecialB = typeB === 'live' || typeB === 'pdf';
+
+                    if (isSpecialA && !isSpecialB) return -1;
+                    if (!isSpecialA && isSpecialB) return 1;
+                    
+                    // Fallback to title sorting
+                    return (a.title || "").localeCompare(b.title || "");
+                });
+
+                return `
                 <section class="animate-fade-in">
                     <div class="flex items-center gap-4 mb-6">
                         <h3 class="text-xl font-bold text-red-50/90">${name}</h3>
                         <div class="h-[1px] flex-1 bg-red-900/20"></div>
                     </div>
-                    <div class="grid gap-4">${items.map(l => renderLessonItem(l)).join('')}</div>
+                    <div class="grid gap-4">${sortedItems.map(l => renderLessonItem(l)).join('')}</div>
                 </section>
-            `).join('');
+                `;
+            }).join('');
             lucide.createIcons();
         }
 
@@ -401,7 +416,6 @@
             else if (type === 'external') { icon = 'external-link'; badgeClass = 'badge-blue'; }
             else if (type === 'live') { icon = 'radio'; badgeClass = 'badge-live'; }
 
-            // ROUTING LOGIC: If live, go to learn/live. If external, use external portal. Others go to learn/{type}.
             let onClickAction = `href="/learn/${type}?id=${l.id}"`;
             let buttonLabel = 'Launch Unit';
             let actionIcon = 'arrow-right';
