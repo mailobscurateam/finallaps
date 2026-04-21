@@ -47,7 +47,7 @@
             display: inline-flex;
             align-items: center;
             padding: 0.5rem 1.25rem;
-            border-radius: 9999px;
+            border-radius: 12px;
             background: var(--bg-card);
             border: 1px solid var(--border);
             font-size: 0.875rem;
@@ -151,7 +151,7 @@
     </nav>
 
     <main class="max-w-5xl mx-auto px-4 py-12">
-        <header class="mb-8">
+        <header class="mb-12">
             <div class="flex items-center gap-2 text-red-500 font-semibold text-sm mb-4">
                 <i data-lucide="graduation-cap" class="w-4 h-4"></i>
                 CURRICULUM ENROLLMENT
@@ -160,8 +160,8 @@
             <p id="course-desc" class="text-lg text-slate-400 leading-relaxed max-w-3xl"></p>
         </header>
 
-        <!-- Live Class Highlight Banner -->
-        <div id="active-live-highlight" class="mb-10 hidden">
+        <!-- Live Class Highlight -->
+        <div id="active-live-highlight" class="mb-12 hidden">
             <div class="custom-card live-card-glow border-red-500/30 bg-red-500/5 p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6 animate-fade-in">
                 <div class="flex items-center gap-5">
                     <div class="w-16 h-16 rounded-xl bg-red-600 flex items-center justify-center shadow-2xl shadow-red-600/40 relative">
@@ -176,7 +176,7 @@
                             <h2 id="live-lesson-title" class="text-xl font-bold text-white">Live Session Active</h2>
                             <span class="badge-live px-2 py-0.5 rounded text-[10px] uppercase font-bold">Live Now</span>
                         </div>
-                        <p class="text-slate-400 text-sm">A live unit is currently available for your current module. Join now to interact with your mentor.</p>
+                        <p class="text-slate-400 text-sm">A live unit is currently available for your selected module. Join now.</p>
                     </div>
                 </div>
                 <a id="live-join-btn" class="w-full md:w-auto px-10 py-4 bg-white text-black hover:bg-red-600 hover:text-white transition-all font-extrabold rounded-xl shadow-2xl flex items-center justify-center gap-2 group">
@@ -186,14 +186,25 @@
             </div>
         </div>
 
-        <div class="mb-12">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-sm font-bold text-slate-500 uppercase tracking-widest">Select Learning Module</h3>
+        <!-- Filters Section -->
+        <div class="space-y-8 mb-12">
+            <!-- Year Selector -->
+            <div>
+                <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Academic Year</h3>
+                <div id="year-filter" class="flex flex-wrap gap-3"></div>
             </div>
-            <div id="month-filter" class="flex flex-wrap gap-3"></div>
+
+            <!-- Month Selector -->
+            <div id="month-filter-container" class="hidden">
+                <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Learning Module (Month)</h3>
+                <div id="month-filter" class="flex flex-wrap gap-3"></div>
+            </div>
         </div>
 
-        <div id="lessons-container" class="space-y-16"></div>
+        <!-- Lessons Display -->
+        <div id="lessons-container" class="space-y-16">
+            <div class="text-center py-20 text-slate-500 italic">Select a year and month to view content</div>
+        </div>
     </main>
 
     <div id="feedback-toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] hidden">
@@ -213,6 +224,9 @@
         let pendingMonths = [];
         let currentUser = null;
         let activeCourseId = null;
+        let selectedYear = null;
+        let selectedMonth = null;
+
         const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
         async function init() {
@@ -233,16 +247,15 @@
                 if (!statusCheck || statusCheck.status !== 'approved') return renderRestrictedUI(statusCheck?.status || 'unauthorized');
 
                 await fetchApprovals();
+                
                 const { data: course } = await sb.from('courses').select('*').eq('id', courseId).single();
                 document.getElementById('course-title').textContent = course.name;
                 document.getElementById('course-desc').textContent = course.description;
 
                 const { data: lessons } = await sb.from('lessons').select('*').eq('course_id', courseId);
                 allLessons = lessons;
-                generateMonthFilters(lessons);
                 
-                const uniqueMonths = [...new Set(lessons.map(l => l.month))].filter(m => m != null).sort((a, b) => a - b);
-                if (uniqueMonths.length > 0) filterByMonth(uniqueMonths[0]);
+                setupFilters();
             } catch (err) {
                 renderErrorUI(err.message);
             }
@@ -254,110 +267,100 @@
             pendingMonths = approvals ? approvals.filter(a => a.status === 'pending').map(a => parseInt(a.month_number)) : [];
         }
 
-        function generateMonthFilters(lessons) {
-            const filterContainer = document.getElementById('month-filter');
-            filterContainer.innerHTML = '';
-            const uniqueMonths = [...new Set(lessons.map(l => l.month))].filter(m => m != null).sort((a, b) => a - b);
-            uniqueMonths.forEach(monthNum => {
-                const isApproved = approvedMonths.includes(parseInt(monthNum));
+        function setupFilters() {
+            const yearContainer = document.getElementById('year-filter');
+            // Get unique years, handle potential nulls
+            const uniqueYears = [...new Set(allLessons.map(l => l.year))].filter(y => y != null).sort((a, b) => b - a);
+
+            yearContainer.innerHTML = '';
+            uniqueYears.forEach(year => {
                 const btn = document.createElement('button');
-                btn.onclick = () => filterByMonth(monthNum);
-                btn.className = `category-pill ${!isApproved ? 'is-locked opacity-70' : ''}`;
-                btn.setAttribute('data-month', monthNum);
-                btn.innerHTML = `${!isApproved ? '<i data-lucide="lock" class="w-3 h-3 mr-2"></i>' : ''} ${MONTH_NAMES[monthNum - 1]}`;
-                filterContainer.appendChild(btn);
+                btn.className = 'category-pill';
+                btn.textContent = year;
+                btn.onclick = () => selectYear(year);
+                btn.setAttribute('data-year', year);
+                yearContainer.appendChild(btn);
             });
-            lucide.createIcons();
+
+            if (uniqueYears.length > 0) {
+                selectYear(uniqueYears[0]);
+            }
         }
 
-        function filterByMonth(val) {
-            document.querySelectorAll('.category-pill').forEach(t => t.classList.toggle('active', t.getAttribute('data-month') == val));
-            const isApproved = approvedMonths.includes(parseInt(val));
-            const isPending = pendingMonths.includes(parseInt(val));
+        function selectYear(year) {
+            selectedYear = year;
+            document.querySelectorAll('#year-filter .category-pill').forEach(btn => {
+                btn.classList.toggle('active', btn.getAttribute('data-year') == year);
+            });
+
+            const monthContainer = document.getElementById('month-filter');
+            const containerWrapper = document.getElementById('month-filter-container');
             
-            const filtered = allLessons.filter(l => l.month == val);
+            // Filter months available for THIS year
+            const lessonsInYear = allLessons.filter(l => l.year == year);
+            const uniqueMonths = [...new Set(lessonsInYear.map(l => l.month))].filter(m => m != null).sort((a, b) => a - b);
+
+            if (uniqueMonths.length > 0) {
+                containerWrapper.classList.remove('hidden');
+                monthContainer.innerHTML = '';
+                uniqueMonths.forEach(monthNum => {
+                    const isApproved = approvedMonths.includes(parseInt(monthNum));
+                    const btn = document.createElement('button');
+                    btn.className = `category-pill ${!isApproved ? 'is-locked opacity-70' : ''}`;
+                    btn.innerHTML = `${!isApproved ? '<i data-lucide="lock" class="w-3 h-3 mr-2"></i>' : ''} ${MONTH_NAMES[monthNum - 1]}`;
+                    btn.onclick = () => selectMonth(monthNum);
+                    btn.setAttribute('data-month', monthNum);
+                    monthContainer.appendChild(btn);
+                });
+                lucide.createIcons();
+                selectMonth(uniqueMonths[0]);
+            } else {
+                containerWrapper.classList.add('hidden');
+                document.getElementById('lessons-container').innerHTML = '<div class="text-center py-20 text-slate-500 italic">No content found for this year</div>';
+            }
+        }
+
+        function selectMonth(month) {
+            selectedMonth = month;
+            document.querySelectorAll('#month-filter .category-pill').forEach(btn => {
+                btn.classList.toggle('active', btn.getAttribute('data-month') == month);
+            });
+
+            const isApproved = approvedMonths.includes(parseInt(month));
+            const isPending = pendingMonths.includes(parseInt(month));
             
-            // Highlight Logic: Active live lesson for current module
+            const filtered = allLessons.filter(l => l.year == selectedYear && l.month == month);
+            
+            // Live Lesson Logic
             const activeLive = filtered.find(l => (l.lesson_type || '').toLowerCase() === 'live');
             const highlightContainer = document.getElementById('active-live-highlight');
-            const liveTitle = document.getElementById('live-lesson-title');
-            const liveBtn = document.getElementById('live-join-btn');
-
             if (activeLive && isApproved) {
                 highlightContainer.classList.remove('hidden');
-                liveTitle.textContent = activeLive.title || 'Live Session Active';
-                liveBtn.href = `/learn/live?id=${activeLive.id}`;
+                document.getElementById('live-lesson-title').textContent = activeLive.title;
+                document.getElementById('live-join-btn').href = `/learn/live?id=${activeLive.id}`;
             } else {
                 highlightContainer.classList.add('hidden');
             }
 
-            renderCategorizedLessons(filtered, isApproved, val, isPending);
+            renderLessons(filtered, isApproved, month, isPending);
         }
 
-        async function requestApproval(monthNum) {
-            const btn = document.getElementById('request-btn');
-            if (btn) {
-                btn.disabled = true;
-                btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Sending...';
-                lucide.createIcons();
-            }
-
-            try {
-                const { error } = await sb.from('monthly_approvals').insert({
-                    user_id: currentUser.id,
-                    course_id: activeCourseId,
-                    month_number: monthNum,
-                    status: 'pending'
-                });
-                if (error) throw error;
-                showToast("Request submitted successfully!", "success");
-                await fetchApprovals();
-                filterByMonth(monthNum);
-                generateMonthFilters(allLessons);
-            } catch (err) {
-                showToast(err.message, "error");
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = 'Request Unlock';
-                    lucide.createIcons();
-                }
-            }
-        }
-
-        function showToast(msg, type) {
-            const toast = document.getElementById('feedback-toast');
-            const message = document.getElementById('toast-message');
-            const icon = document.getElementById('toast-icon');
-            message.textContent = msg;
-            icon.innerHTML = type === 'success' ? '<i data-lucide="check" class="w-4 h-4 text-green-500"></i>' : '<i data-lucide="alert-circle" class="w-4 h-4 text-red-500"></i>';
-            icon.className = `w-8 h-8 rounded-full flex items-center justify-center ${type === 'success' ? 'bg-green-500/20' : 'bg-red-500/20'}`;
-            toast.classList.remove('hidden');
-            lucide.createIcons();
-            setTimeout(() => toast.classList.add('hidden'), 3000);
-        }
-
-        window.launchExternal = function(url, lessonId) {
-            if (!url) return;
-            localStorage.setItem('external_lesson_url', url);
-            localStorage.setItem('current_lesson_id', lessonId);
-            window.location.href = `/learn/external?id=${lessonId}`;
-        };
-
-        function renderCategorizedLessons(lessons, isApproved, selectedMonthNum, isPending) {
+        function renderLessons(lessons, isApproved, monthNum, isPending) {
             const container = document.getElementById('lessons-container');
+            
             if (!isApproved) {
                 container.innerHTML = `
                 <div class="text-center py-20 bg-slate-900/30 rounded-2xl border border-white/5 animate-fade-in">
                     <div class="w-20 h-20 bg-red-600/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
                         <i data-lucide="lock" class="w-10 h-10"></i>
                     </div>
-                    <h3 class="text-2xl font-bold text-white mb-2">${MONTH_NAMES[selectedMonthNum-1]} Content Locked</h3>
+                    <h3 class="text-2xl font-bold text-white mb-2">${MONTH_NAMES[monthNum-1]} ${selectedYear} Locked</h3>
                     <p class="text-slate-400 mb-8 max-w-md mx-auto">This module is currently locked. You can request access from your mentor below.</p>
                     ${isPending ? 
                         `<div class="inline-flex items-center gap-2 px-8 py-3 rounded-lg bg-amber-500/10 text-amber-500 font-bold border border-amber-500/20">
                             <i data-lucide="clock" class="w-5 h-5"></i> Request Pending
                         </div>` :
-                        `<button id="request-btn" onclick="requestApproval(${selectedMonthNum})" class="inline-flex items-center gap-2 px-8 py-3 rounded-lg bg-red-600 text-white font-bold hover:bg-red-700 transition-all shadow-xl shadow-red-900/20">
+                        `<button id="request-btn" onclick="requestApproval(${monthNum})" class="inline-flex items-center gap-2 px-8 py-3 rounded-lg bg-red-600 text-white font-bold hover:bg-red-700 transition-all shadow-xl shadow-red-900/20">
                             Request Unlock <i data-lucide="send" class="w-4 h-4"></i>
                         </button>`
                     }
@@ -373,27 +376,8 @@
                 return acc;
             }, {});
 
-            const sortedCategories = Object.entries(grouped).sort((a, b) => {
-                const earliestA = a[1].reduce((min, l) => Math.min(min, new Date(l.created_at || 0).getTime()), Infinity);
-                const earliestB = b[1].reduce((min, l) => Math.min(min, new Date(l.created_at || 0).getTime()), Infinity);
-                return earliestA - earliestB;
-            });
-
-            container.innerHTML = sortedCategories.map(([name, items]) => {
-                // Sorting logic: prioritize Live/PDF, then Title (Ascending)
-                const sortedItems = [...items].sort((a, b) => {
-                    const typeA = (a.lesson_type || '').toLowerCase();
-                    const typeB = (b.lesson_type || '').toLowerCase();
-                    const isSpecialA = typeA === 'live' || typeA === 'pdf';
-                    const isSpecialB = typeB === 'live' || typeB === 'pdf';
-
-                    if (isSpecialA && !isSpecialB) return -1;
-                    if (!isSpecialA && isSpecialB) return 1;
-                    
-                    // Fallback to title sorting
-                    return (a.title || "").localeCompare(b.title || "");
-                });
-
+            container.innerHTML = Object.entries(grouped).map(([name, items]) => {
+                const sortedItems = items.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
                 return `
                 <section class="animate-fade-in">
                     <div class="flex items-center gap-4 mb-6">
@@ -411,23 +395,9 @@
             const type = (l.lesson_type || 'video').toLowerCase();
             let icon = 'play';
             let badgeClass = 'badge-amber';
-            
             if (type === 'pdf') { icon = 'file-text'; badgeClass = 'badge-red'; }
             else if (type === 'external') { icon = 'external-link'; badgeClass = 'badge-blue'; }
             else if (type === 'live') { icon = 'radio'; badgeClass = 'badge-live'; }
-
-            let onClickAction = `href="/learn/${type}?id=${l.id}"`;
-            let buttonLabel = 'Launch Unit';
-            let actionIcon = 'arrow-right';
-
-            if (type === 'external') {
-                onClickAction = `onclick="launchExternal('${l.video_url}', '${l.id}')"`;
-                buttonLabel = 'Open Portal';
-                actionIcon = 'external-link';
-            } else if (type === 'live') {
-                buttonLabel = 'Join Now';
-                actionIcon = 'radio';
-            }
 
             return `
                 <div class="custom-card p-5 md:p-6 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-6 group">
@@ -445,27 +415,47 @@
                             </div>
                         </div>
                     </div>
-                    <div class="flex items-center gap-3">
-                        ${type === 'external' 
-                            ? `<button ${onClickAction} class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white text-black font-bold text-sm hover:bg-red-600 hover:text-white transition-all shadow-lg">
-                                ${buttonLabel} <i data-lucide="${actionIcon}" class="w-4 h-4"></i>
-                               </button>`
-                            : `<a ${onClickAction} class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white text-black font-bold text-sm hover:bg-red-600 hover:text-white transition-all shadow-lg">
-                                ${buttonLabel} <i data-lucide="${actionIcon}" class="w-4 h-4"></i>
-                               </a>`
-                        }
-                    </div>
+                    <a href="/learn/${type}?id=${l.id}" class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white text-black font-bold text-sm hover:bg-red-600 hover:text-white transition-all shadow-lg">
+                        Launch Unit <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </a>
                 </div>
             `;
         }
 
+        async function requestApproval(monthNum) {
+            const btn = document.getElementById('request-btn');
+            if (btn) btn.disabled = true;
+
+            try {
+                const { error } = await sb.from('monthly_approvals').insert({
+                    user_id: currentUser.id,
+                    course_id: activeCourseId,
+                    month_number: monthNum,
+                    status: 'pending'
+                });
+                if (error) throw error;
+                showToast("Request submitted!", "success");
+                await fetchApprovals();
+                selectMonth(monthNum);
+            } catch (err) {
+                showToast(err.message, "error");
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        function showToast(msg, type) {
+            const toast = document.getElementById('feedback-toast');
+            document.getElementById('toast-message').textContent = msg;
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('hidden'), 3000);
+        }
+
         function renderRestrictedUI(status) {
-            document.getElementById('lessons-container').innerHTML = `<div class="text-center py-24 px-6 bg-[#1a1a1f] border border-red-900/20 rounded-2xl">
+            document.getElementById('lessons-container').innerHTML = `<div class="text-center py-24 bg-[#1a1a1f] border border-red-900/20 rounded-2xl">
                 <h3 class="text-2xl font-bold text-white mb-2">Access Denied</h3>
                 <p class="text-slate-500 mb-10">Status: ${status.toUpperCase()}</p>
                 <a href="/dashboard" class="bg-red-600 text-white px-8 py-3 rounded-lg font-bold">Return to Dashboard</a>
             </div>`;
-            lucide.createIcons();
         }
 
         function renderErrorUI(msg) {
