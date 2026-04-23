@@ -3,35 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Dashboard - Speed Task</title>
+    <title>Student Dashboard - Speed Task (Dark)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
-        .glass-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #0f172a; /* Slate 950 */
+            color: #f8fafc;
+        }
+        .glass-card { 
+            background: rgba(30, 41, 59, 0.7); 
+            backdrop-filter: blur(12px); 
+            border: 1px solid rgba(255, 255, 255, 0.05); 
+        }
         .progress-bar { transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .animate-slide-up { animation: slideUp 0.5s ease-out forwards; }
         
         .subtask-scroll-area::-webkit-scrollbar { width: 4px; }
-        .subtask-scroll-area::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
-        .subtask-scroll-area::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .subtask-scroll-area::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .subtask-scroll-area::-webkit-scrollbar-track { background: #1e293b; border-radius: 10px; }
+        .subtask-scroll-area::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
+        .subtask-scroll-area::-webkit-scrollbar-thumb:hover { background: #64748b; }
         
         .toast-notification {
             position: fixed;
             bottom: 24px;
             right: 24px;
-            z-index: 50;
+            z-index: 100;
             display: none;
         }
+
+        /* Custom glow effects for dark mode */
+        .glow-indigo { box-shadow: 0 0 20px rgba(99, 102, 241, 0.2); }
+        .glow-emerald { box-shadow: 0 0 20px rgba(16, 185, 129, 0.2); }
     </style>
 </head>
-<body class="text-slate-900 min-h-screen pb-20">
+<body class="min-h-screen pb-20">
 
     <!-- Toast UI -->
-    <div id="toast" class="toast-notification bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-slide-up">
+    <div id="toast" class="toast-notification bg-white text-slate-900 px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-slide-up">
         <div id="toast-icon" class="bg-emerald-500 p-1 rounded-full">
             <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
         </div>
@@ -39,17 +51,17 @@
     </div>
 
     <!-- Navigation -->
-    <nav class="sticky top-0 z-30 glass-card border-b border-slate-200 px-6 py-4 mb-8">
+    <nav class="sticky top-0 z-30 glass-card border-b border-slate-800 px-6 py-4 mb-8">
         <div class="max-w-6xl mx-auto flex justify-between items-center">
             <div class="flex items-center gap-3">
-                <div class="bg-indigo-600 p-2 rounded-xl text-white shadow-lg shadow-indigo-200">
+                <div class="bg-indigo-500 p-2 rounded-xl text-white shadow-lg shadow-indigo-500/20">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
                 </div>
-                <h1 class="text-xl font-extrabold tracking-tight">Student Portal</h1>
+                <h1 class="text-xl font-extrabold tracking-tight text-white">Student Portal</h1>
             </div>
             <div class="flex items-center gap-4">
-                <span id="user-email" class="hidden md:block text-sm font-semibold text-slate-500"></span>
-                <button onclick="handleLogout()" class="text-slate-400 hover:text-red-500 transition-colors p-2">
+                <span id="user-email" class="hidden md:block text-sm font-semibold text-slate-400"></span>
+                <button onclick="handleLogout()" class="text-slate-500 hover:text-red-400 transition-colors p-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
                 </button>
             </div>
@@ -59,30 +71,30 @@
     <main class="max-w-6xl mx-auto px-6">
         <!-- Stats -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-            <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-200">
-                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">My Active Tasks</p>
-                <h2 id="stat-active" class="text-4xl font-black text-indigo-600">0</h2>
+            <div class="bg-slate-900/50 p-6 rounded-[2rem] border border-slate-800 glow-indigo">
+                <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">My Active Tasks</p>
+                <h2 id="stat-active" class="text-4xl font-black text-indigo-400">0</h2>
             </div>
-            <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-200">
-                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Units Mastered</p>
-                <h2 id="stat-units" class="text-4xl font-black text-emerald-500">0</h2>
+            <div class="bg-slate-900/50 p-6 rounded-[2rem] border border-slate-800 glow-emerald">
+                <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Units Mastered</p>
+                <h2 id="stat-units" class="text-4xl font-black text-emerald-400">0</h2>
             </div>
-            <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-200">
-                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Overall Rank</p>
-                <h2 class="text-4xl font-black text-slate-800">#--</h2>
+            <div class="bg-slate-900/50 p-6 rounded-[2rem] border border-slate-800">
+                <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Overall Rank</p>
+                <h2 class="text-4xl font-black text-slate-200">#--</h2>
             </div>
         </div>
 
         <!-- Section Tabs -->
         <div class="flex gap-4 mb-8">
-            <button onclick="switchTab('my-tasks')" id="tab-my-tasks" class="px-6 py-2 rounded-full font-bold text-sm bg-slate-900 text-white shadow-lg transition-all">My Learning</button>
-            <button onclick="switchTab('browse')" id="tab-browse" class="px-6 py-2 rounded-full font-bold text-sm bg-white text-slate-500 border border-slate-200 hover:border-indigo-300 transition-all">Browse Tasks</button>
+            <button onclick="switchTab('my-tasks')" id="tab-my-tasks" class="px-6 py-2 rounded-full font-bold text-sm bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 transition-all">My Learning</button>
+            <button onclick="switchTab('browse')" id="tab-browse" class="px-6 py-2 rounded-full font-bold text-sm bg-slate-800 text-slate-400 border border-slate-700 hover:border-slate-500 transition-all">Browse Tasks</button>
         </div>
 
         <!-- Content Area -->
         <div id="content-loader" class="flex flex-col items-center justify-center py-20 hidden">
-            <div class="animate-spin rounded-full h-10 w-10 border-4 border-indigo-500 border-t-transparent mb-4"></div>
-            <p class="text-slate-400 font-medium">Syncing progress...</p>
+            <div class="animate-spin rounded-full h-10 w-10 border-4 border-indigo-400 border-t-transparent mb-4"></div>
+            <p class="text-slate-500 font-medium text-sm">Syncing system...</p>
         </div>
 
         <div id="tasks-grid" class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
@@ -152,8 +164,11 @@
 
             window.switchTab = function(tab) {
                 currentTab = tab;
-                document.getElementById('tab-my-tasks').className = tab === 'my-tasks' ? 'px-6 py-2 rounded-full font-bold text-sm bg-slate-900 text-white shadow-lg transition-all' : 'px-6 py-2 rounded-full font-bold text-sm bg-white text-slate-500 border border-slate-200 transition-all';
-                document.getElementById('tab-browse').className = tab === 'browse' ? 'px-6 py-2 rounded-full font-bold text-sm bg-slate-900 text-white shadow-lg transition-all' : 'px-6 py-2 rounded-full font-bold text-sm bg-white text-slate-500 border border-slate-200 transition-all';
+                const activeClasses = 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20';
+                const inactiveClasses = 'bg-slate-800 text-slate-400 border border-slate-700';
+                
+                document.getElementById('tab-my-tasks').className = `px-6 py-2 rounded-full font-bold text-sm transition-all ${tab === 'my-tasks' ? activeClasses : inactiveClasses}`;
+                document.getElementById('tab-browse').className = `px-6 py-2 rounded-full font-bold text-sm transition-all ${tab === 'browse' ? activeClasses : inactiveClasses}`;
                 renderContent();
             };
 
@@ -164,7 +179,7 @@
                 if (currentTab === 'browse') {
                     const available = allTasks.filter(t => !registrations.find(r => r.task_id === t.id));
                     if (available.length === 0) {
-                        grid.innerHTML = `<div class="col-span-full py-20 text-center text-slate-400 font-medium">No new tasks available for registration.</div>`;
+                        grid.innerHTML = `<div class="col-span-full py-20 text-center text-slate-500 font-medium">No new missions found in the archive.</div>`;
                         return;
                     }
                     available.forEach(task => grid.appendChild(createTaskCard(task, false)));
@@ -175,7 +190,7 @@
                     }).filter(t => t !== null);
 
                     if (myTasks.length === 0) {
-                        grid.innerHTML = `<div class="col-span-full py-20 text-center text-slate-400 font-medium">You haven't registered for any tasks yet. Go to "Browse" to start.</div>`;
+                        grid.innerHTML = `<div class="col-span-full py-20 text-center text-slate-500 font-medium">Your learning terminal is empty. Browse tasks to begin.</div>`;
                         return;
                     }
                     myTasks.forEach(task => grid.appendChild(createTaskCard(task, true)));
@@ -184,7 +199,7 @@
 
             function createTaskCard(task, isRegistered) {
                 const card = document.createElement('div');
-                card.className = 'bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200 flex flex-col gap-6 animate-slide-up';
+                card.className = 'bg-slate-900/40 rounded-[2.5rem] p-8 border border-slate-800 flex flex-col gap-6 animate-slide-up';
                 
                 const now = new Date();
                 const startDate = task.start_time ? new Date(task.start_time) : null;
@@ -194,13 +209,13 @@
                 const isExpired = endDate && now > endDate;
                 const isWithinWindow = (!startDate || now >= startDate) && (!endDate || now <= endDate);
                 
-                // RESOURCE BUTTON: Only visible if student is ENROLLED (isRegistered is true)
+                // RESOURCE BUTTON (ENROLLED ONLY)
                 const hasTaskResource = task.external_resource && task.external_resource.trim() !== '';
                 const resourceButton = (isRegistered && hasTaskResource) ? `
                     <a href="${task.external_resource}" target="_blank" 
-                       class="flex items-center justify-center gap-2 w-full py-3 px-4 bg-slate-900 text-white text-xs font-bold uppercase rounded-2xl hover:bg-slate-800 transition-all shadow-lg shadow-slate-200">
+                       class="flex items-center justify-center gap-2 w-full py-3 px-4 bg-white text-slate-900 text-xs font-bold uppercase rounded-2xl hover:bg-slate-200 transition-all shadow-xl shadow-white/5">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                        Access Task Resource
+                        Access Task Data
                     </a>
                 ` : '';
 
@@ -208,14 +223,14 @@
                 let progressHtml = '';
 
                 const timeInfo = `
-                    <div class="grid grid-cols-2 gap-4 mt-2 mb-2 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div class="grid grid-cols-2 gap-4 mt-2 mb-2 p-4 bg-slate-900/80 rounded-2xl border border-slate-800/50">
                         <div>
-                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Start Time</p>
-                            <p class="text-xs font-bold ${isUpcoming ? 'text-indigo-600' : 'text-slate-600'}">${startDate ? startDate.toLocaleString() : 'Open'}</p>
+                            <p class="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">Commence</p>
+                            <p class="text-xs font-bold ${isUpcoming ? 'text-indigo-400' : 'text-slate-300'}">${startDate ? startDate.toLocaleString([], {dateStyle: 'short', timeStyle: 'short'}) : 'Open'}</p>
                         </div>
                         <div>
-                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">End Time</p>
-                            <p class="text-xs font-bold ${isExpired ? 'text-red-500' : 'text-slate-600'}">${endDate ? endDate.toLocaleString() : 'Continuous'}</p>
+                            <p class="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">Deadline</p>
+                            <p class="text-xs font-bold ${isExpired ? 'text-red-400' : 'text-slate-300'}">${endDate ? endDate.toLocaleString([], {dateStyle: 'short', timeStyle: 'short'}) : 'Continuity'}</p>
                         </div>
                     </div>
                 `;
@@ -228,37 +243,37 @@
 
                     progressHtml = `
                         <div class="mt-2">
-                            <div class="flex justify-between text-[10px] font-black text-slate-400 uppercase mb-2">
-                                <span>Mastery Progress</span>
-                                <span>${Math.round(progress)}%</span>
+                            <div class="flex justify-between text-[10px] font-black text-slate-500 uppercase mb-2">
+                                <span>Mastery Level</span>
+                                <span class="${isDone ? 'text-emerald-400' : 'text-indigo-400'}">${Math.round(progress)}%</span>
                             </div>
-                            <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
-                                <div class="progress-bar h-full ${isDone ? 'bg-emerald-500' : (isExpired ? 'bg-slate-400' : 'bg-indigo-600')}" style="width: ${progress}%"></div>
+                            <div class="h-2 bg-slate-800 rounded-full overflow-hidden">
+                                <div class="progress-bar h-full ${isDone ? 'bg-emerald-500' : (isExpired ? 'bg-slate-600' : 'bg-indigo-500')}" style="width: ${progress}%"></div>
                             </div>
                         </div>
                     `;
 
                     footerContent = `
                         <div class="space-y-3 mt-4">
-                            <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest">Learning Units</h4>
+                            <h4 class="text-xs font-black text-slate-500 uppercase tracking-widest">Protocol Units</h4>
                             <div class="subtask-scroll-area max-h-[260px] overflow-y-auto pr-2 space-y-2">
                                 ${(task.speed_subtasks || []).map(sub => {
                                     const isSubComplete = subtaskCompletions.find(c => c.subtask_id === sub.id);
                                     const canComplete = isWithinWindow && !isSubComplete && !isDone;
                                     
                                     return `
-                                        <div class="flex items-center justify-between p-4 ${isSubComplete ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-100'} border rounded-2xl transition-all">
+                                        <div class="flex items-center justify-between p-4 ${isSubComplete ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-slate-800/40 border-slate-700/50'} border rounded-2xl transition-all">
                                             <div class="flex items-center gap-3">
-                                                <div class="w-2 h-2 rounded-full ${isSubComplete ? 'bg-emerald-500' : 'bg-slate-300'}"></div>
-                                                <span class="text-sm font-bold ${isSubComplete ? 'text-emerald-700' : 'text-slate-600'}">${sub.title}</span>
+                                                <div class="w-2 h-2 rounded-full ${isSubComplete ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-slate-600'}"></div>
+                                                <span class="text-sm font-bold ${isSubComplete ? 'text-emerald-300' : 'text-slate-400'}">${sub.title}</span>
                                             </div>
                                             ${!isSubComplete ? 
                                                 `<button onclick="completeSubTask('${sub.id}', '${task.id}')" 
-                                                   class="text-[10px] font-black uppercase ${canComplete ? 'text-indigo-600 hover:text-indigo-800' : 'text-slate-300 pointer-events-none'}" 
+                                                   class="text-[10px] font-black uppercase ${canComplete ? 'text-indigo-400 hover:text-indigo-300 underline underline-offset-4' : 'text-slate-600 pointer-events-none'}" 
                                                    ${!canComplete ? 'disabled' : ''}>
-                                                   ${isUpcoming ? 'Locked' : (isExpired ? 'Expired' : (isDone ? 'Finished' : 'Mark Done'))}
+                                                   ${isUpcoming ? 'Locked' : (isExpired ? 'Expired' : (isDone ? 'Locked' : 'Verify'))}
                                                 </button>` : 
-                                                `<svg class="h-5 w-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>`
+                                                `<svg class="h-5 w-5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>`
                                             }
                                         </div>
                                     `;
@@ -270,31 +285,31 @@
                     const canEnroll = !isExpired;
                     footerContent = `
                         <button onclick="registerForTask('${task.id}')" 
-                            class="w-full ${canEnroll ? 'bg-indigo-600 shadow-indigo-100 hover:bg-indigo-700' : 'bg-slate-300 cursor-not-allowed'} text-white py-4 rounded-2xl font-black shadow-lg transition-all active:scale-95 mt-4"
+                            class="w-full ${canEnroll ? 'bg-indigo-600 shadow-indigo-500/20 hover:bg-indigo-500' : 'bg-slate-800 text-slate-600 cursor-not-allowed'} text-white py-4 rounded-2xl font-black shadow-lg transition-all active:scale-95 mt-4 border border-indigo-400/20"
                             ${!canEnroll ? 'disabled' : ''}>
-                            ${isExpired ? 'Registration Closed' : (isUpcoming ? 'Pre-Register Now' : 'Enroll in Task')}
+                            ${isExpired ? 'Mission Closed' : (isUpcoming ? 'Pre-Auth Required' : 'Initialize Mission')}
                         </button>
                     `;
                 }
 
                 let badge = '';
-                if (isUpcoming) badge = `<span class="bg-amber-100 text-amber-700 text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter">Upcoming</span>`;
-                else if (isExpired) badge = `<span class="bg-slate-200 text-slate-500 text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter">Closed</span>`;
-                else if (isRegistered && task.registration.status === 'completed') badge = `<span class="bg-emerald-500 text-white text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter">Mastered</span>`;
-                else badge = `<span class="bg-indigo-100 text-indigo-700 text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter">In Progress</span>`;
+                if (isUpcoming) badge = `<span class="bg-amber-500/10 text-amber-500 text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter border border-amber-500/20">Upcoming</span>`;
+                else if (isExpired) badge = `<span class="bg-slate-800 text-slate-500 text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter border border-slate-700">Archived</span>`;
+                else if (isRegistered && task.registration.status === 'completed') badge = `<span class="bg-emerald-500 text-white text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter shadow-lg shadow-emerald-500/20">Mastered</span>`;
+                else badge = `<span class="bg-indigo-500/10 text-indigo-400 text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter border border-indigo-400/20">Active</span>`;
 
                 card.innerHTML = `
                     <div class="flex justify-between items-start">
                         <div class="flex-1 pr-2">
-                            <span class="inline-block px-3 py-1 bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-widest rounded-full mb-3">${task.subject}</span>
-                            <h3 class="text-2xl font-black text-slate-900 leading-tight">${task.title}</h3>
+                            <span class="inline-block px-3 py-1 bg-slate-800 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-full mb-3 border border-slate-700">${task.subject}</span>
+                            <h3 class="text-2xl font-black text-white leading-tight tracking-tight">${task.title}</h3>
                         </div>
                         <div class="shrink-0">
                             ${badge}
                         </div>
                     </div>
                     
-                    <p class="text-slate-500 text-sm leading-relaxed line-clamp-2">${task.description || 'No description provided.'}</p>
+                    <p class="text-slate-400 text-sm leading-relaxed line-clamp-2">${task.description || 'Secure communication link required for description.'}</p>
                     
                     ${resourceButton}
                     ${timeInfo}
@@ -309,7 +324,7 @@
                 try {
                     const task = allTasks.find(t => t.id === taskId);
                     if (task.end_time && new Date() > new Date(task.end_time)) {
-                        throw new Error("This task registration has already expired.");
+                        throw new Error("Mission access expired.");
                     }
 
                     const { error } = await client.from('speed_task_registrations').insert([
@@ -317,7 +332,7 @@
                     ]);
                     if (error) throw error;
                     
-                    showToast("Enrolled successfully!");
+                    showToast("Mission Initialized.");
                     await initData();
                     switchTab('my-tasks');
                 } catch (e) {
@@ -333,8 +348,8 @@
                 const startDate = task.start_time ? new Date(task.start_time) : null;
                 const endDate = task.end_time ? new Date(task.end_time) : null;
 
-                if (startDate && now < startDate) return showToast("This task hasn't started yet.", true);
-                if (endDate && now > endDate) return showToast("The deadline has passed.", true);
+                if (startDate && now < startDate) return showToast("Time-lock active.", true);
+                if (endDate && now > endDate) return showToast("Mission window closed.", true);
 
                 toggleLoader(true);
                 try {
@@ -356,7 +371,7 @@
                             .eq('user_id', currentUser.id)
                             .eq('task_id', parentTaskId);
 
-                        const { error: taskCompError } = await client.from('speed_task_completions').insert([
+                        await client.from('speed_task_completions').insert([
                             { 
                                 user_id: currentUser.id, 
                                 task_id: parentTaskId,
@@ -364,15 +379,14 @@
                             }
                         ]);
                         
-                        if (taskCompError) console.error("Logged completion error:", taskCompError);
-                        showToast("Task Mastered! Documentation synced.");
+                        showToast("Mission Success. Data Synced.");
                     } else {
-                        showToast("Progress saved.");
+                        showToast("Progress Verified.");
                     }
 
                     await initData();
                 } catch (e) {
-                    showToast("Sync error: " + e.message, true);
+                    showToast("Sync Error: " + e.message, true);
                 } finally {
                     toggleLoader(false);
                 }
@@ -396,7 +410,7 @@
                 const loader = document.getElementById('content-loader');
                 const grid = document.getElementById('tasks-grid');
                 if (loader) loader.classList.toggle('hidden', !show);
-                if (grid) grid.classList.toggle('opacity-50', show);
+                if (grid) grid.classList.toggle('opacity-30', show);
             }
 
             checkAuth();
