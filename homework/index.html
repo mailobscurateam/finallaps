@@ -165,7 +165,7 @@
             }
 
             function updateStats() {
-                document.getElementById('stat-active').textContent = registrations.filter(r => r.status !== 'verify').length;
+                document.getElementById('stat-active').textContent = registrations.filter(r => r.status !== 'completed').length;
                 document.getElementById('stat-units').textContent = subtaskCompletions.length;
             }
 
@@ -278,7 +278,7 @@
                                                 `<button onclick="completeSubTask('${sub.id}', '${task.id}')" 
                                                    class="text-[10px] font-black uppercase ${canComplete ? 'text-indigo-400 hover:text-indigo-300 underline underline-offset-4' : 'text-slate-600 pointer-events-none'}" 
                                                    ${!canComplete ? 'disabled' : ''}>
-                                                   ${isUpcoming ? 'Locked' : (isExpired ? 'Expired' : (isDone ? 'Locked' : 'Completed'))}
+                                                   ${isUpcoming ? 'Locked' : (isExpired ? 'Expired' : (isDone ? 'Locked' : 'Verify'))}
                                                 </button>` : 
                                                 `<svg class="h-5 w-5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>`
                                             }
