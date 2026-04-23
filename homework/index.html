@@ -194,9 +194,9 @@
                 const isExpired = endDate && now > endDate;
                 const isWithinWindow = (!startDate || now >= startDate) && (!endDate || now <= endDate);
                 
-                // MAIN RESOURCE BUTTON FROM SPEED_TASKS TABLE
+                // RESOURCE BUTTON: Only visible if student is ENROLLED (isRegistered is true)
                 const hasTaskResource = task.external_resource && task.external_resource.trim() !== '';
-                const resourceButton = hasTaskResource ? `
+                const resourceButton = (isRegistered && hasTaskResource) ? `
                     <a href="${task.external_resource}" target="_blank" 
                        class="flex items-center justify-center gap-2 w-full py-3 px-4 bg-slate-900 text-white text-xs font-bold uppercase rounded-2xl hover:bg-slate-800 transition-all shadow-lg shadow-slate-200">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
