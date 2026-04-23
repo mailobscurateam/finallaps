@@ -294,7 +294,7 @@
                         <button onclick="registerForTask('${task.id}')" 
                             class="w-full ${canEnroll ? 'bg-indigo-600 shadow-indigo-500/20 hover:bg-indigo-500' : 'bg-slate-800 text-slate-600 cursor-not-allowed'} text-white py-4 rounded-2xl font-black shadow-lg transition-all active:scale-95 mt-4 border border-indigo-400/20"
                             ${!canEnroll ? 'disabled' : ''}>
-                            ${isExpired ? 'Mission Closed' : (isUpcoming ? 'Pre-Auth Required' : 'Initialize Mission')}
+                            ${isExpired ? 'Mission Closed' : (isUpcoming ? 'Pre-Auth Required' : 'Enroll Now')}
                         </button>
                     `;
                 }
