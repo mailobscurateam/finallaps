@@ -6,6 +6,7 @@
     <title>Secure Gateway | Nexus</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@700&display=swap" rel="stylesheet">
     <style>
         body { 
@@ -13,7 +14,7 @@
             background-color: #0f0f12; 
             color: #f8fafc;
             overflow: hidden;
-            user-select: none; /* Prevent text selection */
+            user-select: none;
         }
         .gateway-container {
             height: 100vh;
@@ -35,8 +36,6 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-
-        /* Lockout Screen Overlay */
         #lockout-screen {
             position: fixed;
             inset: 0;
@@ -49,8 +48,6 @@
             text-align: center;
             padding: 2rem;
         }
-
-        /* Watermark Styles */
         #secure-watermark {
             position: fixed;
             pointer-events: none;
@@ -67,7 +64,7 @@
 <body>
 
     <!-- Watermark Layer -->
-    <div id="secure-watermark">user@nexus.internal</div>
+    <div id="secure-watermark">INITIALIZING...</div>
 
     <!-- Main Content -->
     <div id="main-terminal-content">
@@ -81,7 +78,7 @@
             
             <div class="spinner mb-6"></div>
             <h2 class="text-xl font-bold mb-2 text-white">Handshaking Session</h2>
-            <p class="text-slate-400 max-w-xs mx-auto text-sm">Verifying your credentials and establishing a secure connection to the resource...</p>
+            <p id="status-text" class="text-slate-400 max-w-xs mx-auto text-sm">Verifying your credentials and establishing security context...</p>
         </div>
 
         <!-- Error State -->
@@ -98,36 +95,52 @@
         </div>
     </div>
 
-    <!-- Lockout Screen (Shown on Ban) -->
+    <!-- Lockout Screen -->
     <div id="lockout-screen">
         <div class="w-20 h-20 bg-red-600/20 text-red-500 rounded-full flex items-center justify-center mb-6">
             <i data-lucide="shield-alert" class="w-10 h-10"></i>
         </div>
         <h1 class="text-3xl font-bold text-white mb-4">ACCESS TERMINATED</h1>
-        <p class="text-slate-400 max-w-md mb-6" id="lockout-message">A security violation has been detected. Your session has been flagged for administrative review and your hardware ID has been temporarily restricted.</p>
+        <p class="text-slate-400 max-w-md mb-6" id="lockout-message">A security violation has been detected. Your session has been flagged for administrative review.</p>
         <div class="bg-red-900/10 border border-red-900/50 rounded p-4 mb-8">
-            <p class="text-red-400 text-sm font-mono" id="ban-reason">REASON: UNAUTHORIZED_DEBUGGER_ATTACH</p>
+            <p class="text-red-400 text-sm font-mono" id="ban-reason">REASON: UNAUTHORIZED_TAMPER</p>
         </div>
         <p class="text-slate-500 text-xs italic">Attempting to bypass security protocols is a violation of the Nexus Terms of Service.</p>
     </div>
 
     <script>
-        /**
-         * SECURITY MANAGER
-         * Handles Anti-Tamper, DevTools Detection, and Banning Logic
-         */
+        // Supabase Initialization with Provided Credentials
+        const SUPABASE_URL = 'https://tsaoxjzvhxiggntibpui.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzYW94anp2aHhpZ2dudGlicHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDQ2OTAsImV4cCI6MjA5MTQyMDY5MH0.Q5Iu51O3NK4k2kcc_GoegnyAYIFIs2SUkQOV10qp2jI';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
         const SecurityManager = {
             isBanned: false,
+            userSession: null,
 
             async init() {
+                lucide.createIcons();
                 this.preventContextMenus();
                 this.blockKeyboardShortcuts();
                 this.startDebuggerTrap();
                 this.monitorWindowSize();
-                this.initWatermark();
                 
-                // Check database for existing bans before proceeding
-                await this.checkExistingRestrictions();
+                await this.checkAuth();
+                if (this.userSession) {
+                    this.initWatermark();
+                    await this.checkExistingRestrictions();
+                }
+            },
+
+            async checkAuth() {
+                try {
+                    const { data: { session }, error } = await supabase.auth.getSession();
+                    if (error) throw error;
+                    this.userSession = session;
+                } catch (error) {
+                    console.error("Auth Handshake Error:", error);
+                }
             },
 
             preventContextMenus() {
@@ -158,94 +171,93 @@
             monitorWindowSize() {
                 const threshold = 160;
                 window.addEventListener('resize', () => {
-                    const widthDiff = window.outerWidth - window.innerWidth;
-                    const heightDiff = window.outerHeight - window.innerHeight;
-                    if (widthDiff > threshold || heightDiff > threshold) {
+                    if (window.outerWidth - window.innerWidth > threshold || window.outerHeight - window.innerHeight > threshold) {
                         this.executeBan('RESIZE_DETECTION');
                     }
                 });
             },
 
             async checkExistingRestrictions() {
+                if (!this.userSession) return;
+                
                 try {
-                    // Logic to check Supabase/Database for existing restrictions
-                    // This is a placeholder for the actual database check
-                    // const { data: restriction } = await sb.from('user_restrictions')
-                    //    .select('*')
-                    //    .eq('user_id', currentUser.id)
-                    //    .single();
+                    const { data: restriction, error } = await supabase
+                        .from('user_restrictions')
+                        .select('*')
+                        .eq('user_id', this.userSession.user.id)
+                        .maybeSingle();
 
-                    const mockHasRestriction = localStorage.getItem('nexus_user_banned') === 'true';
-                    
-                    if (mockHasRestriction) {
-                        this.executeBan('PREVIOUS_RESTRICTION_FOUND', 'Your account is currently restricted from accessing secure resources due to a previous violation.');
+                    if (error) throw error;
+
+                    if (restriction && restriction.is_banned) {
+                        this.executeBan('DB_RESTRICTION_FOUND', restriction.ban_reason_message);
                     }
                 } catch (err) {
-                    console.error("Security handshake error:", err);
+                    console.error("Restriction query failed:", err);
                 }
             },
 
-            executeBan(reason, customMessage = null) {
+            async executeBan(reason, customMessage = null) {
                 if (this.isBanned) return;
                 this.isBanned = true;
 
-                console.error(`[SECURITY] ${reason}`);
-                
-                // Persistence (Mocking database update)
-                localStorage.setItem('nexus_user_banned', 'true');
-                
-                // Show Lockout UI
+                if (this.userSession) {
+                    try {
+                        await supabase
+                            .from('user_restrictions')
+                            .upsert({ 
+                                user_id: this.userSession.user.id,
+                                is_banned: true,
+                                violation_code: reason,
+                                ban_reason_message: customMessage || "Access restricted due to automated security detection.",
+                                last_violation_at: new Date().toISOString()
+                            });
+                    } catch (e) {
+                        console.error("Critical Security Record Failure");
+                    }
+                }
+
                 document.getElementById('main-terminal-content').style.display = 'none';
                 document.getElementById('lockout-screen').style.display = 'flex';
                 document.getElementById('ban-reason').innerText = `VIOLATION_ID: ${reason}`;
-                
                 if (customMessage) {
                     document.getElementById('lockout-message').innerText = customMessage;
                 }
-
-                // Clear any stored secure URLs immediately
-                localStorage.removeItem('active_session_id');
             },
 
             initWatermark() {
                 const watermark = document.getElementById('secure-watermark');
-                const userEmail = "dev_admin@nexus.internal";
-                watermark.innerText = userEmail;
+                const identifier = this.userSession ? (this.userSession.user.email || this.userSession.user.id) : "GUEST";
+                watermark.innerText = `${identifier}@nexus.internal`;
 
                 let posX = Math.random() * (window.innerWidth - 200);
                 let posY = Math.random() * (window.innerHeight - 50);
-                let velX = 1.5;
-                let velY = 1.5;
+                let velX = 1.1;
+                let velY = 1.1;
 
-                function animateWatermark() {
+                const animate = () => {
                     posX += velX;
                     posY += velY;
                     if (posX <= 0 || posX + watermark.offsetWidth >= window.innerWidth) velX *= -1;
                     if (posY <= 0 || posY + watermark.offsetHeight >= window.innerHeight) velY *= -1;
                     watermark.style.left = posX + 'px';
                     watermark.style.top = posY + 'px';
-                    requestAnimationFrame(animateWatermark);
-                }
-                animateWatermark();
+                    requestAnimationFrame(animate);
+                };
+                animate();
             }
         };
 
-        /**
-         * GATEWAY REDIRECT LOGIC
-         */
-        async function handleGatewayRedirect() {
-            lucide.createIcons();
-            
-            // Wait for security initialization and DB check
+        window.onload = async () => {
             await SecurityManager.init();
             
-            // Retrieve protected URL
+            if (SecurityManager.isBanned) return;
+
             const url = localStorage.getItem('active_session_id');
             const loading = document.getElementById('loading-state');
             const errorScreen = document.getElementById('error-screen');
 
             setTimeout(() => {
-                // Final check: Do not redirect if banned during initialization
                 if (SecurityManager.isBanned) return;
 
                 if (url && url.startsWith('http')) {
@@ -255,15 +267,12 @@
                     loading.classList.add('hidden');
                     errorScreen.classList.remove('hidden');
                 }
-            }, 2000);
-        }
+            }, 2500);
+        };
 
         function goBack() {
-            const courseId = localStorage.getItem('active_session_id');
-            window.location.href = courseId ? `/curriculum?id=${courseId}` : '/dashboard';
+            window.location.href = '/dashboard';
         }
-
-        window.onload = handleGatewayRedirect;
     </script>
 </body>
 </html>
