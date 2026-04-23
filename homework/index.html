@@ -165,7 +165,7 @@
             }
 
             function updateStats() {
-                document.getElementById('stat-active').textContent = registrations.filter(r => r.status !== 'completed').length;
+                document.getElementById('stat-active').textContent = registrations.filter(r => r.status !== 'verify').length;
                 document.getElementById('stat-units').textContent = subtaskCompletions.length;
             }
 
