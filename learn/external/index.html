@@ -204,7 +204,7 @@
                 }
 
                 // Clear any stored secure URLs immediately
-                localStorage.removeItem('external_lesson_url');
+                localStorage.removeItem('active_session_id');
             },
 
             initWatermark() {
@@ -240,7 +240,7 @@
             await SecurityManager.init();
             
             // Retrieve protected URL
-            const url = localStorage.getItem('external_lesson_url');
+            const url = localStorage.getItem('active_session_id');
             const loading = document.getElementById('loading-state');
             const errorScreen = document.getElementById('error-screen');
 
@@ -249,7 +249,7 @@
                 if (SecurityManager.isBanned) return;
 
                 if (url && url.startsWith('http')) {
-                    localStorage.removeItem('external_lesson_url');
+                    localStorage.removeItem('active_session_id');
                     window.location.replace(url);
                 } else {
                     loading.classList.add('hidden');
