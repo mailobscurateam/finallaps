@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard - Categorized Task Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #0f172a; /* Slate 950 */
+            color: #f8fafc;
+        }
+        .glass-card { 
+            background: rgba(30, 41, 59, 0.7); 
+            backdrop-filter: blur(12px); 
+            border: 1px solid rgba(255, 255, 255, 0.05); 
+        }
+        .progress-bar { transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-slide-up { animation: slideUp 0.5s ease-out forwards; }
+        
+        .subtask-scroll-area::-webkit-scrollbar { width: 4px; }
+        .subtask-scroll-area::-webkit-scrollbar-track { background: #1e293b; border-radius: 10px; }
+        .subtask-scroll-area::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
+        
+        .toast-notification {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 100;
+            display: none;
+        }
+
+        .category-chip {
+            transition: all 0.2s ease;
+        }
+        .category-chip:hover {
+            transform: translateY(-1px);
+        }
+
+        /* Custom glow effects for dark mode */
+        .glow-indigo { box-shadow: 0 0 20px rgba(99, 102, 241, 0.1); }
+        .glow-emerald { box-shadow: 0 0 20px rgba(16, 185, 129, 0.1); }
+    </style>
+</head>
+<body class="min-h-screen pb-20">
+
+    <!-- Toast UI -->
+    <div id="toast" class="toast-notification bg-white text-slate-900 px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-slide-up">
+        <div id="toast-icon" class="bg-emerald-500 p-1 rounded-full">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+        </div>
+        <p id="toast-message" class="text-sm font-bold"></p>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="sticky top-0 z-30 glass-card border-b border-slate-800 px-6 py-4 mb-8">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-500 p-2 rounded-xl text-white shadow-lg shadow-indigo-500/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-extrabold tracking-tight text-white">Student Portal</h1>
+                    <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-none mt-1">Academic Terminal</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <span id="user-email" class="hidden md:block text-xs font-bold text-slate-500 tracking-tight"></span>
+                <button onclick="handleLogout()" class="bg-slate-800 hover:bg-red-500/10 hover:text-red-400 text-slate-400 transition-all p-2 rounded-xl border border-slate-700" title="Logout">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto px-6">
+        <!-- Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <div class="bg-slate-900/50 p-6 rounded-[2rem] border border-slate-800 glow-indigo">
+                <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Active Missions</p>
+                <h2 id="stat-active" class="text-4xl font-black text-indigo-400">0</h2>
+            </div>
+            <div class="bg-slate-900/50 p-6 rounded-[2rem] border border-slate-800 glow-emerald">
+                <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Units Mastered</p>
+                <h2 id="stat-units" class="text-4xl font-black text-emerald-400">0</h2>
+            </div>
+            <div class="bg-slate-900/50 p-6 rounded-[2rem] border border-slate-800">
+                <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Subjects</p>
+                <h2 id="stat-subjects" class="text-4xl font-black text-slate-200">0</h2>
+            </div>
+        </div>
+
+        <!-- Mode Selection and Category Quick Filter -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+            <div class="flex bg-slate-900/80 p-1.5 rounded-2xl border border-slate-800 w-fit">
+                <button onclick="switchTab('my-tasks')" id="tab-my-tasks" class="px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all">My Learning</button>
+                <button onclick="switchTab('browse')" id="tab-browse" class="px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all">Browse All</button>
+            </div>
+            
+            <div id="category-filters" class="flex flex-wrap gap-2">
+                <!-- Dynamic Category Chips -->
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div id="content-loader" class="flex flex-col items-center justify-center py-20 hidden">
+            <div class="animate-spin rounded-full h-10 w-10 border-4 border-indigo-400 border-t-transparent mb-4"></div>
+            <p class="text-slate-500 font-medium text-sm">Organizing curriculum...</p>
+        </div>
+
+        <!-- Grouped Content Container -->
+        <div id="tasks-container" class="space-y-12">
+            <!-- Dynamic Groups will appear here -->
+        </div>
+    </main>
+
+    <script>
+        (function() {
+            const SUPABASE_URL = 'https://tsaoxjzvhxiggntibpui.supabase.co'; 
+            const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzYW94anp2aHhpZ2dudGlicHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDQ2OTAsImV4cCI6MjA5MTQyMDY5MH0.Q5Iu51O3NK4k2kcc_GoegnyAYIFIs2SUkQOV10qp2jI';
+            
+            const client = window.supabaseClient || window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            window.supabaseClient = client;
+
+            let currentUser = null;
+            let currentTab = 'my-tasks';
+            let activeFilter = 'All';
+            let allTasks = [];
+            let registrations = [];
+            let subtaskCompletions = [];
+
+            async function checkAuth() {
+                const { data: { session } } = await client.auth.getSession();
+                if (!session) {
+                    window.location.href = '/login';
+                    return;
+                }
+                currentUser = session.user;
+                document.getElementById('user-email').textContent = currentUser.email.split('@')[0].toUpperCase();
+                initData();
+            }
+
+            window.handleLogout = async function() {
+                await client.auth.signOut();
+                window.location.href = '/login';
+            };
+
+            async function initData() {
+                toggleLoader(true);
+                try {
+                    const { data: tasks } = await client.from('speed_tasks').select('*, speed_subtasks(*)');
+                    allTasks = tasks || [];
+
+                    const { data: regs } = await client.from('speed_task_registrations')
+                        .select('*')
+                        .eq('user_id', currentUser.id);
+                    registrations = regs || [];
+
+                    const { data: comps } = await client.from('speed_subtask_completions')
+                        .select('*')
+                        .eq('user_id', currentUser.id);
+                    subtaskCompletions = comps || [];
+
+                    updateStats();
+                    renderContent();
+                    renderFilters();
+                } catch (e) {
+                    console.error(e);
+                } finally {
+                    toggleLoader(false);
+                }
+            }
+
+            function updateStats() {
+                document.getElementById('stat-active').textContent = registrations.filter(r => r.status !== 'completed').length;
+                document.getElementById('stat-units').textContent = subtaskCompletions.length;
+                const uniqueSubjects = [...new Set(allTasks.map(t => t.subject))].length;
+                document.getElementById('stat-subjects').textContent = uniqueSubjects;
+            }
+
+            function renderFilters() {
+                const filterContainer = document.getElementById('category-filters');
+                const subjects = ['All', ...new Set(allTasks.map(t => t.subject))];
+                
+                filterContainer.innerHTML = subjects.map(sub => `
+                    <button onclick="setFilter('${sub}')" 
+                            class="category-chip px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all
+                            ${activeFilter === sub 
+                                ? 'bg-indigo-500 border-indigo-400 text-white shadow-lg shadow-indigo-500/20' 
+                                : 'bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-600'}">
+                        ${sub}
+                    </button>
+                `).join('');
+            }
+
+            window.setFilter = function(filter) {
+                activeFilter = filter;
+                renderFilters();
+                renderContent();
+            };
+
+            window.switchTab = function(tab) {
+                currentTab = tab;
+                const active = 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20';
+                const inactive = 'text-slate-500 hover:text-slate-300';
+                
+                document.getElementById('tab-my-tasks').className = `px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all ${tab === 'my-tasks' ? active : inactive}`;
+                document.getElementById('tab-browse').className = `px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all ${tab === 'browse' ? active : inactive}`;
+                renderContent();
+            };
+
+            function renderContent() {
+                const container = document.getElementById('tasks-container');
+                container.innerHTML = '';
+
+                let filteredTasks = [];
+                if (currentTab === 'browse') {
+                    filteredTasks = allTasks.filter(t => !registrations.find(r => r.task_id === t.id));
+                } else {
+                    filteredTasks = registrations.map(r => {
+                        const task = allTasks.find(t => t.id === r.task_id);
+                        return task ? { ...task, registration: r } : null;
+                    }).filter(t => t !== null);
+                }
+
+                // Apply Subject Filter
+                if (activeFilter !== 'All') {
+                    filteredTasks = filteredTasks.filter(t => t.subject === activeFilter);
+                }
+
+                if (filteredTasks.length === 0) {
+                    container.innerHTML = `<div class="py-20 text-center text-slate-500 font-medium border-2 border-dashed border-slate-800 rounded-[3rem]">No missions match your current selection.</div>`;
+                    return;
+                }
+
+                // GROUP BY SUBJECT
+                const groups = filteredTasks.reduce((acc, task) => {
+                    if (!acc[task.subject]) acc[task.subject] = [];
+                    acc[task.subject].push(task);
+                    return acc;
+                }, {});
+
+                // Sort subjects alphabetically
+                const sortedSubjects = Object.keys(groups).sort();
+
+                sortedSubjects.forEach(subject => {
+                    const section = document.createElement('section');
+                    section.className = 'animate-slide-up';
+                    section.innerHTML = `
+                        <div class="flex items-center gap-4 mb-6">
+                            <h2 class="text-xs font-black uppercase tracking-[0.2em] text-indigo-400 bg-indigo-400/5 px-4 py-1.5 rounded-lg border border-indigo-400/10">${subject}</h2>
+                            <div class="h-px bg-slate-800 flex-1"></div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <!-- Cards will go here -->
+                        </div>
+                    `;
+                    const grid = section.querySelector('div.grid');
+                    groups[subject].forEach(task => {
+                        grid.appendChild(createTaskCard(task, currentTab === 'my-tasks'));
+                    });
+                    container.appendChild(section);
+                });
+            }
+
+            function createTaskCard(task, isRegistered) {
+                const card = document.createElement('div');
+                card.className = 'bg-slate-900/40 rounded-[2.5rem] p-8 border border-slate-800 flex flex-col gap-6 hover:border-slate-700 transition-colors group';
+                
+                const now = new Date();
+                const startDate = task.start_time ? new Date(task.start_time) : null;
+                const endDate = task.end_time ? new Date(task.end_time) : null;
+                const isWithinWindow = (!startDate || now >= startDate) && (!endDate || now <= endDate);
+                const isExpired = endDate && now > endDate;
+
+                let footer = '';
+                let progress = '';
+
+                if (isRegistered) {
+                    const total = task.speed_subtasks?.length || 0;
+                    const done = task.speed_subtasks?.filter(st => subtaskCompletions.find(c => c.subtask_id === st.id))?.length || 0;
+                    const percent = total > 0 ? (done / total) * 100 : 0;
+                    const isTaskDone = task.registration.status === 'completed';
+
+                    progress = `
+                        <div class="mt-2">
+                            <div class="flex justify-between text-[10px] font-black text-slate-500 uppercase mb-2">
+                                <span>Mastery</span>
+                                <span class="${isTaskDone ? 'text-emerald-400' : 'text-indigo-400'}">${Math.round(percent)}%</span>
+                            </div>
+                            <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                <div class="progress-bar h-full ${isTaskDone ? 'bg-emerald-500' : 'bg-indigo-500'}" style="width: ${percent}%"></div>
+                            </div>
+                        </div>
+                    `;
+
+                    footer = `
+                        <div class="space-y-2 mt-4">
+                            ${(task.speed_subtasks || []).map(sub => {
+                                const isSubDone = subtaskCompletions.find(c => c.subtask_id === sub.id);
+                                return `
+                                    <div class="flex items-center justify-between p-3 rounded-xl border ${isSubDone ? 'bg-emerald-500/5 border-emerald-500/10' : 'bg-slate-800/20 border-slate-700/50'}">
+                                        <span class="text-xs font-bold ${isSubDone ? 'text-emerald-400/80' : 'text-slate-400'}">${sub.title}</span>
+                                        ${!isSubDone && isWithinWindow && !isTaskDone ? 
+                                            `<button onclick="completeSubTask('${sub.id}', '${task.id}')" class="text-[9px] font-black uppercase text-indigo-400 hover:underline">Verify</button>` : 
+                                            (isSubDone ? `<svg class="h-4 w-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>` : '')}
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    `;
+                } else {
+                    footer = `
+                        <button onclick="registerForTask('${task.id}')" 
+                                class="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all mt-4
+                                ${isExpired ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 active:scale-[0.98]'}"
+                                ${isExpired ? 'disabled' : ''}>
+                            ${isExpired ? 'Link Expired' : 'Initialize Mission'}
+                        </button>
+                    `;
+                }
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="text-xl font-black text-white group-hover:text-indigo-300 transition-colors">${task.title}</h3>
+                            <p class="text-slate-500 text-xs mt-1 font-medium">${task.description || 'No data available.'}</p>
+                        </div>
+                        <div class="px-2 py-1 bg-slate-800 rounded-lg border border-slate-700 text-[9px] font-bold text-slate-400 uppercase">${task.subject}</div>
+                    </div>
+                    ${progress}
+                    ${footer}
+                `;
+                return card;
+            }
+
+            window.registerForTask = async function(taskId) {
+                toggleLoader(true);
+                try {
+                    const { error } = await client.from('speed_task_registrations').insert([
+                        { user_id: currentUser.id, task_id: taskId, status: 'in-progress' }
+                    ]);
+                    if (error) throw error;
+                    showToast("Protocol Activated.");
+                    await initData();
+                    switchTab('my-tasks');
+                } catch (e) {
+                    showToast(e.message, true);
+                } finally {
+                    toggleLoader(false);
+                }
+            };
+
+            window.completeSubTask = async function(subtaskId, parentTaskId) {
+                toggleLoader(true);
+                try {
+                    await client.from('speed_subtask_completions').insert([{ user_id: currentUser.id, subtask_id: subtaskId }]);
+                    
+                    // Re-fetch to check completion logic
+                    await initData();
+                    showToast("Unit Synchronized.");
+                } catch (e) {
+                    showToast(e.message, true);
+                } finally {
+                    toggleLoader(false);
+                }
+            };
+
+            function showToast(message, isError = false) {
+                const toast = document.getElementById('toast');
+                document.getElementById('toast-message').textContent = message;
+                document.getElementById('toast-icon').className = isError ? 'bg-red-500 p-1 rounded-full' : 'bg-emerald-500 p-1 rounded-full';
+                toast.style.display = 'flex';
+                setTimeout(() => toast.style.display = 'none', 3000);
+            }
+
+            function toggleLoader(show) {
+                document.getElementById('content-loader').classList.toggle('hidden', !show);
+                document.getElementById('tasks-container').classList.toggle('opacity-30', show);
+            }
+
+            checkAuth();
+        })();
+    </script>
+</body>
+</html>
