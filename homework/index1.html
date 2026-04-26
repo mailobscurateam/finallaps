@@ -52,6 +52,15 @@
             background: linear-gradient(90deg, rgba(71, 85, 105, 0.5), transparent);
             margin-left: 1rem;
         }
+
+        /* Custom Select Styling */
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 1rem;
+        }
     </style>
 </head>
 <body class="min-h-screen pb-20">
@@ -103,10 +112,22 @@
             </div>
         </div>
 
-        <!-- Section Tabs -->
-        <div class="flex gap-4 mb-8">
-            <button onclick="switchTab('my-tasks')" id="tab-my-tasks" class="px-6 py-2 rounded-full font-bold text-sm bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 transition-all">My Learning</button>
-            <button onclick="switchTab('browse')" id="tab-browse" class="px-6 py-2 rounded-full font-bold text-sm bg-slate-800 text-slate-400 border border-slate-700 hover:border-slate-500 transition-all">Browse Tasks</button>
+        <!-- Controls Header -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+            <!-- Section Tabs -->
+            <div class="flex gap-4">
+                <button onclick="switchTab('my-tasks')" id="tab-my-tasks" class="px-6 py-2 rounded-full font-bold text-sm bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 transition-all">My Learning</button>
+                <button onclick="switchTab('browse')" id="tab-browse" class="px-6 py-2 rounded-full font-bold text-sm bg-slate-800 text-slate-400 border border-slate-700 hover:border-slate-500 transition-all">Browse Tasks</button>
+            </div>
+
+            <!-- Subject Filter -->
+            <div class="relative w-full md:w-64">
+                <label for="subject-filter" class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Filter by Subject</label>
+                <select id="subject-filter" onchange="handleFilterChange()" class="w-full bg-slate-800 border border-slate-700 text-slate-200 text-xs font-bold py-2.5 px-4 rounded-xl focus:outline-none focus:border-indigo-500 transition-all cursor-pointer">
+                    <option value="all">All Subjects</option>
+                    <!-- Subjects injected here -->
+                </select>
+            </div>
         </div>
 
         <!-- Content Area -->
@@ -130,6 +151,7 @@
 
             let currentUser = null;
             let currentTab = 'my-tasks';
+            let selectedSubject = 'all';
             let allTasks = [];
             let registrations = [];
             let subtaskCompletions = [];
@@ -166,6 +188,7 @@
                         .eq('user_id', currentUser.id);
                     subtaskCompletions = comps || [];
 
+                    populateSubjectFilter();
                     updateStats();
                     renderContent();
                 } catch (e) {
@@ -174,6 +197,30 @@
                     toggleLoader(false);
                 }
             }
+
+            function populateSubjectFilter() {
+                const filter = document.getElementById('subject-filter');
+                const subjects = [...new Set(allTasks.map(t => t.subject || 'Uncategorized'))].sort();
+                
+                // Clear existing options except "All"
+                filter.innerHTML = '<option value="all">All Subjects</option>';
+                
+                subjects.forEach(subject => {
+                    const opt = document.createElement('option');
+                    opt.value = subject;
+                    opt.textContent = subject;
+                    filter.appendChild(opt);
+                });
+
+                // Keep selection if it exists in new list
+                filter.value = selectedSubject;
+                if (filter.value === '') filter.value = 'all';
+            }
+
+            window.handleFilterChange = function() {
+                selectedSubject = document.getElementById('subject-filter').value;
+                renderContent();
+            };
 
             function updateStats() {
                 document.getElementById('stat-active').textContent = registrations.filter(r => r.status !== 'completed').length;
@@ -217,8 +264,17 @@
                     isRegisteredMode = true;
                 }
 
+                // Apply Subject Filter
+                if (selectedSubject !== 'all') {
+                    filteredTasks = filteredTasks.filter(t => (t.subject || 'Uncategorized') === selectedSubject);
+                }
+
                 if (filteredTasks.length === 0) {
-                    container.innerHTML = `<div class="py-20 text-center text-slate-500 font-medium">${currentTab === 'browse' ? 'No new missions found in the archive.' : 'Your learning terminal is empty. Browse tasks to begin.'}</div>`;
+                    const msg = selectedSubject === 'all' 
+                        ? (currentTab === 'browse' ? 'No new missions found in the archive.' : 'Your learning terminal is empty.')
+                        : `No tasks found for "${selectedSubject}" in this section.`;
+                    
+                    container.innerHTML = `<div class="py-20 text-center text-slate-500 font-medium">${msg}</div>`;
                     return;
                 }
 
