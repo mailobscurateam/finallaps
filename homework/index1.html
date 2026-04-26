@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Dashboard - Categorized Task Hub</title>
+    <title>Student Dashboard - Speed Task (Dark)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -25,6 +25,7 @@
         .subtask-scroll-area::-webkit-scrollbar { width: 4px; }
         .subtask-scroll-area::-webkit-scrollbar-track { background: #1e293b; border-radius: 10px; }
         .subtask-scroll-area::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
+        .subtask-scroll-area::-webkit-scrollbar-thumb:hover { background: #64748b; }
         
         .toast-notification {
             position: fixed;
@@ -34,16 +35,23 @@
             display: none;
         }
 
-        .category-chip {
-            transition: all 0.2s ease;
-        }
-        .category-chip:hover {
-            transform: translateY(-1px);
-        }
-
         /* Custom glow effects for dark mode */
-        .glow-indigo { box-shadow: 0 0 20px rgba(99, 102, 241, 0.1); }
-        .glow-emerald { box-shadow: 0 0 20px rgba(16, 185, 129, 0.1); }
+        .glow-indigo { box-shadow: 0 0 20px rgba(99, 102, 241, 0.2); }
+        .glow-emerald { box-shadow: 0 0 20px rgba(16, 185, 129, 0.2); }
+        
+        .subject-divider {
+            position: relative;
+            display: flex;
+            align-items: center;
+            margin: 2rem 0 1.5rem;
+        }
+        .subject-divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, rgba(71, 85, 105, 0.5), transparent);
+            margin-left: 1rem;
+        }
     </style>
 </head>
 <body class="min-h-screen pb-20">
@@ -63,15 +71,16 @@
                 <div class="bg-indigo-500 p-2 rounded-xl text-white shadow-lg shadow-indigo-500/20">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
                 </div>
-                <div>
-                    <h1 class="text-xl font-extrabold tracking-tight text-white">Student Portal</h1>
-                    <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-none mt-1">Academic Terminal</p>
-                </div>
+                <h1 class="text-xl font-extrabold tracking-tight text-white">Student Portal</h1>
             </div>
             <div class="flex items-center gap-4">
-                <span id="user-email" class="hidden md:block text-xs font-bold text-slate-500 tracking-tight"></span>
-                <button onclick="handleLogout()" class="bg-slate-800 hover:bg-red-500/10 hover:text-red-400 text-slate-400 transition-all p-2 rounded-xl border border-slate-700" title="Logout">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                <a href="/dashboard" class="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition-all border border-slate-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+                    Dashboard
+                </a>
+                <span id="user-email" class="hidden md:block text-sm font-semibold text-slate-400"></span>
+                <button onclick="handleLogout()" class="text-slate-500 hover:text-red-400 transition-colors p-2" title="Logout">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
                 </button>
             </div>
         </div>
@@ -81,7 +90,7 @@
         <!-- Stats -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
             <div class="bg-slate-900/50 p-6 rounded-[2rem] border border-slate-800 glow-indigo">
-                <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Active Missions</p>
+                <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">My Active Tasks</p>
                 <h2 id="stat-active" class="text-4xl font-black text-indigo-400">0</h2>
             </div>
             <div class="bg-slate-900/50 p-6 rounded-[2rem] border border-slate-800 glow-emerald">
@@ -89,32 +98,25 @@
                 <h2 id="stat-units" class="text-4xl font-black text-emerald-400">0</h2>
             </div>
             <div class="bg-slate-900/50 p-6 rounded-[2rem] border border-slate-800">
-                <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Subjects</p>
-                <h2 id="stat-subjects" class="text-4xl font-black text-slate-200">0</h2>
+                <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Overall Rank</p>
+                <h2 class="text-4xl font-black text-slate-200">#--</h2>
             </div>
         </div>
 
-        <!-- Mode Selection and Category Quick Filter -->
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
-            <div class="flex bg-slate-900/80 p-1.5 rounded-2xl border border-slate-800 w-fit">
-                <button onclick="switchTab('my-tasks')" id="tab-my-tasks" class="px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all">My Learning</button>
-                <button onclick="switchTab('browse')" id="tab-browse" class="px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all">Browse All</button>
-            </div>
-            
-            <div id="category-filters" class="flex flex-wrap gap-2">
-                <!-- Dynamic Category Chips -->
-            </div>
+        <!-- Section Tabs -->
+        <div class="flex gap-4 mb-8">
+            <button onclick="switchTab('my-tasks')" id="tab-my-tasks" class="px-6 py-2 rounded-full font-bold text-sm bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 transition-all">My Learning</button>
+            <button onclick="switchTab('browse')" id="tab-browse" class="px-6 py-2 rounded-full font-bold text-sm bg-slate-800 text-slate-400 border border-slate-700 hover:border-slate-500 transition-all">Browse Tasks</button>
         </div>
 
         <!-- Content Area -->
         <div id="content-loader" class="flex flex-col items-center justify-center py-20 hidden">
             <div class="animate-spin rounded-full h-10 w-10 border-4 border-indigo-400 border-t-transparent mb-4"></div>
-            <p class="text-slate-500 font-medium text-sm">Organizing curriculum...</p>
+            <p class="text-slate-500 font-medium text-sm">Syncing system...</p>
         </div>
 
-        <!-- Grouped Content Container -->
         <div id="tasks-container" class="space-y-12">
-            <!-- Dynamic Groups will appear here -->
+            <!-- Dynamic Content Categories will be injected here -->
         </div>
     </main>
 
@@ -128,7 +130,6 @@
 
             let currentUser = null;
             let currentTab = 'my-tasks';
-            let activeFilter = 'All';
             let allTasks = [];
             let registrations = [];
             let subtaskCompletions = [];
@@ -140,7 +141,7 @@
                     return;
                 }
                 currentUser = session.user;
-                document.getElementById('user-email').textContent = currentUser.email.split('@')[0].toUpperCase();
+                document.getElementById('user-email').textContent = currentUser.email;
                 initData();
             }
 
@@ -167,7 +168,6 @@
 
                     updateStats();
                     renderContent();
-                    renderFilters();
                 } catch (e) {
                     console.error(e);
                 } finally {
@@ -178,162 +178,197 @@
             function updateStats() {
                 document.getElementById('stat-active').textContent = registrations.filter(r => r.status !== 'completed').length;
                 document.getElementById('stat-units').textContent = subtaskCompletions.length;
-                const uniqueSubjects = [...new Set(allTasks.map(t => t.subject))].length;
-                document.getElementById('stat-subjects').textContent = uniqueSubjects;
             }
-
-            function renderFilters() {
-                const filterContainer = document.getElementById('category-filters');
-                const subjects = ['All', ...new Set(allTasks.map(t => t.subject))];
-                
-                filterContainer.innerHTML = subjects.map(sub => `
-                    <button onclick="setFilter('${sub}')" 
-                            class="category-chip px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all
-                            ${activeFilter === sub 
-                                ? 'bg-indigo-500 border-indigo-400 text-white shadow-lg shadow-indigo-500/20' 
-                                : 'bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-600'}">
-                        ${sub}
-                    </button>
-                `).join('');
-            }
-
-            window.setFilter = function(filter) {
-                activeFilter = filter;
-                renderFilters();
-                renderContent();
-            };
 
             window.switchTab = function(tab) {
                 currentTab = tab;
-                const active = 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20';
-                const inactive = 'text-slate-500 hover:text-slate-300';
+                const activeClasses = 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20';
+                const inactiveClasses = 'bg-slate-800 text-slate-400 border border-slate-700';
                 
-                document.getElementById('tab-my-tasks').className = `px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all ${tab === 'my-tasks' ? active : inactive}`;
-                document.getElementById('tab-browse').className = `px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all ${tab === 'browse' ? active : inactive}`;
+                document.getElementById('tab-my-tasks').className = `px-6 py-2 rounded-full font-bold text-sm transition-all ${tab === 'my-tasks' ? activeClasses : inactiveClasses}`;
+                document.getElementById('tab-browse').className = `px-6 py-2 rounded-full font-bold text-sm transition-all ${tab === 'browse' ? activeClasses : inactiveClasses}`;
                 renderContent();
             };
+
+            function groupTasksBySubject(tasks) {
+                return tasks.reduce((acc, task) => {
+                    const subject = task.subject || 'Uncategorized';
+                    if (!acc[subject]) acc[subject] = [];
+                    acc[subject].push(task);
+                    return acc;
+                }, {});
+            }
 
             function renderContent() {
                 const container = document.getElementById('tasks-container');
                 container.innerHTML = '';
 
                 let filteredTasks = [];
+                let isRegisteredMode = false;
+
                 if (currentTab === 'browse') {
                     filteredTasks = allTasks.filter(t => !registrations.find(r => r.task_id === t.id));
+                    isRegisteredMode = false;
                 } else {
                     filteredTasks = registrations.map(r => {
                         const task = allTasks.find(t => t.id === r.task_id);
                         return task ? { ...task, registration: r } : null;
                     }).filter(t => t !== null);
-                }
-
-                // Apply Subject Filter
-                if (activeFilter !== 'All') {
-                    filteredTasks = filteredTasks.filter(t => t.subject === activeFilter);
+                    isRegisteredMode = true;
                 }
 
                 if (filteredTasks.length === 0) {
-                    container.innerHTML = `<div class="py-20 text-center text-slate-500 font-medium border-2 border-dashed border-slate-800 rounded-[3rem]">No missions match your current selection.</div>`;
+                    container.innerHTML = `<div class="py-20 text-center text-slate-500 font-medium">${currentTab === 'browse' ? 'No new missions found in the archive.' : 'Your learning terminal is empty. Browse tasks to begin.'}</div>`;
                     return;
                 }
 
-                // GROUP BY SUBJECT
-                const groups = filteredTasks.reduce((acc, task) => {
-                    if (!acc[task.subject]) acc[task.subject] = [];
-                    acc[task.subject].push(task);
-                    return acc;
-                }, {});
-
+                const grouped = groupTasksBySubject(filteredTasks);
+                
                 // Sort subjects alphabetically
-                const sortedSubjects = Object.keys(groups).sort();
+                const subjects = Object.keys(grouped).sort();
 
-                sortedSubjects.forEach(subject => {
+                subjects.forEach(subject => {
                     const section = document.createElement('section');
                     section.className = 'animate-slide-up';
-                    section.innerHTML = `
-                        <div class="flex items-center gap-4 mb-6">
-                            <h2 class="text-xs font-black uppercase tracking-[0.2em] text-indigo-400 bg-indigo-400/5 px-4 py-1.5 rounded-lg border border-indigo-400/10">${subject}</h2>
-                            <div class="h-px bg-slate-800 flex-1"></div>
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <!-- Cards will go here -->
+                    
+                    const divider = document.createElement('div');
+                    divider.className = 'subject-divider';
+                    divider.innerHTML = `
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] bg-indigo-500/10 px-3 py-1 rounded-lg border border-indigo-500/20">${subject}</span>
+                            <span class="text-[10px] font-bold text-slate-600">/ ${grouped[subject].length} Tasks</span>
                         </div>
                     `;
-                    const grid = section.querySelector('div.grid');
-                    groups[subject].forEach(task => {
-                        grid.appendChild(createTaskCard(task, currentTab === 'my-tasks'));
+                    
+                    const grid = document.createElement('div');
+                    grid.className = 'grid grid-cols-1 md:grid-cols-2 gap-8 items-start';
+                    
+                    grouped[subject].forEach(task => {
+                        grid.appendChild(createTaskCard(task, isRegisteredMode));
                     });
+
+                    section.appendChild(divider);
+                    section.appendChild(grid);
                     container.appendChild(section);
                 });
             }
 
             function createTaskCard(task, isRegistered) {
                 const card = document.createElement('div');
-                card.className = 'bg-slate-900/40 rounded-[2.5rem] p-8 border border-slate-800 flex flex-col gap-6 hover:border-slate-700 transition-colors group';
+                card.className = 'bg-slate-900/40 rounded-[2.5rem] p-8 border border-slate-800 flex flex-col gap-6';
                 
                 const now = new Date();
                 const startDate = task.start_time ? new Date(task.start_time) : null;
                 const endDate = task.end_time ? new Date(task.end_time) : null;
-                const isWithinWindow = (!startDate || now >= startDate) && (!endDate || now <= endDate);
+                
+                const isUpcoming = startDate && now < startDate;
                 const isExpired = endDate && now > endDate;
+                const isWithinWindow = (!startDate || now >= startDate) && (!endDate || now <= endDate);
+                
+                const hasTaskResource = task.external_resource && task.external_resource.trim() !== '';
+                const resourceButton = (isRegistered && hasTaskResource) ? `
+                    <a href="${task.external_resource}" target="_blank" 
+                       class="flex items-center justify-center gap-2 w-full py-3 px-4 bg-white text-slate-900 text-xs font-bold uppercase rounded-2xl hover:bg-slate-200 transition-all shadow-xl shadow-white/5">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                        Access Task Data
+                    </a>
+                ` : '';
 
-                let footer = '';
-                let progress = '';
+                let footerContent = '';
+                let progressHtml = '';
+
+                const timeInfo = `
+                    <div class="grid grid-cols-2 gap-4 mt-2 mb-2 p-4 bg-slate-900/80 rounded-2xl border border-slate-800/50">
+                        <div>
+                            <p class="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">Commence</p>
+                            <p class="text-xs font-bold ${isUpcoming ? 'text-indigo-400' : 'text-slate-300'}">${startDate ? startDate.toLocaleString([], {dateStyle: 'short', timeStyle: 'short'}) : 'Open'}</p>
+                        </div>
+                        <div>
+                            <p class="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">Deadline</p>
+                            <p class="text-xs font-bold ${isExpired ? 'text-red-400' : 'text-slate-300'}">${endDate ? endDate.toLocaleString([], {dateStyle: 'short', timeStyle: 'short'}) : 'Continuity'}</p>
+                        </div>
+                    </div>
+                `;
 
                 if (isRegistered) {
-                    const total = task.speed_subtasks?.length || 0;
-                    const done = task.speed_subtasks?.filter(st => subtaskCompletions.find(c => c.subtask_id === st.id))?.length || 0;
-                    const percent = total > 0 ? (done / total) * 100 : 0;
-                    const isTaskDone = task.registration.status === 'completed';
+                    const totalUnits = task.speed_subtasks?.length || 0;
+                    const completedUnits = task.speed_subtasks?.filter(st => subtaskCompletions.find(c => c.subtask_id === st.id))?.length || 0;
+                    const progress = totalUnits > 0 ? (completedUnits / totalUnits) * 100 : 0;
+                    const isDone = task.registration.status === 'completed';
 
-                    progress = `
+                    progressHtml = `
                         <div class="mt-2">
                             <div class="flex justify-between text-[10px] font-black text-slate-500 uppercase mb-2">
-                                <span>Mastery</span>
-                                <span class="${isTaskDone ? 'text-emerald-400' : 'text-indigo-400'}">${Math.round(percent)}%</span>
+                                <span>Mastery Level</span>
+                                <span class="${isDone ? 'text-emerald-400' : 'text-indigo-400'}">${Math.round(progress)}%</span>
                             </div>
-                            <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                                <div class="progress-bar h-full ${isTaskDone ? 'bg-emerald-500' : 'bg-indigo-500'}" style="width: ${percent}%"></div>
+                            <div class="h-2 bg-slate-800 rounded-full overflow-hidden">
+                                <div class="progress-bar h-full ${isDone ? 'bg-emerald-500' : (isExpired ? 'bg-slate-600' : 'bg-indigo-500')}" style="width: ${progress}%"></div>
                             </div>
                         </div>
                     `;
 
-                    footer = `
-                        <div class="space-y-2 mt-4">
-                            ${(task.speed_subtasks || []).map(sub => {
-                                const isSubDone = subtaskCompletions.find(c => c.subtask_id === sub.id);
-                                return `
-                                    <div class="flex items-center justify-between p-3 rounded-xl border ${isSubDone ? 'bg-emerald-500/5 border-emerald-500/10' : 'bg-slate-800/20 border-slate-700/50'}">
-                                        <span class="text-xs font-bold ${isSubDone ? 'text-emerald-400/80' : 'text-slate-400'}">${sub.title}</span>
-                                        ${!isSubDone && isWithinWindow && !isTaskDone ? 
-                                            `<button onclick="completeSubTask('${sub.id}', '${task.id}')" class="text-[9px] font-black uppercase text-indigo-400 hover:underline">Verify</button>` : 
-                                            (isSubDone ? `<svg class="h-4 w-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>` : '')}
-                                    </div>
-                                `;
-                            }).join('')}
+                    footerContent = `
+                        <div class="space-y-3 mt-4">
+                            <h4 class="text-xs font-black text-slate-500 uppercase tracking-widest">Protocol Units</h4>
+                            <div class="subtask-scroll-area max-h-[260px] overflow-y-auto pr-2 space-y-2">
+                                ${(task.speed_subtasks || []).map(sub => {
+                                    const isSubComplete = subtaskCompletions.find(c => c.subtask_id === sub.id);
+                                    const canComplete = isWithinWindow && !isSubComplete && !isDone;
+                                    
+                                    return `
+                                        <div class="flex items-center justify-between p-4 ${isSubComplete ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-slate-800/40 border-slate-700/50'} border rounded-2xl transition-all">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-2 h-2 rounded-full ${isSubComplete ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-slate-600'}"></div>
+                                                <span class="text-sm font-bold ${isSubComplete ? 'text-emerald-300' : 'text-slate-400'}">${sub.title}</span>
+                                            </div>
+                                            ${!isSubComplete ? 
+                                                `<button onclick="completeSubTask('${sub.id}', '${task.id}')" 
+                                                    class="text-[10px] font-black uppercase ${canComplete ? 'text-indigo-400 hover:text-indigo-300 underline underline-offset-4' : 'text-slate-600 pointer-events-none'}" 
+                                                    ${!canComplete ? 'disabled' : ''}>
+                                                    ${isUpcoming ? 'Locked' : (isExpired ? 'Expired' : (isDone ? 'Locked' : 'Verify'))}
+                                                </button>` : 
+                                                `<svg class="h-5 w-5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>`
+                                            }
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
                         </div>
                     `;
                 } else {
-                    footer = `
+                    const canEnroll = !isExpired;
+                    footerContent = `
                         <button onclick="registerForTask('${task.id}')" 
-                                class="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all mt-4
-                                ${isExpired ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 active:scale-[0.98]'}"
-                                ${isExpired ? 'disabled' : ''}>
-                            ${isExpired ? 'Link Expired' : 'Initialize Mission'}
+                            class="w-full ${canEnroll ? 'bg-indigo-600 shadow-indigo-500/20 hover:bg-indigo-500' : 'bg-slate-800 text-slate-600 cursor-not-allowed'} text-white py-4 rounded-2xl font-black shadow-lg transition-all active:scale-95 mt-4 border border-indigo-400/20"
+                            ${!canEnroll ? 'disabled' : ''}>
+                            ${isExpired ? 'Mission Closed' : (isUpcoming ? 'Pre-Auth Required' : 'Enroll Now')}
                         </button>
                     `;
                 }
 
+                let badge = '';
+                if (isUpcoming) badge = `<span class="bg-amber-500/10 text-amber-500 text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter border border-amber-500/20">Upcoming</span>`;
+                else if (isExpired) badge = `<span class="bg-slate-800 text-slate-500 text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter border border-slate-700">Archived</span>`;
+                else if (isRegistered && task.registration.status === 'completed') badge = `<span class="bg-emerald-500 text-white text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter shadow-lg shadow-emerald-500/20">Mastered</span>`;
+                else badge = `<span class="bg-indigo-500/10 text-indigo-400 text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter border border-indigo-400/20">Active</span>`;
+
                 card.innerHTML = `
                     <div class="flex justify-between items-start">
-                        <div>
-                            <h3 class="text-xl font-black text-white group-hover:text-indigo-300 transition-colors">${task.title}</h3>
-                            <p class="text-slate-500 text-xs mt-1 font-medium">${task.description || 'No data available.'}</p>
+                        <div class="flex-1 pr-2">
+                            <h3 class="text-2xl font-black text-white leading-tight tracking-tight">${task.title}</h3>
                         </div>
-                        <div class="px-2 py-1 bg-slate-800 rounded-lg border border-slate-700 text-[9px] font-bold text-slate-400 uppercase">${task.subject}</div>
+                        <div class="shrink-0">
+                            ${badge}
+                        </div>
                     </div>
-                    ${progress}
-                    ${footer}
+                    
+                    <p class="text-slate-400 text-sm leading-relaxed line-clamp-2">${task.description || 'Secure communication link required for description.'}</p>
+                    
+                    ${resourceButton}
+                    ${timeInfo}
+                    ${progressHtml}
+                    ${footerContent}
                 `;
                 return card;
             }
@@ -341,11 +376,17 @@
             window.registerForTask = async function(taskId) {
                 toggleLoader(true);
                 try {
+                    const task = allTasks.find(t => t.id === taskId);
+                    if (task.end_time && new Date() > new Date(task.end_time)) {
+                        throw new Error("Mission access expired.");
+                    }
+
                     const { error } = await client.from('speed_task_registrations').insert([
                         { user_id: currentUser.id, task_id: taskId, status: 'in-progress' }
                     ]);
                     if (error) throw error;
-                    showToast("Protocol Activated.");
+                    
+                    showToast("Mission Initialized.");
                     await initData();
                     switchTab('my-tasks');
                 } catch (e) {
@@ -356,15 +397,50 @@
             };
 
             window.completeSubTask = async function(subtaskId, parentTaskId) {
+                const task = allTasks.find(t => t.id === parentTaskId);
+                const now = new Date();
+                const startDate = task.start_time ? new Date(task.start_time) : null;
+                const endDate = task.end_time ? new Date(task.end_time) : null;
+
+                if (startDate && now < startDate) return showToast("Time-lock active.", true);
+                if (endDate && now > endDate) return showToast("Mission window closed.", true);
+
                 toggleLoader(true);
                 try {
-                    await client.from('speed_subtask_completions').insert([{ user_id: currentUser.id, subtask_id: subtaskId }]);
+                    const { error: compError } = await client.from('speed_subtask_completions').insert([
+                        { user_id: currentUser.id, subtask_id: subtaskId }
+                    ]);
+                    if (compError) throw compError;
+
+                    const { data: latestComps } = await client.from('speed_subtask_completions')
+                        .select('subtask_id')
+                        .eq('user_id', currentUser.id);
                     
-                    // Re-fetch to check completion logic
+                    const completedIds = latestComps.map(c => c.subtask_id);
+                    const unitsDone = task.speed_subtasks.filter(st => completedIds.includes(st.id)).length;
+
+                    if (unitsDone === task.speed_subtasks.length) {
+                        await client.from('speed_task_registrations')
+                            .update({ status: 'completed' })
+                            .eq('user_id', currentUser.id)
+                            .eq('task_id', parentTaskId);
+
+                        await client.from('speed_task_completions').insert([
+                            { 
+                                user_id: currentUser.id, 
+                                task_id: parentTaskId,
+                                completed_at: new Date().toISOString()
+                            }
+                        ]);
+                        
+                        showToast("Mission Success. Data Synced.");
+                    } else {
+                        showToast("Progress Verified.");
+                    }
+
                     await initData();
-                    showToast("Unit Synchronized.");
                 } catch (e) {
-                    showToast(e.message, true);
+                    showToast("Sync Error: " + e.message, true);
                 } finally {
                     toggleLoader(false);
                 }
@@ -372,15 +448,23 @@
 
             function showToast(message, isError = false) {
                 const toast = document.getElementById('toast');
-                document.getElementById('toast-message').textContent = message;
-                document.getElementById('toast-icon').className = isError ? 'bg-red-500 p-1 rounded-full' : 'bg-emerald-500 p-1 rounded-full';
+                const msg = document.getElementById('toast-message');
+                const icon = document.getElementById('toast-icon');
+                
+                msg.textContent = message;
+                icon.className = isError ? 'bg-red-500 p-1 rounded-full' : 'bg-emerald-500 p-1 rounded-full';
+                
                 toast.style.display = 'flex';
-                setTimeout(() => toast.style.display = 'none', 3000);
+                setTimeout(() => {
+                    toast.style.display = 'none';
+                }, 3000);
             }
 
             function toggleLoader(show) {
-                document.getElementById('content-loader').classList.toggle('hidden', !show);
-                document.getElementById('tasks-container').classList.toggle('opacity-30', show);
+                const loader = document.getElementById('content-loader');
+                const container = document.getElementById('tasks-container');
+                if (loader) loader.classList.toggle('hidden', !show);
+                if (container) container.classList.toggle('opacity-30', show);
             }
 
             checkAuth();
