@@ -203,7 +203,7 @@
                 const subjects = [...new Set(allTasks.map(t => t.subject || 'Uncategorized'))].sort();
                 
                 // Clear existing options except "All"
-                filter.innerHTML = '<option value="all">All Subjects</option>';
+                filter.innerHTML = '<option value="all">All Sections</option>';
                 
                 subjects.forEach(subject => {
                     const opt = document.createElement('option');
