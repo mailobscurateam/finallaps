@@ -220,13 +220,25 @@
                         <i data-lucide="chevron-right" class="w-4 h-4 text-neutral-600 group-hover:text-white transition-all group-hover:translate-x-1"></i>
                     </a>
 
-                    <!-- New Homeworks Button -->
+                    <!-- Homeworks Button -->
                     <a href="/homework" class="flex items-center justify-between p-5 glass-card group">
                         <div class="flex items-center gap-3">
                             <i data-lucide="clipboard-check" class="w-4 h-4 text-neutral-500"></i>
                             <span class="text-xs font-bold text-neutral-300">Homeworks</span>
                         </div>
                         <i data-lucide="chevron-right" class="w-4 h-4 text-neutral-600 group-hover:text-white transition-all group-hover:translate-x-1"></i>
+                    </a>
+
+                    <!-- Ultimate Button -->
+                    <a href="/ultimate" class="flex items-center justify-between p-5 glass-card group border-red-500/10 hover:border-red-500/40">
+                        <div class="flex items-center gap-3">
+                            <i data-lucide="award" class="w-4 h-4 text-red-500"></i>
+                            <span class="text-xs font-bold text-neutral-300 tracking-wide">Ultimate</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[8px] bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded font-black uppercase">Alpha</span>
+                            <i data-lucide="chevron-right" class="w-4 h-4 text-neutral-600 group-hover:text-white transition-all group-hover:translate-x-1"></i>
+                        </div>
                     </a>
 
                     <a href="/status" class="flex items-center justify-between p-5 glass-card group">
@@ -289,18 +301,15 @@
             const user = session.user;
             
             try {
-                // Fetch profile including tgch_link
                 const { data: profile } = await sb
                     .from('profiles')
                     .select('full_name, tgch_link')
                     .eq('id', user.id)
                     .single();
 
-                // Update Profile Name
                 const displayName = profile?.full_name || user.user_metadata?.display_name || user.email.split('@')[0];
                 document.getElementById('profile-name').textContent = displayName;
 
-                // Handle Telegram Link and Modal
                 const tgNavBtn = document.getElementById('tg-nav-link');
                 const modalBtn = document.getElementById('modal-join-btn');
                 const modal = document.getElementById('join-modal');
@@ -309,10 +318,8 @@
                     tgNavBtn.href = profile.tgch_link;
                     tgNavBtn.classList.remove('hidden');
                     tgNavBtn.classList.add('flex');
-
                     modalBtn.href = profile.tgch_link;
 
-                    // Check cache for modal display
                     const hasJoined = localStorage.getItem(`nexus_tg_joined_${user.id}`);
                     if (!hasJoined) {
                         modal.classList.remove('hidden');
@@ -326,10 +333,8 @@
             }
             
             document.getElementById('profile-email').textContent = user.email;
-            
             fetchVerifiedModules(user.id);
 
-            // Real-time listener
             sb.channel('dashboard-updates')
                 .on('postgres_changes', { 
                     event: '*', 
@@ -347,7 +352,6 @@
                 modal.classList.remove('flex');
                 modal.classList.add('hidden');
                 
-                // Store in cache for current user
                 sb.auth.getSession().then(({data}) => {
                     if(data.session) {
                         localStorage.setItem(`nexus_tg_joined_${data.session.user.id}`, 'true');
