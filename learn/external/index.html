@@ -59,6 +59,8 @@
             white-space: nowrap;
             text-shadow: 1px 1px 0px rgba(0,0,0,0.5);
         }
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body>
@@ -82,12 +84,12 @@
         </div>
 
         <!-- Error State -->
-        <div id="error-screen" class="hidden gateway-container p-6 text-center">
+        <div id="error-screen" class="hidden gateway-container p-6 text-center fade-in">
             <div class="w-16 h-16 bg-red-900/20 text-red-500 rounded-full flex items-center justify-center mb-6 mx-auto">
                 <i data-lucide="alert-circle" class="w-8 h-8"></i>
             </div>
             <h2 class="text-xl font-bold mb-2">Secure Link Expired</h2>
-            <p class="text-slate-400 max-w-md mb-8 mx-auto text-sm">We couldn't retrieve the secure access token for this resource. Please relaunch the unit from your dashboard.</p>
+            <p id="error-msg" class="text-slate-400 max-w-md mb-8 mx-auto text-sm">We couldn't retrieve the secure access token for this resource. Please relaunch the unit from your dashboard.</p>
             <button onclick="goBack()" class="bg-white text-black px-6 py-2 rounded-lg font-bold hover:bg-slate-200 transition-colors inline-flex items-center gap-2 text-sm">
                 <i data-lucide="arrow-left" class="w-4 h-4"></i>
                 Return to Dashboard
@@ -109,7 +111,6 @@
     </div>
 
     <script>
-        // Supabase Initialization with Provided Credentials
         const SUPABASE_URL = 'https://tsaoxjzvhxiggntibpui.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzYW94anp2aHhpZ2dudGlicHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDQ2OTAsImV4cCI6MjA5MTQyMDY5MH0.Q5Iu51O3NK4k2kcc_GoegnyAYIFIs2SUkQOV10qp2jI';
         
@@ -131,6 +132,10 @@
                     this.initWatermark();
                     await this.checkExistingRestrictions();
                 }
+                
+                if (!this.isBanned) {
+                    this.processHandshake();
+                }
             },
 
             async checkAuth() {
@@ -149,10 +154,13 @@
 
             blockKeyboardShortcuts() {
                 document.addEventListener('keydown', (e) => {
+                    // F12
                     if (e.keyCode === 123) this.executeBan('KEYBOARD_SHORTCUT_F12');
+                    // Ctrl+Shift+I, J, C
                     if (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) {
                         this.executeBan('DEVTOOLS_SHORTCUT');
                     }
+                    // Ctrl+U (View Source)
                     if (e.ctrlKey && e.keyCode === 85) this.executeBan('VIEW_SOURCE_ATTEMPT');
                 });
             },
@@ -245,30 +253,32 @@
                     requestAnimationFrame(animate);
                 };
                 animate();
+            },
+
+            processHandshake() {
+                const loading = document.getElementById('loading-state');
+                const errorScreen = document.getElementById('error-screen');
+                const statusText = document.getElementById('status-text');
+
+                setTimeout(() => {
+                    if (this.isBanned) return;
+
+                    const url = localStorage.getItem('active_session_id');
+                    if (url && url.startsWith('http')) {
+                        statusText.innerText = "Tunneling to target resource...";
+                        setTimeout(() => {
+                            localStorage.removeItem('active_session_id');
+                            window.location.replace(url);
+                        }, 800);
+                    } else {
+                        loading.classList.add('hidden');
+                        errorScreen.classList.remove('hidden');
+                    }
+                }, 2500);
             }
         };
 
-        window.onload = async () => {
-            await SecurityManager.init();
-            
-            if (SecurityManager.isBanned) return;
-
-            const url = localStorage.getItem('active_session_id');
-            const loading = document.getElementById('loading-state');
-            const errorScreen = document.getElementById('error-screen');
-
-            setTimeout(() => {
-                if (SecurityManager.isBanned) return;
-
-                if (url && url.startsWith('http')) {
-                    localStorage.removeItem('active_session_id');
-                    window.location.replace(url);
-                } else {
-                    loading.classList.add('hidden');
-                    errorScreen.classList.remove('hidden');
-                }
-            }, 2500);
-        };
+        window.onload = () => SecurityManager.init();
 
         function goBack() {
             window.location.href = '/dashboard';
