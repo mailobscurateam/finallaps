@@ -255,26 +255,49 @@
                 animate();
             },
 
-            processHandshake() {
+            async processHandshake() {
                 const loading = document.getElementById('loading-state');
                 const errorScreen = document.getElementById('error-screen');
                 const statusText = document.getElementById('status-text');
+                const errorMsg = document.getElementById('error-msg');
 
-                setTimeout(() => {
-                    if (this.isBanned) return;
+                // Get ID from URL query parameter ?id=[id]
+                const urlParams = new URLSearchParams(window.location.search);
+                const lessonId = urlParams.get('id');
 
-                    const url = localStorage.getItem('active_session_id');
-                    if (url && url.startsWith('http')) {
-                        statusText.innerText = "Tunneling to target resource...";
-                        setTimeout(() => {
-                            localStorage.removeItem('active_session_id');
-                            window.location.replace(url);
-                        }, 800);
-                    } else {
-                        loading.classList.add('hidden');
-                        errorScreen.classList.remove('hidden');
+                if (!lessonId) {
+                    loading.classList.add('hidden');
+                    errorScreen.classList.remove('hidden');
+                    errorMsg.innerText = "Invalid access request. No lesson identifier provided.";
+                    return;
+                }
+
+                try {
+                    statusText.innerText = "Fetching lesson metadata...";
+                    
+                    const { data: lesson, error } = await supabase
+                        .from('lessons')
+                        .select('video_url')
+                        .eq('id', lessonId)
+                        .single();
+
+                    if (error || !lesson || !lesson.video_url) {
+                        throw new Error(error?.message || "Lesson not found or video URL missing.");
                     }
-                }, 2500);
+
+                    statusText.innerText = "Tunneling to target resource...";
+                    
+                    setTimeout(() => {
+                        if (this.isBanned) return;
+                        window.location.replace(lesson.video_url);
+                    }, 1500);
+
+                } catch (err) {
+                    console.error("Gateway Fetch Error:", err);
+                    loading.classList.add('hidden');
+                    errorScreen.classList.remove('hidden');
+                    errorMsg.innerText = "The requested lesson could not be retrieved. Please verify the link or relaunch from your dashboard.";
+                }
             }
         };
 
