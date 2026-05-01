@@ -114,7 +114,8 @@
         const SUPABASE_URL = 'https://tsaoxjzvhxiggntibpui.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzYW94anp2aHhpZ2dudGlicHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDQ2OTAsImV4cCI6MjA5MTQyMDY5MH0.Q5Iu51O3NK4k2kcc_GoegnyAYIFIs2SUkQOV10qp2jI';
         
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // Use a unique name for the client instance to avoid conflicts with global libraries
+        const nexusClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const SecurityManager = {
             isBanned: false,
@@ -140,7 +141,7 @@
 
             async checkAuth() {
                 try {
-                    const { data: { session }, error } = await supabase.auth.getSession();
+                    const { data: { session }, error } = await nexusClient.auth.getSession();
                     if (error) throw error;
                     this.userSession = session;
                 } catch (error) {
@@ -189,7 +190,7 @@
                 if (!this.userSession) return;
                 
                 try {
-                    const { data: restriction, error } = await supabase
+                    const { data: restriction, error } = await nexusClient
                         .from('user_restrictions')
                         .select('*')
                         .eq('user_id', this.userSession.user.id)
@@ -211,7 +212,7 @@
 
                 if (this.userSession) {
                     try {
-                        await supabase
+                        await nexusClient
                             .from('user_restrictions')
                             .upsert({ 
                                 user_id: this.userSession.user.id,
@@ -275,7 +276,7 @@
                 try {
                     statusText.innerText = "Fetching lesson metadata...";
                     
-                    const { data: lesson, error } = await supabase
+                    const { data: lesson, error } = await nexusClient
                         .from('lessons')
                         .select('video_url')
                         .eq('id', lessonId)
