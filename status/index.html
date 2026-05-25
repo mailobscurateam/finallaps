@@ -95,6 +95,10 @@
 
         <main class="max-w-5xl mx-auto px-6 py-10">
             <header class="mb-10">
+                <a href="/dashboard" class="inline-flex items-center gap-2 text-slate-400 hover:text-white text-sm font-semibold mb-6 transition-colors group">
+                    <i data-lucide="arrow-left" class="w-4 h-4 transition-transform group-hover:-translate-x-1"></i>
+                    Back to Dashboard
+                </a>
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <h1 class="text-3xl font-extrabold text-white mb-2">My Approval Status</h1>
@@ -108,6 +112,7 @@
             </header>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Left Column: Course Enrollment Status -->
                 <div class="lg:col-span-1">
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
@@ -119,10 +124,12 @@
                         </span>
                     </div>
                     <div id="course-container" class="space-y-3">
+                        <!-- Skeleton Loader -->
                         <div class="status-card p-4 rounded-2xl shimmer h-24"></div>
                     </div>
                 </div>
 
+                <!-- Right Column: Monthly Modules Status -->
                 <div class="lg:col-span-2">
                     <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                         <i data-lucide="calendar" class="w-4 h-4"></i>
@@ -130,6 +137,7 @@
                     </h2>
                     
                     <div id="monthly-container" class="space-y-4">
+                        <!-- Dynamic State Loading Placeholder -->
                         <div id="initial-placeholder" class="status-card border-dashed border-2 border-slate-800 bg-slate-950/10 p-12 rounded-2xl text-center flex flex-col items-center justify-center">
                             <div class="w-16 h-16 bg-red-500/5 rounded-full flex items-center justify-center border border-red-500/10 mb-4 animate-bounce">
                                 <i data-lucide="mouse-pointer" class="w-6 h-6 text-red-500"></i>
@@ -176,7 +184,7 @@
 
                 if (courseErr) throw courseErr;
 
-                // 2. Fetch Monthly Approvals (Added explicit selection of expire_at field)
+                // 2. Fetch Monthly Approvals with expire_at column implicit in *
                 const { data: monthly, error: monthlyErr } = await sb
                     .from('monthly_approvals')
                     .select('*, courses(name)')
