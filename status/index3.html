@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Approvals | Nexus</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-page: #0b0b0e;
+            --bg-card: #16161a;
+            --border: #26262c;
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--bg-page); 
+            color: #f1f5f9;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        h1, h2, h3 { font-family: 'Plus Jakarta Sans', sans-serif; }
+
+        .status-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Hover animations for clickable course list items */
+        .course-clickable {
+            cursor: pointer;
+        }
+        .course-clickable:hover {
+            transform: translateX(4px);
+            border-color: rgba(239, 68, 68, 0.4);
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        /* Highlight styled border glow when course is selected */
+        .course-selected {
+            border-color: rgba(239, 68, 68, 0.8) !important;
+            background: linear-gradient(90deg, rgba(239, 68, 68, 0.08) 0%, rgba(22, 22, 26, 1) 100%) !important;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.15);
+        }
+
+        .shimmer {
+            background: linear-gradient(90deg, #16161a 25%, #1c1c21 50%, #16161a 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Subtle fade and slide animation when switching monthly content */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in-up {
+            animation: fadeInUp 0.35s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-12 flex flex-col justify-between">
+    <div>
+        <nav class="border-b border-[#26262c] bg-black/20 backdrop-blur-md sticky top-0 z-50">
+            <div class="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
+                <div class="flex items-center gap-2 font-bold text-lg tracking-tight">
+                    <div class="w-7 h-7 bg-red-600 rounded flex items-center justify-center">
+                        <i data-lucide="layers" class="w-4 h-4 text-white"></i>
+                    </div>
+                    Nexus Student
+                </div>
+                <div class="flex items-center gap-4">
+                    <button onclick="handleLogout()" class="text-slate-400 hover:text-white text-sm font-medium">
+                        Logout
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <main class="max-w-5xl mx-auto px-6 py-10">
+            <header class="mb-10">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h1 class="text-3xl font-extrabold text-white mb-2">My Approval Status</h1>
+                        <p class="text-slate-400">Track your course access and monthly curriculum requests.</p>
+                    </div>
+                    <div id="selected-summary" class="hidden md:block bg-slate-900/40 border border-slate-800 rounded-xl px-4 py-3 text-right">
+                        <p class="text-xs font-bold uppercase text-slate-500">Active Selection</p>
+                        <p id="summary-text" class="text-sm font-semibold text-white mt-1">None Selected</p>
+                    </div>
+                </div>
+            </header>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-1">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                            <i data-lucide="book-open" class="w-4 h-4"></i>
+                            Main Courses
+                        </h2>
+                        <span class="text-xs text-red-400 bg-red-950/20 border border-red-500/10 px-2 py-0.5 rounded-full font-semibold">
+                            Select to filter
+                        </span>
+                    </div>
+                    <div id="course-container" class="space-y-3">
+                        <div class="status-card p-4 rounded-2xl shimmer h-24"></div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-2">
+                    <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <i data-lucide="calendar" class="w-4 h-4"></i>
+                        Monthly Modules
+                    </h2>
+                    
+                    <div id="monthly-container" class="space-y-4">
+                        <div id="initial-placeholder" class="status-card border-dashed border-2 border-slate-800 bg-slate-950/10 p-12 rounded-2xl text-center flex flex-col items-center justify-center">
+                            <div class="w-16 h-16 bg-red-500/5 rounded-full flex items-center justify-center border border-red-500/10 mb-4 animate-bounce">
+                                <i data-lucide="mouse-pointer" class="w-6 h-6 text-red-500"></i>
+                            </div>
+                            <h3 class="text-white font-bold text-lg mb-1">Select a Main Course</h3>
+                            <p class="text-slate-400 max-w-sm text-sm">Please choose a course from the list on the left to view and review its monthly module statuses.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <footer class="border-t border-[#1d1d23] pt-6 max-w-5xl mx-auto px-6 w-full text-center text-slate-600 text-xs">
+        <p>&copy; 2026 Nexus Student Platform. Built for continuous professional excellence.</p>
+    </footer>
+
+    <script>
+        const SUPABASE_URL = 'https://tsaoxjzvhxiggntibpui.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzYW94anp2aHhpZ2dudGlicHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDQ2OTAsImV4cCI6MjA5MTQyMDY5MH0.Q5Iu51O3NK4k2kcc_GoegnyAYIFIs2SUkQOV10qp2jI';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+        // Global State
+        let allCourses = [];
+        let allMonthlyApprovals = [];
+        let selectedCourseId = null;
+
+        async function checkStatus() {
+            const { data: { user } } = await sb.auth.getUser();
+            
+            if (!user) {
+                window.location.href = 'login.html'; 
+                return;
+            }
+
+            try {
+                // 1. Fetch Course Approvals
+                const { data: courses, error: courseErr } = await sb
+                    .from('course_status')
+                    .select('*, courses(name)')
+                    .eq('user_id', user.id);
+
+                if (courseErr) throw courseErr;
+
+                // 2. Fetch Monthly Approvals (Added explicit selection of expire_at field)
+                const { data: monthly, error: monthlyErr } = await sb
+                    .from('monthly_approvals')
+                    .select('*, courses(name)')
+                    .eq('user_id', user.id)
+                    .order('month_number', { ascending: true });
+
+                if (monthlyErr) throw monthlyErr;
+
+                allCourses = courses || [];
+                allMonthlyApprovals = monthly || [];
+
+                renderCourses(allCourses);
+                renderInitialState();
+            } catch (err) {
+                console.error("Database query failed:", err);
+            }
+        }
+
+        function getStatusUI(status) {
+            switch(status) {
+                case 'approved':
+                    return { icon: 'check-circle', color: 'text-emerald-500', bg: 'bg-emerald-500/10', label: 'Approved' };
+                case 'rejected':
+                    return { icon: 'alert-circle', color: 'text-red-500', bg: 'bg-red-500/10', label: 'Denied' };
+                default:
+                    return { icon: 'clock', color: 'text-amber-500', bg: 'bg-amber-500/10', label: 'Pending Review' };
+            }
+        }
+
+        function renderCourses(data) {
+            const container = document.getElementById('course-container');
+            if (data.length === 0) {
+                container.innerHTML = `<div class="status-card p-8 rounded-2xl text-center text-slate-500 text-sm italic">No course applications found.</div>`;
+                return;
+            }
+
+            container.innerHTML = data.map(item => {
+                const ui = getStatusUI(item.status);
+                const courseId = item.course_id || item.id;
+                const isSelected = selectedCourseId === courseId;
+                const selectedClass = isSelected ? 'course-selected' : '';
+
+                return `
+                    <div onclick="selectCourse('${courseId}')" class="status-card course-clickable p-5 rounded-2xl ${selectedClass}" id="card-${courseId}">
+                        <div class="flex items-center justify-between mb-1">
+                            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">COURSE ACCESS</p>
+                            ${isSelected ? `<span class="h-2 w-2 rounded-full bg-red-500 shadow-[0_0_10px_#ef4444]"></span>` : ''}
+                        </div>
+                        <h3 class="text-white font-bold mb-4 leading-tight">${item.courses?.name || 'Unknown Course'}</h3>
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2 ${ui.bg} ${ui.color} w-fit px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider">
+                                <i data-lucide="${ui.icon}" class="w-4 h-4"></i>
+                                ${ui.label}
+                            </div>
+                            <span class="text-[11px] text-slate-500 font-medium hover:text-slate-300 transition flex items-center gap-1">
+                                Modules <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function renderInitialState() {
+            const container = document.getElementById('monthly-container');
+            container.innerHTML = `
+                <div id="initial-placeholder" class="status-card border-dashed border-2 border-slate-800 bg-slate-950/5 p-12 rounded-2xl text-center flex flex-col items-center justify-center fade-in-up">
+                    <div class="w-14 h-14 bg-red-500/5 rounded-full flex items-center justify-center border border-red-500/10 mb-4 animate-pulse">
+                        <i data-lucide="mouse-pointer-click" class="w-6 h-6 text-red-500"></i>
+                    </div>
+                    <h3 class="text-white font-bold text-lg mb-1">Select a Main Course</h3>
+                    <p class="text-slate-400 max-w-sm text-xs leading-relaxed">Choose a main course on the left to display its associated monthly modules and review status.</p>
+                </div>
+            `;
+            document.getElementById('summary-text').innerText = "None Selected";
+            lucide.createIcons();
+        }
+
+        function selectCourse(courseId) {
+            selectedCourseId = courseId;
+            renderCourses(allCourses);
+
+            const chosenCourse = allCourses.find(c => (c.course_id === courseId || c.id === courseId));
+            const courseName = chosenCourse ? chosenCourse.courses?.name : 'Selected Course';
+            
+            document.getElementById('summary-text').innerText = courseName;
+
+            const filteredMonthly = allMonthlyApprovals.filter(m => {
+                return String(m.course_id) === String(courseId);
+            });
+
+            renderMonthly(filteredMonthly, courseName);
+        }
+
+        function renderMonthly(data, courseName) {
+            const container = document.getElementById('monthly-container');
+            
+            if (data.length === 0) {
+                container.innerHTML = `
+                    <div class="status-card border border-[#26262c] p-12 rounded-2xl text-center flex flex-col items-center justify-center fade-in-up">
+                        <div class="w-12 h-12 bg-slate-900 rounded-full flex items-center justify-center border border-slate-800 mb-3">
+                            <i data-lucide="calendar-x" class="w-5 h-5 text-slate-500"></i>
+                        </div>
+                        <h3 class="text-slate-300 font-bold text-base mb-1">No Monthly Requests Found</h3>
+                        <p class="text-slate-500 max-w-xs text-xs">There are currently no active monthly activation milestones logged for <b class="text-slate-400">${courseName}</b>.</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="mb-2">
+                    <p class="text-xs text-slate-400">Showing modules for <b class="text-red-400">${courseName}</b>:</p>
+                </div>
+                <div class="space-y-3">
+                    ${data.map((item, index) => {
+                        const ui = getStatusUI(item.status);
+                        
+                        // Parse and format the expire_at date cleanly
+                        let expiryString = "No expiration date set";
+                        if (item.expire_at) {
+                            const expiryDate = new Date(item.expire_at);
+                            expiryString = expiryDate.toLocaleString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: true
+                            });
+                        }
+
+                        return `
+                            <div class="status-card p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 group fade-in-up" style="animation-delay: ${index * 0.05}s">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-12 h-12 bg-slate-900 rounded-xl flex flex-col items-center justify-center border border-slate-800 group-hover:border-slate-700 transition shrink-0">
+                                        <span class="text-[9px] text-slate-500 font-bold uppercase">Month</span>
+                                        <span class="text-lg font-bold text-white leading-none">${item.month_number}</span>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-white font-bold text-sm sm:text-base">${MONTHS[item.month_number - 1] || 'Special'} Curriculum</h3>
+                                        <div class="flex items-center gap-1.5 mt-0.5 text-slate-500 text-xs">
+                                            <i data-lucide="calendar-days" class="w-3.5 h-3.5 text-slate-600"></i>
+                                            <span>Expires: <b class="text-slate-400 font-medium">${expiryString}</b></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center justify-between sm:justify-end gap-2 shrink-0">
+                                    <div class="flex items-center gap-2 ${ui.color} font-bold text-xs uppercase tracking-widest bg-slate-900/50 px-4 py-2 rounded-xl border border-slate-800">
+                                        <i data-lucide="${ui.icon}" class="w-4 h-4"></i>
+                                        <span>${ui.label}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+        async function handleLogout() {
+            await sb.auth.signOut();
+            window.location.reload();
+        }
+
+        window.onload = checkStatus;
+    </script>
+</body>
+</html>
