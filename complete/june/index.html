@@ -3,90 +3,491 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enrollment | TBCM26</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Enrollment Confirmation</title>
     <style>
-        .bg-full {
-            background-image: url('https://upload.wikimedia.org/wikipedia/commons/4/46/A_night_view_of_the_Ruwanweli_Maha_Saya%2C_Sri_Lanka.jpg');
-            background-size: cover;
-            background-position: center;
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+        :root {
+            --primary-glow: rgba(0, 242, 254, 0.15);
+            --accent-color: #00f2fe;
+            --text-main: #ffffff;
+            --text-sub: #94a3b8;
         }
-        .glass-box {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+
+        * {
+            box-sizing: border-box;
         }
-        #preloader {
-            position: fixed;
-            inset: 0;
-            background: #020617;
-            z-index: 9999;
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #020211;
+            color: var(--text-main);
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: opacity 0.5s ease;
+            perspective: 1000px;
+        }
+
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* Highly responsive glassmorphic card */
+        #message {
+            position: relative;
+            z-index: 10;
+            background: rgba(8, 8, 28, 0.65);
+            padding: 2.5rem 2rem;
+            border-radius: 24px;
+            text-align: center;
+            width: 90%;
+            max-width: 460px;
+            box-shadow: 
+                0 20px 50px rgba(0, 0, 0, 0.6),
+                0 0 40px var(--primary-glow),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            animation: cardEntrance 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0;
+            transform: translateY(40px) rotateX(4deg);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        /* Delicate hover effect for laptop/desktop users */
+        @media (hover: hover) {
+            #message:hover {
+                transform: translateY(-2px) rotateX(0deg);
+                box-shadow: 
+                    0 25px 60px rgba(0, 0, 0, 0.7),
+                    0 0 50px rgba(0, 242, 254, 0.25),
+                    inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+            }
+        }
+
+        @keyframes cardEntrance {
+            to {
+                opacity: 1;
+                transform: translateY(0) rotateX(0deg);
+            }
+        }
+
+        .icon-container {
+            width: 72px;
+            height: 72px;
+            background: radial-gradient(circle, rgba(0, 242, 254, 0.2) 0%, rgba(79, 70, 229, 0.05) 100%);
+            border: 2px solid rgba(0, 242, 254, 0.35);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.25rem auto;
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.2);
+            animation: pulseGlow 3s infinite ease-in-out;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% {
+                box-shadow: 0 0 15px rgba(0, 242, 254, 0.2);
+                border-color: rgba(0, 242, 254, 0.35);
+            }
+            50% {
+                box-shadow: 0 0 25px rgba(0, 242, 254, 0.55);
+                border-color: rgba(0, 242, 254, 0.75);
+            }
+        }
+
+        .icon-container svg {
+            stroke-dasharray: 100;
+            stroke-dashoffset: 100;
+            animation: drawCheck 1s 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes drawCheck {
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+
+        h1 {
+            font-size: 1.6rem;
+            font-weight: 800;
+            margin: 0 0 0.75rem 0;
+            line-height: 1.35;
+            background: linear-gradient(135deg, #ffffff 30%, #a5b4fc 70%, #00f2fe 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p {
+            font-size: 0.95rem;
+            color: var(--text-sub);
+            margin: 0 0 1.5rem 0;
+            line-height: 1.5;
+            font-weight: 500;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0.35rem 0.9rem;
+            background: rgba(0, 242, 254, 0.08);
+            border: 1px solid rgba(0, 242, 254, 0.25);
+            color: var(--accent-color);
+            border-radius: 100px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            margin-bottom: 1rem;
+        }
+
+        .badge-dot {
+            width: 6px;
+            height: 6px;
+            background-color: var(--accent-color);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--accent-color);
+            animation: blink 1.5s infinite ease-in-out;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        /* Adaptive adjustments for tablets and smaller/larger viewport heights */
+        @media (min-width: 640px) {
+            #message {
+                padding: 3rem 2.5rem;
+                max-width: 500px;
+            }
+            h1 {
+                font-size: 1.9rem;
+            }
+            p {
+                font-size: 1rem;
+            }
+        }
+
+        /* Handle extra short height screens (landscape phones) to avoid cutting layout */
+        @media (max-height: 520px) {
+            #message {
+                padding: 1.5rem 2rem;
+            }
+            .icon-container {
+                width: 56px;
+                height: 56px;
+                margin-bottom: 0.75rem;
+            }
+            h1 {
+                font-size: 1.3rem;
+                margin-bottom: 0.5rem;
+            }
+            p {
+                margin-bottom: 0.75rem;
+            }
+            .badge {
+                margin-bottom: 0.5rem;
+            }
         }
     </style>
 </head>
-<body class="h-screen w-screen overflow-hidden text-white font-sans bg-slate-950">
+<body>
 
-    <!-- Preloader -->
-    <div id="preloader">
-        <div class="animate-pulse text-white/50 tracking-widest uppercase">Loading...</div>
-    </div>
-
-    <!-- Background Image -->
-    <div class="absolute inset-0 bg-full"></div>
-    <div class="absolute inset-0 bg-black/50"></div>
-
-    <!-- Star Overlay (Top 20% Only) -->
-    <div id="star-overlay" class="absolute top-0 left-0 w-full h-[20%] z-0 overflow-hidden"></div>
-
-    <!-- Moon -->
-    <div class="absolute top-8 right-12 w-20 h-20 rounded-full bg-yellow-100 shadow-[0_0_50px_15px_rgba(253,230,138,0.4)] z-0"></div>
-
-    <!-- Main Content -->
-    <div class="relative z-10 h-full flex flex-col items-center">
-        <!-- Text positioned at 25% from top -->
-        <h1 class="text-xl font-light tracking-[0.5em] text-white/70 uppercase mt-[25vh] mb-20">Team Next Level</h1>
-        
-        <!-- Boxes Container: Added gap-20 to push boxes 80px further apart -->
-        <div class="flex w-full max-w-5xl justify-center items-center px-12 gap-80">
-            <div class="glass-box p-10 rounded-3xl shadow-2xl text-center w-[45%]">
-                <h2 class="text-sm font-bold uppercase tracking-widest text-emerald-400 mb-2">Enrolled Status</h2>
-                <p class="text-4xl font-light text-white">Completed</p>
-            </div>
-            <div class="glass-box p-10 rounded-3xl shadow-2xl text-center w-[45%]">
-                <h2 class="text-sm font-bold uppercase tracking-widest text-blue-400 mb-2">Enrolled Month</h2>
-                <p class="text-4xl font-light text-white">June</p>
-            </div>
+    <canvas id="canvas"></canvas>
+    
+    <div id="message">
+        <div class="icon-container">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M20 6L9 17L4 12" stroke="#00f2fe" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
         </div>
-
-        <footer class="absolute bottom-6 text-[10px] text-white/40 tracking-[0.3em] uppercase">
-            &copy; Copyright Message to TBCM26
-        </footer>
+        <div class="badge">
+            <span class="badge-dot"></span>
+            Registration Confirmed
+        </div>
+        <h1>You Successfully Enrolled in Month June.</h1>
+        <p>Your educational journey begins this summer.</p>
     </div>
 
     <script>
-        // Image Preloader logic
-        window.addEventListener('load', () => {
-            const preloader = document.getElementById('preloader');
-            preloader.style.opacity = '0';
-            setTimeout(() => preloader.style.display = 'none', 500);
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        let stars = [];
+        let shootingStars = [];
+        let backTrees = [];
+        let frontTrees = [];
+
+        // Interactive mouse parallax state
+        let targetMouseX = 0;
+        let mouseX = 0;
+
+        // Set high-DPI resolution rendering
+        function resize() {
+            const dpr = window.devicePixelRatio || 1;
+            width = window.innerWidth;
+            height = window.innerHeight;
+            
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            ctx.scale(dpr, dpr);
+
+            initStars();
+            initTrees();
+        }
+
+        window.addEventListener('resize', resize);
+        window.addEventListener('mousemove', (e) => {
+            // Track relative cursor position for visual depth
+            targetMouseX = (e.clientX - width / 2) / (width / 2);
         });
 
-        // Generate 100 stars in the top 20% overlay
-        const starOverlay = document.getElementById('star-overlay');
-        for (let i = 0; i < 100; i++) {
-            const star = document.createElement('div');
-            star.className = 'absolute bg-white rounded-full';
-            star.style.left = Math.random() * 100 + '%';
-            star.style.top = Math.random() * 100 + '%'; 
-            star.style.width = (Math.random() * 1.5) + 'px';
-            star.style.height = star.style.width;
-            star.style.opacity = (Math.random() * 0.4 + 0.1);
-            starOverlay.appendChild(star);
+        // Touch alternatives for tablet/mobile interactive swipe
+        window.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 0) {
+                targetMouseX = (e.touches[0].clientX - width / 2) / (width / 2);
+            }
+        }, { passive: true });
+
+        // Generate fixed background stars
+        function initStars() {
+            stars = [];
+            // Scale density of stars depending on screen width
+            const starCount = Math.min(Math.floor(width * 0.2), 250);
+            for (let i = 0; i < starCount; i++) {
+                stars.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height * 0.75, // Keep stars above the deep forest bottom
+                    size: Math.random() * 1.3 + 0.2,
+                    opacity: Math.random() * 0.7 + 0.3,
+                    speed: Math.random() * 0.015 + 0.005
+                });
+            }
         }
+
+        // Generate dynamic forestry based on window size to prevent overflow
+        function initTrees() {
+            backTrees = [];
+            frontTrees = [];
+            
+            // Adjust maximum forest heights so it stays neat on mobile screens
+            const maxForestHeight = Math.min(height * 0.22, 160);
+            const numBackTrees = Math.ceil(width / 20);
+            for (let i = 0; i <= numBackTrees; i++) {
+                backTrees.push({
+                    x: i * 20 + (Math.random() * 12 - 6),
+                    height: Math.random() * (maxForestHeight * 0.5) + (maxForestHeight * 0.4),
+                    width: Math.random() * 15 + 15
+                });
+            }
+
+            const numFrontTrees = Math.ceil(width / 35);
+            for (let i = 0; i <= numFrontTrees; i++) {
+                frontTrees.push({
+                    x: i * 35 + (Math.random() * 16 - 8),
+                    height: Math.random() * (maxForestHeight * 0.65) + (maxForestHeight * 0.6),
+                    width: Math.random() * 20 + 25
+                });
+            }
+        }
+
+        function drawMoon() {
+            // Adjust position for layout balance based on aspect ratio
+            const isPortrait = height > width;
+            const moonX = isPortrait ? width * 0.5 : width * 0.78;
+            const moonY = isPortrait ? height * 0.16 : height * 0.24;
+            
+            // Responsive sizing of the moon disk
+            const moonRadius = Math.min(width, height) * 0.08 + 15;
+
+            // 1. Soft atmospheric blue scattering aura
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(moonX, moonY, moonRadius, 0, Math.PI * 2);
+            const glow = ctx.createRadialGradient(moonX, moonY, moonRadius * 0.8, moonX, moonY, moonRadius * 2);
+            glow.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            glow.addColorStop(0.1, 'rgba(235, 245, 255, 0.75)');
+            glow.addColorStop(0.35, 'rgba(0, 242, 254, 0.25)');
+            glow.addColorStop(1, 'rgba(0, 242, 254, 0)');
+            ctx.fillStyle = glow;
+            ctx.fill();
+            ctx.restore();
+
+            // 2. Clear inner lunar disk
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(moonX, moonY, moonRadius, 0, Math.PI * 2);
+            ctx.fillStyle = '#f8fafc';
+            ctx.shadowColor = 'rgba(0, 242, 254, 0.3)';
+            ctx.shadowBlur = 25;
+            ctx.fill();
+            ctx.restore();
+
+            // 3. Moon Craters clipped safely within the circumference
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(moonX, moonY, moonRadius, 0, Math.PI * 2);
+            ctx.clip();
+            ctx.fillStyle = 'rgba(200, 215, 230, 0.45)';
+            
+            const craters = [
+                { cx: -0.25, cy: -0.35, r: 0.3 },
+                { cx: 0.35, cy: 0.15, r: 0.22 },
+                { cx: -0.15, cy: 0.45, r: 0.18 },
+                { cx: 0.45, cy: -0.3, r: 0.12 },
+                { cx: -0.45, cy: 0.05, r: 0.25 }
+            ];
+            craters.forEach(c => {
+                ctx.beginPath();
+                ctx.arc(moonX + (c.cx * moonRadius), moonY + (c.cy * moonRadius), c.r * moonRadius, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.restore();
+        }
+
+        function drawPineTree(x, y, treeHeight, treeWidth, color) {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            
+            // Draw tree outline
+            ctx.moveTo(x, y - treeHeight);
+            
+            // Top Tier
+            ctx.lineTo(x + treeWidth * 0.25, y - treeHeight * 0.65);
+            ctx.lineTo(x + treeWidth * 0.1, y - treeHeight * 0.67);
+            
+            // Mid Tier
+            ctx.lineTo(x + treeWidth * 0.4, y - treeHeight * 0.35);
+            ctx.lineTo(x + treeWidth * 0.15, y - treeHeight * 0.38);
+            
+            // Bottom Tier
+            ctx.lineTo(x + treeWidth * 0.5, y);
+            ctx.lineTo(x - treeWidth * 0.5, y);
+            
+            // Left Mid Tier
+            ctx.lineTo(x - treeWidth * 0.15, y - treeHeight * 0.38);
+            ctx.lineTo(x - treeWidth * 0.4, y - treeHeight * 0.35);
+            
+            // Left Top Tier
+            ctx.lineTo(x - treeWidth * 0.1, y - treeHeight * 0.67);
+            ctx.lineTo(x - treeWidth * 0.25, y - treeHeight * 0.65);
+
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function drawForest(parallaxOffset) {
+            // Draw background forest layer with slower parallax factor
+            backTrees.forEach(t => {
+                drawPineTree(t.x + parallaxOffset * 10, height, t.height, t.width, '#080822');
+            });
+
+            // Draw foreground forest layer with faster parallax factor
+            frontTrees.forEach(t => {
+                drawPineTree(t.x + parallaxOffset * 22, height + 5, t.height, t.width, '#030310');
+            });
+        }
+
+        function draw() {
+            // Soft interpolation for smooth interactive shift
+            mouseX += (targetMouseX - mouseX) * 0.08;
+
+            // Multi-stop night atmosphere Sky Gradient
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, height);
+            skyGrad.addColorStop(0, '#020210');
+            skyGrad.addColorStop(0.4, '#06061e');
+            skyGrad.addColorStop(0.95, '#0c0d32');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, width, height);
+
+            // Twinkling background stars with subtle parallax
+            stars.forEach(s => {
+                s.opacity += s.speed;
+                if (s.opacity > 1 || s.opacity < 0.2) {
+                    s.speed = -s.speed;
+                }
+                ctx.fillStyle = `rgba(255, 255, 255, ${s.opacity})`;
+                ctx.beginPath();
+                // Parallax shift based on cursor
+                const shiftedX = (s.x + mouseX * 5 + width) % width;
+                ctx.arc(shiftedX, s.y, s.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            drawMoon();
+
+            // Random shooting star spawner (Adjusted probability based on layout width)
+            const shootingStarChance = width < 600 ? 0.008 : 0.015;
+            if (Math.random() < shootingStarChance && shootingStars.length < 3) {
+                // Diagonal trajectory setup
+                const dx = Math.random() * 6 + 7;
+                const dy = dx * (Math.random() * 0.3 + 0.4); // Natural down-and-right angle
+                shootingStars.push({
+                    x: Math.random() * width * 0.6 - 100,
+                    y: Math.random() * height * 0.4,
+                    dx: dx,
+                    dy: dy,
+                    len: Math.random() * 80 + 70, // Length of trail
+                    opacity: 1,
+                    decay: Math.random() * 0.01 + 0.012
+                });
+            }
+
+            // Draw & update falling stars safely via standard loop (avoids forward-splicing glitches)
+            for (let i = shootingStars.length - 1; i >= 0; i--) {
+                const s = shootingStars[i];
+
+                // 1. Draw elegant fading tail pointing backwards from current coordinates
+                const grad = ctx.createLinearGradient(
+                    s.x, s.y, 
+                    s.x - (s.dx * (s.len / 10)), s.y - (s.dy * (s.len / 10))
+                );
+                grad.addColorStop(0, `rgba(255, 255, 255, ${s.opacity})`);
+                grad.addColorStop(0.2, `rgba(0, 242, 254, ${s.opacity * 0.7})`);
+                grad.addColorStop(1, 'rgba(0, 242, 254, 0)');
+                
+                ctx.strokeStyle = grad;
+                ctx.lineWidth = 2.0;
+                ctx.beginPath();
+                ctx.moveTo(s.x, s.y);
+                ctx.lineTo(s.x - (s.dx * (s.len / 10)), s.y - (s.dy * (s.len / 10)));
+                ctx.stroke();
+
+                // 2. Update velocities
+                s.x += s.dx;
+                s.y += s.dy;
+                s.opacity -= s.decay;
+
+                // 3. Clean up expired stars safely without skipping frame updates
+                if (s.opacity <= 0 || s.y > height || s.x > width) {
+                    shootingStars.splice(i, 1);
+                }
+            }
+
+            // Draw forest layers at the bottom with interactive mouse depth factor
+            drawForest(mouseX);
+
+            requestAnimationFrame(draw);
+        }
+
+        // Initialize and trigger main loop
+        resize();
+        draw();
     </script>
 </body>
 </html>
