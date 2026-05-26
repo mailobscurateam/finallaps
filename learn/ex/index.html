@@ -1,323 +1,82 @@
 <!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="public, max-age=3600, must-revalidate">
-    <title>Secure Sandbox Viewer | Nexus Prime Security</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <title>Secure Viewer | Nexus Prime Security</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght=300;400;500;600;700;800&family=JetBrains+Mono:wght=400;500&display=swap" rel="stylesheet">
     <style>
-        :root { 
-            --accent: #ff3333;
-            --bg: #0a0a0b;
-            --card-bg: #111113;
-            --border: rgba(255, 255, 255, 0.06);
-            --neon-red: rgba(255, 51, 51, 0.15);
-            --neon-green: rgba(34, 197, 94, 0.15);
-        }
-        
-        body { 
-            font-family: 'Plus Jakarta Sans', sans-serif; 
-            background-color: var(--bg); 
-            color: #ececec; 
+        html, body {
             margin: 0;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
-            opacity: 0;
-            transition: opacity 0.5s ease;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-        body.ready { opacity: 1; }
-
-        .mesh-bg {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: 
-                radial-gradient(at 0% 0%, rgba(255, 51, 51, 0.05) 0, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(255, 51, 51, 0.03) 0, transparent 50%);
-            z-index: -1;
-        }
-
-        .glass-card {
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 24px;
-        }
-
-        .nav-blur {
-            backdrop-filter: blur(12px);
-            background: rgba(10, 10, 11, 0.8);
-            border-bottom: 1px solid var(--border);
-        }
-
-        .live-container {
-            position: relative;
-            flex: 1;
+            padding: 0;
             width: 100%;
-            background: #050506;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
         }
 
         #stream-frame {
             width: 100%;
             height: 100%;
-            border: 0;
-            display: none;
-            opacity: 0;
-            transition: opacity 0.5s ease;
-        }
-        #stream-frame.visible { opacity: 1; display: block; }
-
-        .preloader-overlay {
-            position: fixed; 
-            inset: 0; 
-            background: var(--bg);
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center;
-            z-index: 9999;
-            transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.6s;
-        }
-        .preloader-overlay.fade-out {
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
+            border: none;
+            display: block;
         }
 
-        #lockout-screen {
+        #error-state {
             display: none;
             position: fixed;
             inset: 0;
-            background: #000;
-            z-index: 99999;
+            background-color: #0a0a0b;
+            color: #ececec;
+            font-family: 'Plus Jakarta Sans', sans-serif;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             text-align: center;
+            padding: 20px;
+            z-index: 9999;
         }
 
-        .glitch { animation: glitch 1s linear infinite; }
-        @keyframes glitch {
-            2%, 64% { transform: translate(2px,0) skew(0deg); }
-            4%, 60% { transform: translate(-2px,0) skew(0deg); }
-            62% { transform: translate(0,0) skew(5deg); }
+        #error-state h2 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: #ff3333;
         }
 
-        .mono { font-family: 'JetBrains Mono', monospace; }
+        #error-state p {
+            color: #94a3b8;
+            max-width: 400px;
+            margin-bottom: 20px;
+        }
 
-        /* Custom Scrollbar for Sandbox Log */
-        .custom-scroll::-webkit-scrollbar {
-            width: 4px;
-        }
-        .custom-scroll::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        .custom-scroll::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 2px;
+        #error-state button {
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
         }
     </style>
 </head>
 <body>
-    <!-- Critical Lockout Overlay -->
-    <div id="lockout-screen" class="p-6">
-        <div class="p-8 glass-card border-red-900/50 max-w-md w-full relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-1 bg-red-600 animate-pulse"></div>
-            <div class="flex justify-center mb-6">
-                <div class="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
-                    <i data-lucide="shield-alert" class="w-8 h-8 text-red-500"></i>
-                </div>
-            </div>
-            <h1 class="mono text-red-500 font-bold text-xl mb-4 glitch tracking-tighter uppercase">Access Violation</h1>
-            <div class="text-neutral-400 text-sm mb-6 leading-relaxed space-y-3">
-                <p>Security Protocol <strong class="text-white">X-CORE-7</strong> has flagged this session.</p>
-                <p>Unauthorized inspection or environment manipulation detected at the hardware level.</p>
-            </div>
-            <div class="bg-red-500/10 border border-red-500/20 p-5 rounded-xl mb-6 text-left">
-                <p class="mono text-[10px] text-red-400 uppercase tracking-widest mb-1">Status</p>
-                <p class="text-white font-bold text-lg">SESSION SUSPENDED</p>
-                <p id="ban-expiry" class="text-red-300/60 text-[10px] mt-2 italic"></p>
-            </div>
-            <button onclick="window.location.href='/dashboard'" class="mt-4 text-neutral-500 hover:text-white text-[10px] mono uppercase">Exit Terminal</button>
-        </div>
+
+    <!-- Simple, distraction-free Error State if the URL fails to load -->
+    <div id="error-state">
+        <h2>Content Unavailable</h2>
+        <p>The requested secure link is invalid, expired, or you do not have permission to access it.</p>
+        <button onclick="window.history.back()">Go Back</button>
     </div>
-
-    <!-- Preloader Overlay -->
-    <div id="preloader" class="preloader-overlay">
-        <div class="relative w-16 h-16 mb-6">
-            <div class="absolute inset-0 border-4 border-white/5 rounded-full"></div>
-            <div class="absolute inset-0 border-4 border-red-500 border-t-transparent rounded-full animate-spin"></div>
-        </div>
-        <p id="status-text" class="mono text-[10px] font-bold tracking-[0.4em] text-neutral-500 uppercase animate-pulse">Securing Connection</p>
-    </div>
-
-    <div class="mesh-bg"></div>
-
-    <div id="main-content" class="flex flex-col h-full">
-        <!-- Header -->
-        <nav class="w-full z-50 px-6 py-4 nav-blur shrink-0">
-            <div class="max-w-[1800px] mx-auto flex items-center justify-between">
-                <div class="flex items-center gap-4">
-                    <button onclick="window.history.back()" class="flex items-center gap-2 text-neutral-400 hover:text-white transition-colors group">
-                        <i data-lucide="arrow-left" class="w-5 h-5 group-hover:-translate-x-1 transition-transform"></i>
-                        <span class="text-sm font-medium">Back</span>
-                    </button>
-                    <div class="h-4 w-[1px] bg-white/10"></div>
-                    <span id="security-indicator" class="mono text-[9px] text-green-500 font-bold tracking-widest uppercase flex items-center gap-1.5">
-                        <span class="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                        Encryption Stable
-                    </span>
-                    <div class="h-4 w-[1px] bg-white/10 hidden md:block"></div>
-                    <span class="mono text-[9px] text-red-500 font-bold tracking-widest uppercase hidden md:inline-flex items-center gap-1.5">
-                        <span class="h-1.5 w-1.5 rounded-full bg-red-500 animate-ping"></span>
-                        Sandbox Isolation Active
-                    </span>
-                </div>
-                <div class="text-right flex items-center gap-4">
-                    <p id="stream-title" class="text-xs font-bold uppercase tracking-widest text-neutral-500">Authenticating...</p>
-                </div>
-            </div>
-        </nav>
-
-        <!-- Main Workspace (Split Screen Sandbox Console & Live Container) -->
-        <div class="flex-1 flex flex-col lg:flex-row overflow-hidden">
-            
-            <!-- Sidebar: Sandbox Diagnostics & Isolation Controller -->
-            <aside class="w-full lg:w-80 bg-[#0d0d0f] border-r border-white/5 flex flex-col shrink-0 overflow-y-auto">
-                <div class="p-5 border-b border-white/5">
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="mono text-[10px] uppercase text-neutral-500 tracking-widest">Environment Diagnostics</span>
-                        <span class="px-2 py-0.5 rounded text-[8px] mono bg-green-500/10 text-green-400 border border-green-500/20">Isol-V3</span>
-                    </div>
-                    <h3 class="font-bold text-sm tracking-tight text-white mb-4">Secure Shell (NexusSandbox)</h3>
-                    
-                    <!-- Performance metrics -->
-                    <div class="space-y-3">
-                        <div>
-                            <div class="flex justify-between text-[10px] mono text-neutral-400 mb-1">
-                                <span>Tunnelling Latency</span>
-                                <span id="metric-ping">24 ms</span>
-                            </div>
-                            <div class="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                                <div id="ping-bar" class="w-[20%] h-full bg-green-500 transition-all duration-500"></div>
-                            </div>
-                        </div>
-                        <div>
-                            <div class="flex justify-between text-[10px] mono text-neutral-400 mb-1">
-                                <span>Entropy Protection Bounds</span>
-                                <span>99.98%</span>
-                            </div>
-                            <div class="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                                <div class="w-[99%] h-full bg-red-500"></div>
-                            </div>
-                        </div>
-                        <div>
-                            <div class="flex justify-between text-[10px] mono text-neutral-400 mb-1">
-                                <span>Virtual Frame Buffer Usage</span>
-                                <span id="metric-buffer">12.1MB</span>
-                            </div>
-                            <div class="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                                <div id="buffer-bar" class="w-[12%] h-full bg-yellow-500 transition-all duration-700"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- NEW: Isolation Controls (Helpful fallback for connection refused) -->
-                <div class="p-5 border-b border-white/5 bg-black/10">
-                    <span class="mono text-[10px] uppercase text-neutral-500 tracking-widest mb-3 block">Isolation Protocol</span>
-                    <div class="space-y-2">
-                        <button id="iso-strict" onclick="setIsolationLevel('strict')" class="w-full text-left p-2.5 rounded-lg border border-red-500/30 bg-red-500/5 hover:bg-red-500/10 transition-all flex items-center justify-between group">
-                            <div class="flex items-center gap-2">
-                                <i data-lucide="shield" class="w-3.5 h-3.5 text-red-500"></i>
-                                <span class="text-xs font-semibold text-white">Strict Sandbox</span>
-                            </div>
-                            <span class="w-2 h-2 rounded-full bg-red-500" id="iso-dot-strict"></span>
-                        </button>
-                        <button id="iso-standard" onclick="setIsolationLevel('standard')" class="w-full text-left p-2.5 rounded-lg border border-white/5 hover:border-white/10 hover:bg-white/5 transition-all flex items-center justify-between group">
-                            <div class="flex items-center gap-2">
-                                <i data-lucide="unlock" class="w-3.5 h-3.5 text-neutral-400 group-hover:text-white"></i>
-                                <span class="text-xs font-semibold text-neutral-300 group-hover:text-white">Standard Frame</span>
-                            </div>
-                            <span class="w-2 h-2 rounded-full bg-transparent border border-white/20" id="iso-dot-standard"></span>
-                        </button>
-                        <button id="iso-direct" onclick="launchDirectTunnel()" class="w-full text-left p-2.5 rounded-lg border border-white/5 hover:border-white/10 hover:bg-white/5 transition-all flex items-center justify-between group">
-                            <div class="flex items-center gap-2">
-                                <i data-lucide="external-link" class="w-3.5 h-3.5 text-neutral-400 group-hover:text-white"></i>
-                                <span class="text-xs font-semibold text-neutral-300 group-hover:text-white">Direct External Tunnel</span>
-                            </div>
-                            <i data-lucide="chevron-right" class="w-3 h-3 text-neutral-600 group-hover:translate-x-0.5 transition-transform"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Live Stream Feed Logs -->
-                <div class="flex-1 p-5 flex flex-col min-h-[160px] overflow-hidden">
-                    <span class="mono text-[10px] uppercase text-neutral-500 tracking-widest mb-3 block">Container Events</span>
-                    <div id="sandbox-logs" class="flex-1 bg-black/40 border border-white/5 rounded-lg p-3 font-mono text-[9px] text-neutral-400 space-y-1.5 overflow-y-auto custom-scroll">
-                        <div class="text-neutral-500">[00:00:01] Loading hypervisor...</div>
-                        <div class="text-green-500">[00:00:02] Sandbox virtualization ready.</div>
-                    </div>
-                </div>
-
-                <!-- Sandbox Isolation Controls -->
-                <div class="p-5 border-t border-white/5 bg-black/20 space-y-3">
-                    <button id="btn-purge" class="w-full py-2.5 px-4 rounded-xl bg-red-600/10 hover:bg-red-600/20 border border-red-500/20 text-red-400 font-semibold text-xs transition-all flex items-center justify-center gap-2">
-                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
-                        Re-Key Container
-                    </button>
-                    <p class="text-[9px] text-neutral-500 text-center leading-normal">
-                        Purging releases frame cache, re-encrypts session bounds and attempts fallback resolution.
-                    </p>
-                </div>
-            </aside>
-
-            <!-- Workspace: Stream Rendering Terminal -->
-            <main class="live-container flex-1 flex flex-col">
-                <!-- Frame Connection Advisory/Bypass UI (Renders if connection times out or fails) -->
-                <div id="connection-advisory" class="absolute inset-0 bg-[#0d0d0f]/95 z-30 hidden flex-col items-center justify-center p-8 text-center animate-fade-in">
-                    <div class="w-16 h-16 rounded-full bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center mb-6 text-yellow-500">
-                        <i data-lucide="alert-triangle" class="w-8 h-8"></i>
-                    </div>
-                    <h2 class="text-xl font-bold mb-2 text-white">Connection Refused inside Container</h2>
-                    <p class="text-neutral-400 max-w-lg text-sm mb-6 leading-relaxed">
-                        The requested resource is actively refusing to load inside an inline frame container (typically due to server-side security headers like <code class="text-red-400 font-mono text-xs">X-Frame-Options</code>).
-                    </p>
-                    <div class="flex flex-col sm:flex-row gap-4">
-                        <button onclick="setIsolationLevel('standard')" class="px-6 py-3 bg-neutral-800 hover:bg-neutral-700 transition-all rounded-xl text-xs font-semibold flex items-center justify-center gap-2">
-                            <i data-lucide="unlock" class="w-4 h-4"></i> Disable Sandbox Restrictions
-                        </button>
-                        <button onclick="launchDirectTunnel()" class="px-6 py-3 bg-red-600 hover:bg-red-700 transition-all text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 shadow-xl shadow-red-900/20">
-                            <i data-lucide="external-link" class="w-4 h-4"></i> Launch External Session
-                        </button>
-                    </div>
-                    <button onclick="dismissAdvisory()" class="mt-6 text-xs text-neutral-500 hover:text-white uppercase tracking-wider font-mono">Stay in Sandbox Frame</button>
-                </div>
-
-                <!-- Error State -->
-                <div id="error-state" class="preloader-overlay hidden flex-col items-center justify-center gap-4 text-center p-8">
-                    <i data-lucide="alert-circle" class="w-12 h-12 text-red-500 mb-2"></i>
-                    <h2 class="text-xl font-bold">Stream Unavailable</h2>
-                    <p class="text-neutral-400 max-w-md">The requested link is invalid or has expired.</p>
-                    <button onclick="window.history.back()" class="mt-4 px-6 py-2 bg-neutral-800 hover:bg-neutral-700 rounded-full text-sm font-semibold">Go Back</button>
-                </div>
-                
-                <iframe 
-                    id="stream-frame" 
-                    sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-                    referrerpolicy="no-referrer-when-downgrade"
-                    allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write; camera; microphone"
-                    allowfullscreen>
-                </iframe>
-            </main>
-        </div>
-    </div>
+    
+    <!-- Full Screen Frame -->
+    <iframe 
+        id="stream-frame" 
+        referrerpolicy="no-referrer-when-downgrade"
+        allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write; camera; microphone"
+        allowfullscreen>
+    </iframe>
 
     <script>
         const SUPABASE_URL = 'https://tsaoxjzvhxiggntibpui.supabase.co';
@@ -336,144 +95,20 @@
             }
         }
 
-        let currentUser = null;
-        let activeResourceUrl = "";
-        let connectionRefusedTimer = null;
-        let isFrameLoaded = false;
-
-        function updatePreloaderStatus(message) {
-            const statusEl = document.getElementById('status-text');
-            if (statusEl) {
-                statusEl.textContent = message;
-            }
-            writeSandboxLog(message);
-        }
-
-        function hidePreloader() {
-            const preloader = document.getElementById('preloader');
-            if (preloader) {
-                preloader.classList.add('fade-out');
-            }
-        }
-
-        function writeSandboxLog(text, colorClass = "text-neutral-400") {
-            const logsContainer = document.getElementById('sandbox-logs');
-            if (!logsContainer) return;
-            const logEntry = document.createElement('div');
-            const now = new Date();
-            const timestamp = `[${now.toTimeString().split(' ')[0]}]`;
-            logEntry.className = `${colorClass} leading-relaxed animate-fade-in`;
-            logEntry.innerHTML = `<span class="text-neutral-600">${timestamp}</span> ${text}`;
-            logsContainer.appendChild(logEntry);
-            logsContainer.scrollTop = logsContainer.scrollHeight;
-        }
-
-        const SecurityManager = {
-            isBanned: false,
-
-            async executeBan(reason) {
-                if (this.isBanned || !currentUser) return;
-                this.isBanned = true;
-
-                const expiresAt = new Date();
-                expiresAt.setDate(expiresAt.getDate() + 7);
-
-                try {
-                    await sb.from('user_restrictions').insert({
-                        user_id: currentUser.id,
-                        restriction_type: '7_DAY_BAN',
-                        reason: reason,
-                        expires_at: expiresAt.toISOString()
-                    });
-                    await sb.auth.signOut();
-                } catch (e) {
-                    console.error("Shield Failure");
-                }
-
-                this.showLockout(expiresAt);
-            },
-
-            showLockout(expiryDate) {
-                document.getElementById('main-content').style.display = 'none';
-                document.getElementById('lockout-screen').style.display = 'flex';
-                document.getElementById('ban-expiry').innerText = `Restoration: ${expiryDate.toLocaleString()}`;
-                document.body.classList.add('ready');
-                hidePreloader();
-                lucide.createIcons();
-            },
-
-            init() {
-                // Context Menu
-                document.addEventListener('contextmenu', e => e.preventDefault());
-
-                // Keyboard Traps
-                document.addEventListener('keydown', e => {
-                    const devToolsKeys = (
-                        e.keyCode === 123 || 
-                        (e.ctrlKey && e.shiftKey && [73, 74, 67].includes(e.keyCode)) || 
-                        (e.ctrlKey && e.keyCode === 85)
-                    );
-                    if (devToolsKeys) {
-                        e.preventDefault();
-                        this.executeBan('KEYBOARD_INJECTION');
-                    }
-                });
-
-                // Debugger Trap
-                setInterval(() => {
-                    const startTime = performance.now();
-                    debugger;
-                    const endTime = performance.now();
-                    if (endTime - startTime > 100) {
-                        this.executeBan('DEBUGGER_DETECTED');
-                    }
-                }, 1000);
-
-                // Resize Detection
-                window.addEventListener('resize', () => {
-                    if (window.outerWidth - window.innerWidth > 160 || window.outerHeight - window.innerHeight > 160) {
-                        this.executeBan('ENV_TAMPER');
-                    }
-                });
-            }
-        };
-
-        async function checkSecurityStatus() {
-            updatePreloaderStatus("Verifying Session Shield");
+        async function checkAuthenticationAndLoad() {
+            // Check session status silently
             const { data: { session } } = await sb.auth.getSession();
-            if (!session) return window.location.href = '/login';
-            currentUser = session.user;
-
-            const { data: activeBan } = await sb.from('user_restrictions')
-                .select('*')
-                .eq('user_id', currentUser.id)
-                .gt('expires_at', new Date().toISOString())
-                .maybeSingle();
-
-            if (activeBan) {
-                SecurityManager.showLockout(new Date(activeBan.expires_at));
-                return false;
+            if (!session) {
+                window.location.href = '/login';
+                return;
             }
-
-            SecurityManager.init();
-            return true;
-        }
-
-        async function init() {
-            document.body.classList.add('ready');
-            lucide.createIcons();
-            setupInteractiveSandbox();
-            
-            const isSecure = await checkSecurityStatus();
-            if (!isSecure) return;
 
             if (!lessonId) {
-                showError("Missing Lesson ID");
+                showError();
                 return;
             }
 
             try {
-                updatePreloaderStatus("Retrieving Encrypted Resource");
                 const { data: lesson, error } = await sb
                     .from('lessons')
                     .select('*')
@@ -483,135 +118,22 @@
                 if (error) throw error;
 
                 if (lesson && (lesson.video_url || lesson.external_url)) {
-                    document.getElementById('stream-title').innerText = lesson.title;
-                    activeResourceUrl = lesson.video_url || lesson.external_url;
-                    
-                    mountSecureFrame();
-                    
+                    const frame = document.getElementById('stream-frame');
+                    frame.src = lesson.video_url || lesson.external_url;
                 } else {
-                    showError("Lesson not found");
+                    showError();
                 }
             } catch (err) {
-                showError("Connection failed");
+                showError();
             }
         }
 
-        function mountSecureFrame() {
-            const frame = document.getElementById('stream-frame');
-            isFrameLoaded = false;
-            updatePreloaderStatus("Establishing Secure Connection");
-            
-            frame.src = activeResourceUrl;
-            
-            frame.onload = () => {
-                isFrameLoaded = true;
-                clearTimeout(connectionRefusedTimer);
-                hidePreloader();
-                frame.classList.add('visible');
-                writeSandboxLog("Virtual frame buffer mounted successfully.", "text-green-400");
-                writeSandboxLog("Session isolation fully stabilized.", "text-green-500");
-            };
-
-            // Set dynamic timeout detection
-            if (connectionRefusedTimer) clearTimeout(connectionRefusedTimer);
-            connectionRefusedTimer = setTimeout(() => {
-                if (!isFrameLoaded) {
-                    hidePreloader();
-                    document.getElementById('connection-advisory').classList.remove('hidden');
-                    writeSandboxLog("Mount failure: connection refused inside frame.", "text-red-400");
-                }
-            }, 6000);
+        function showError() {
+            document.getElementById('stream-frame').style.display = 'none';
+            document.getElementById('error-state').style.display = 'flex';
         }
 
-        /* Dynamic Sandbox Isolation Levels */
-        function setIsolationLevel(level) {
-            const frame = document.getElementById('stream-frame');
-            dismissAdvisory();
-            
-            // Adjust visual indicators
-            document.getElementById('iso-strict').className = `w-full text-left p-2.5 rounded-lg border transition-all flex items-center justify-between group ${level === 'strict' ? 'border-red-500/30 bg-red-500/5' : 'border-white/5 hover:border-white/10 hover:bg-white/5'}`;
-            document.getElementById('iso-standard').className = `w-full text-left p-2.5 rounded-lg border transition-all flex items-center justify-between group ${level === 'standard' ? 'border-red-500/30 bg-red-500/5' : 'border-white/5 hover:border-white/10 hover:bg-white/5'}`;
-            
-            const dotStrict = document.getElementById('iso-dot-strict');
-            const dotStandard = document.getElementById('iso-dot-standard');
-            
-            if (level === 'strict') {
-                dotStrict.className = "w-2 h-2 rounded-full bg-red-500";
-                dotStandard.className = "w-2 h-2 rounded-full bg-transparent border border-white/20";
-                frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-forms');
-                writeSandboxLog("Hypervisor: Strict Sandbox Isolation enabled.", "text-red-400");
-            } else {
-                dotStrict.className = "w-2 h-2 rounded-full bg-transparent border border-white/20";
-                dotStandard.className = "w-2 h-2 rounded-full bg-red-500";
-                frame.removeAttribute('sandbox');
-                writeSandboxLog("Hypervisor: Lowered frame isolation (High Compatibility).", "text-yellow-500");
-            }
-            
-            // Re-mount standard frame context
-            frame.classList.remove('visible');
-            mountSecureFrame();
-        }
-
-        function launchDirectTunnel() {
-            if (activeResourceUrl) {
-                writeSandboxLog("Tunneling: Launching secure external window.", "text-green-400");
-                window.open(activeResourceUrl, '_blank');
-            } else {
-                writeSandboxLog("Tunneling error: No resource active.", "text-red-500");
-            }
-        }
-
-        function dismissAdvisory() {
-            document.getElementById('connection-advisory').classList.add('hidden');
-        }
-
-        function showError(msg) {
-            hidePreloader();
-            document.getElementById('error-state').classList.remove('hidden');
-            document.getElementById('stream-title').innerText = "Access Denied";
-            writeSandboxLog(`Critical fault: ${msg}`, "text-red-500");
-        }
-
-        function setupInteractiveSandbox() {
-            // Simulated monitoring values
-            setInterval(() => {
-                if (document.getElementById('preloader').classList.contains('fade-out')) {
-                    const ping = Math.floor(Math.random() * 15) + 18;
-                    const buffer = (Math.random() * 3 + 11).toFixed(1);
-                    
-                    document.getElementById('metric-ping').innerText = `${ping} ms`;
-                    document.getElementById('ping-bar').style.width = `${ping * 2}%`;
-                    
-                    document.getElementById('metric-buffer').innerText = `${buffer} MB`;
-                    document.getElementById('buffer-bar').style.width = `${buffer * 4}%`;
-
-                    if (Math.random() > 0.85) {
-                        const packets = ["Sync-Handshake OK", "Checking inline buffers", "Variable isolation guard active", "Frame stream integrity check: pass"];
-                        const chosen = packets[Math.floor(Math.random() * packets.length)];
-                        writeSandboxLog(chosen, "text-neutral-500");
-                    }
-                }
-            }, 3000);
-
-            // Re-key button interactive behavior
-            document.getElementById('btn-purge').addEventListener('click', () => {
-                writeSandboxLog("Purging environment keys...", "text-yellow-500");
-                const purgeBtn = document.getElementById('btn-purge');
-                purgeBtn.disabled = true;
-                
-                setTimeout(() => {
-                    writeSandboxLog("Re-establishing security handshake...", "text-yellow-400");
-                    mountSecureFrame();
-                }, 1000);
-
-                setTimeout(() => {
-                    writeSandboxLog("Virtual sandbox re-keyed successfully.", "text-green-400");
-                    purgeBtn.disabled = false;
-                }, 2000);
-            });
-        }
-
-        window.onload = init;
+        window.onload = checkAuthenticationAndLoad;
     </script>
 </body>
 </html>
