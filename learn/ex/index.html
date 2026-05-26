@@ -69,7 +69,7 @@
             border: 0;
             display: none;
             opacity: 0;
-            transition: opacity 1s ease;
+            transition: opacity 0.5s ease;
         }
         #stream-frame.visible { opacity: 1; display: block; }
 
@@ -179,7 +179,7 @@
                         Sandbox Isolation Active
                     </span>
                 </div>
-                <div class="text-right">
+                <div class="text-right flex items-center gap-4">
                     <p id="stream-title" class="text-xs font-bold uppercase tracking-widest text-neutral-500">Authenticating...</p>
                 </div>
             </div>
@@ -229,6 +229,34 @@
                     </div>
                 </div>
 
+                <!-- NEW: Isolation Controls (Helpful fallback for connection refused) -->
+                <div class="p-5 border-b border-white/5 bg-black/10">
+                    <span class="mono text-[10px] uppercase text-neutral-500 tracking-widest mb-3 block">Isolation Protocol</span>
+                    <div class="space-y-2">
+                        <button id="iso-strict" onclick="setIsolationLevel('strict')" class="w-full text-left p-2.5 rounded-lg border border-red-500/30 bg-red-500/5 hover:bg-red-500/10 transition-all flex items-center justify-between group">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="shield" class="w-3.5 h-3.5 text-red-500"></i>
+                                <span class="text-xs font-semibold text-white">Strict Sandbox</span>
+                            </div>
+                            <span class="w-2 h-2 rounded-full bg-red-500" id="iso-dot-strict"></span>
+                        </button>
+                        <button id="iso-standard" onclick="setIsolationLevel('standard')" class="w-full text-left p-2.5 rounded-lg border border-white/5 hover:border-white/10 hover:bg-white/5 transition-all flex items-center justify-between group">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="unlock" class="w-3.5 h-3.5 text-neutral-400 group-hover:text-white"></i>
+                                <span class="text-xs font-semibold text-neutral-300 group-hover:text-white">Standard Frame</span>
+                            </div>
+                            <span class="w-2 h-2 rounded-full bg-transparent border border-white/20" id="iso-dot-standard"></span>
+                        </button>
+                        <button id="iso-direct" onclick="launchDirectTunnel()" class="w-full text-left p-2.5 rounded-lg border border-white/5 hover:border-white/10 hover:bg-white/5 transition-all flex items-center justify-between group">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="external-link" class="w-3.5 h-3.5 text-neutral-400 group-hover:text-white"></i>
+                                <span class="text-xs font-semibold text-neutral-300 group-hover:text-white">Direct External Tunnel</span>
+                            </div>
+                            <i data-lucide="chevron-right" class="w-3 h-3 text-neutral-600 group-hover:translate-x-0.5 transition-transform"></i>
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Live Stream Feed Logs -->
                 <div class="flex-1 p-5 flex flex-col min-h-[160px] overflow-hidden">
                     <span class="mono text-[10px] uppercase text-neutral-500 tracking-widest mb-3 block">Container Events</span>
@@ -245,13 +273,33 @@
                         Re-Key Container
                     </button>
                     <p class="text-[9px] text-neutral-500 text-center leading-normal">
-                        Purging and Re-keying releases the frame cache, re-encrypts variables and randomizes token allocation.
+                        Purging releases frame cache, re-encrypts session bounds and attempts fallback resolution.
                     </p>
                 </div>
             </aside>
 
             <!-- Workspace: Stream Rendering Terminal -->
-            <main class="live-container flex-1">
+            <main class="live-container flex-1 flex flex-col">
+                <!-- Frame Connection Advisory/Bypass UI (Renders if connection times out or fails) -->
+                <div id="connection-advisory" class="absolute inset-0 bg-[#0d0d0f]/95 z-30 hidden flex-col items-center justify-center p-8 text-center animate-fade-in">
+                    <div class="w-16 h-16 rounded-full bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center mb-6 text-yellow-500">
+                        <i data-lucide="alert-triangle" class="w-8 h-8"></i>
+                    </div>
+                    <h2 class="text-xl font-bold mb-2 text-white">Connection Refused inside Container</h2>
+                    <p class="text-neutral-400 max-w-lg text-sm mb-6 leading-relaxed">
+                        The requested resource is actively refusing to load inside an inline frame container (typically due to server-side security headers like <code class="text-red-400 font-mono text-xs">X-Frame-Options</code>).
+                    </p>
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <button onclick="setIsolationLevel('standard')" class="px-6 py-3 bg-neutral-800 hover:bg-neutral-700 transition-all rounded-xl text-xs font-semibold flex items-center justify-center gap-2">
+                            <i data-lucide="unlock" class="w-4 h-4"></i> Disable Sandbox Restrictions
+                        </button>
+                        <button onclick="launchDirectTunnel()" class="px-6 py-3 bg-red-600 hover:bg-red-700 transition-all text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 shadow-xl shadow-red-900/20">
+                            <i data-lucide="external-link" class="w-4 h-4"></i> Launch External Session
+                        </button>
+                    </div>
+                    <button onclick="dismissAdvisory()" class="mt-6 text-xs text-neutral-500 hover:text-white uppercase tracking-wider font-mono">Stay in Sandbox Frame</button>
+                </div>
+
                 <!-- Error State -->
                 <div id="error-state" class="preloader-overlay hidden flex-col items-center justify-center gap-4 text-center p-8">
                     <i data-lucide="alert-circle" class="w-12 h-12 text-red-500 mb-2"></i>
@@ -289,6 +337,9 @@
         }
 
         let currentUser = null;
+        let activeResourceUrl = "";
+        let connectionRefusedTimer = null;
+        let isFrameLoaded = false;
 
         function updatePreloaderStatus(message) {
             const statusEl = document.getElementById('status-text');
@@ -433,26 +484,9 @@
 
                 if (lesson && (lesson.video_url || lesson.external_url)) {
                     document.getElementById('stream-title').innerText = lesson.title;
-                    const frame = document.getElementById('stream-frame');
+                    activeResourceUrl = lesson.video_url || lesson.external_url;
                     
-                    updatePreloaderStatus("Establishing Secure Connection");
-                    frame.src = lesson.video_url || lesson.external_url;
-                    
-                    frame.onload = () => {
-                        hidePreloader();
-                        frame.classList.add('visible');
-                        writeSandboxLog("Virtual frame buffer mounted successfully.", "text-green-400");
-                        writeSandboxLog("Session isolation fully stabilized.", "text-green-500");
-                    };
-
-                    // Backup fallback for loaded state if onload doesn't trigger gracefully
-                    setTimeout(() => {
-                        if (!frame.classList.contains('visible')) {
-                            hidePreloader();
-                            frame.classList.add('visible');
-                            writeSandboxLog("Virtual container timeout bypass triggered.", "text-yellow-500");
-                        }
-                    }, 8000);
+                    mountSecureFrame();
                     
                 } else {
                     showError("Lesson not found");
@@ -460,6 +494,75 @@
             } catch (err) {
                 showError("Connection failed");
             }
+        }
+
+        function mountSecureFrame() {
+            const frame = document.getElementById('stream-frame');
+            isFrameLoaded = false;
+            updatePreloaderStatus("Establishing Secure Connection");
+            
+            frame.src = activeResourceUrl;
+            
+            frame.onload = () => {
+                isFrameLoaded = true;
+                clearTimeout(connectionRefusedTimer);
+                hidePreloader();
+                frame.classList.add('visible');
+                writeSandboxLog("Virtual frame buffer mounted successfully.", "text-green-400");
+                writeSandboxLog("Session isolation fully stabilized.", "text-green-500");
+            };
+
+            // Set dynamic timeout detection
+            if (connectionRefusedTimer) clearTimeout(connectionRefusedTimer);
+            connectionRefusedTimer = setTimeout(() => {
+                if (!isFrameLoaded) {
+                    hidePreloader();
+                    document.getElementById('connection-advisory').classList.remove('hidden');
+                    writeSandboxLog("Mount failure: connection refused inside frame.", "text-red-400");
+                }
+            }, 6000);
+        }
+
+        /* Dynamic Sandbox Isolation Levels */
+        function setIsolationLevel(level) {
+            const frame = document.getElementById('stream-frame');
+            dismissAdvisory();
+            
+            // Adjust visual indicators
+            document.getElementById('iso-strict').className = `w-full text-left p-2.5 rounded-lg border transition-all flex items-center justify-between group ${level === 'strict' ? 'border-red-500/30 bg-red-500/5' : 'border-white/5 hover:border-white/10 hover:bg-white/5'}`;
+            document.getElementById('iso-standard').className = `w-full text-left p-2.5 rounded-lg border transition-all flex items-center justify-between group ${level === 'standard' ? 'border-red-500/30 bg-red-500/5' : 'border-white/5 hover:border-white/10 hover:bg-white/5'}`;
+            
+            const dotStrict = document.getElementById('iso-dot-strict');
+            const dotStandard = document.getElementById('iso-dot-standard');
+            
+            if (level === 'strict') {
+                dotStrict.className = "w-2 h-2 rounded-full bg-red-500";
+                dotStandard.className = "w-2 h-2 rounded-full bg-transparent border border-white/20";
+                frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-forms');
+                writeSandboxLog("Hypervisor: Strict Sandbox Isolation enabled.", "text-red-400");
+            } else {
+                dotStrict.className = "w-2 h-2 rounded-full bg-transparent border border-white/20";
+                dotStandard.className = "w-2 h-2 rounded-full bg-red-500";
+                frame.removeAttribute('sandbox');
+                writeSandboxLog("Hypervisor: Lowered frame isolation (High Compatibility).", "text-yellow-500");
+            }
+            
+            // Re-mount standard frame context
+            frame.classList.remove('visible');
+            mountSecureFrame();
+        }
+
+        function launchDirectTunnel() {
+            if (activeResourceUrl) {
+                writeSandboxLog("Tunneling: Launching secure external window.", "text-green-400");
+                window.open(activeResourceUrl, '_blank');
+            } else {
+                writeSandboxLog("Tunneling error: No resource active.", "text-red-500");
+            }
+        }
+
+        function dismissAdvisory() {
+            document.getElementById('connection-advisory').classList.add('hidden');
         }
 
         function showError(msg) {
@@ -483,7 +586,7 @@
                     document.getElementById('buffer-bar').style.width = `${buffer * 4}%`;
 
                     if (Math.random() > 0.85) {
-                        const packets = ["Sync-Handshake OK", "Bypassing unsafe scripts", "Variable isolation guard active", "Frame stream integrity check: pass"];
+                        const packets = ["Sync-Handshake OK", "Checking inline buffers", "Variable isolation guard active", "Frame stream integrity check: pass"];
                         const chosen = packets[Math.floor(Math.random() * packets.length)];
                         writeSandboxLog(chosen, "text-neutral-500");
                     }
@@ -493,15 +596,17 @@
             // Re-key button interactive behavior
             document.getElementById('btn-purge').addEventListener('click', () => {
                 writeSandboxLog("Purging environment keys...", "text-yellow-500");
-                document.getElementById('btn-purge').disabled = true;
+                const purgeBtn = document.getElementById('btn-purge');
+                purgeBtn.disabled = true;
                 
                 setTimeout(() => {
                     writeSandboxLog("Re-establishing security handshake...", "text-yellow-400");
-                }, 8000);
+                    mountSecureFrame();
+                }, 1000);
 
                 setTimeout(() => {
                     writeSandboxLog("Virtual sandbox re-keyed successfully.", "text-green-400");
-                    document.getElementById('btn-purge').disabled = false;
+                    purgeBtn.disabled = false;
                 }, 2000);
             });
         }
