@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="public, max-age=3600, must-revalidate">
     <title>Secure Viewer | Nexus Prime Security</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght=400;500;600;700&family=JetBrains+Mono:wght=400;500&display=swap" rel="stylesheet">
     <style>
         html, body {
             margin: 0;
@@ -13,70 +16,96 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #000;
+            background-color: #050506;
+            font-family: 'Plus Jakarta Sans', sans-serif;
         }
 
         #stream-frame {
             width: 100%;
             height: 100%;
             border: none;
-            display: block;
-        }
-
-        #error-state {
             display: none;
-            position: fixed;
-            inset: 0;
-            background-color: #0a0a0b;
-            color: #ececec;
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 20px;
-            z-index: 9999;
         }
 
-        #error-state h2 {
-            font-size: 1.5rem;
-            margin-bottom: 10px;
-            color: #ff3333;
-        }
-
-        #error-state p {
-            color: #94a3b8;
-            max-width: 400px;
-            margin-bottom: 20px;
-        }
-
-        #error-state button {
-            background-color: #ef4444;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
         }
     </style>
 </head>
-<body>
+<body class="bg-[#050506] text-slate-200 min-h-screen flex flex-col justify-between">
 
-    <!-- Simple, distraction-free Error State if the URL fails to load -->
-    <div id="error-state">
-        <h2>Content Unavailable</h2>
-        <p>The requested secure link is invalid, expired, or you do not have permission to access it.</p>
-        <button onclick="window.history.back()">Go Back</button>
-    </div>
-    
-    <!-- Full Screen Frame -->
-    <iframe 
-        id="stream-frame" 
-        referrerpolicy="no-referrer-when-downgrade"
-        allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write; camera; microphone"
-        allowfullscreen>
-    </iframe>
+    <!-- Header Navigation Bar -->
+    <nav class="w-full z-50 px-6 py-4 border-b border-white/5 bg-[#0a0a0b]/80 backdrop-blur-md flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-4">
+            <button onclick="window.history.back()" class="flex items-center gap-2 text-neutral-400 hover:text-white transition-colors group">
+                <i data-lucide="arrow-left" class="w-5 h-5 group-hover:-translate-x-1 transition-transform"></i>
+                <span class="text-sm font-medium">Back</span>
+            </button>
+            <div class="h-4 w-[1px] bg-white/10"></div>
+            <span id="security-indicator" class="mono text-[9px] text-emerald-500 font-bold tracking-widest uppercase flex items-center gap-1.5">
+                <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                Secure Shield Active
+            </span>
+        </div>
+        <div class="text-right">
+            <p id="stream-title" class="text-xs font-bold uppercase tracking-widest text-neutral-500">Securing Session...</p>
+        </div>
+    </nav>
+
+    <!-- Interactive Container / Core Viewport -->
+    <main class="flex-1 flex flex-col items-center justify-center p-6 relative">
+        
+        <!-- Secure Fallback Shell (Shown when external link cannot be framed, like Telegram) -->
+        <div id="external-fallback" class="hidden max-w-lg w-full p-8 rounded-3xl bg-[#0d0d0f] border border-white/5 shadow-2xl text-center space-y-6 animate-fade-in">
+            <div class="flex justify-center">
+                <div class="w-16 h-16 rounded-2xl bg-sky-500/10 flex items-center justify-center border border-sky-500/20 text-sky-400">
+                    <i data-lucide="send" class="w-8 h-8"></i>
+                </div>
+            </div>
+            
+            <div class="space-y-2">
+                <h2 class="text-xl font-bold text-white tracking-tight">External Network Security Node</h2>
+                <p class="text-sm text-slate-400 leading-relaxed">
+                    This unit connects directly to an isolated Telegram pipeline. Because of server security policies (<code class="text-xs text-red-400 font-mono">CSP Frame Ancestors</code>), this content cannot be rendered inside an inline container.
+                </p>
+            </div>
+
+            <div class="p-4 rounded-2xl bg-black/40 border border-white/5 text-left flex items-start gap-3">
+                <i data-lucide="shield-check" class="w-5 h-5 text-emerald-500 shrink-0 mt-0.5"></i>
+                <div>
+                    <h4 class="text-xs font-bold text-white uppercase tracking-wider mb-0.5">Nexus Sandbox Redirection</h4>
+                    <p class="text-[11px] text-slate-500 leading-normal">
+                        Your session data remains encrypted. Launching the link externally establishes a secure direct connection to the resource.
+                    </p>
+                </div>
+            </div>
+
+            <div class="pt-2">
+                <a id="launch-btn" href="#" target="_blank" rel="noopener noreferrer" class="w-full py-4 px-6 bg-white hover:bg-sky-500 text-black hover:text-white transition-all duration-300 font-bold text-sm rounded-2xl shadow-xl flex items-center justify-center gap-2 group">
+                    LAUNCH SECURE PIPELINE
+                    <i data-lucide="external-link" class="w-4 h-4 group-hover:translate-x-0.5 transition-transform"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- Disinterested/Clean Error State if the URL fails entirely -->
+        <div id="error-state" class="hidden flex-col items-center justify-center gap-4 text-center p-8">
+            <div class="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20 text-red-500">
+                <i data-lucide="alert-circle" class="w-8 h-8"></i>
+            </div>
+            <h2 class="text-xl font-bold text-white">Content Unavailable</h2>
+            <p class="text-neutral-400 max-w-sm text-sm">The requested secure link is invalid, expired, or you do not have permission to access it.</p>
+            <button onclick="window.history.back()" class="px-6 py-2.5 bg-neutral-800 hover:bg-neutral-700 rounded-xl text-sm font-semibold transition-all">Go Back</button>
+        </div>
+        
+        <!-- Full Screen Frame -->
+        <iframe 
+            id="stream-frame" 
+            referrerpolicy="no-referrer-when-downgrade"
+            allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write; camera; microphone"
+            allowfullscreen>
+        </iframe>
+    </main>
 
     <script>
         const SUPABASE_URL = 'https://tsaoxjzvhxiggntibpui.supabase.co';
@@ -96,6 +125,8 @@
         }
 
         async function checkAuthenticationAndLoad() {
+            lucide.createIcons();
+
             // Check session status silently
             const { data: { session } } = await sb.auth.getSession();
             if (!session) {
@@ -118,8 +149,17 @@
                 if (error) throw error;
 
                 if (lesson && (lesson.video_url || lesson.external_url)) {
-                    const frame = document.getElementById('stream-frame');
-                    frame.src = lesson.video_url || lesson.external_url;
+                    const targetUrl = lesson.video_url || lesson.external_url;
+                    document.getElementById('stream-title').innerText = lesson.title || "Secure Pipeline";
+
+                    // Handle Telegram or non-embeddable links gracefully
+                    if (isFrameRestricted(targetUrl)) {
+                        showExternalFallback(targetUrl);
+                    } else {
+                        const frame = document.getElementById('stream-frame');
+                        frame.style.display = 'block';
+                        frame.src = targetUrl;
+                    }
                 } else {
                     showError();
                 }
@@ -128,9 +168,37 @@
             }
         }
 
+        // Detect domains known to actively prevent framing
+        function isFrameRestricted(url) {
+            if (!url) return true;
+            const lowerUrl = url.toLowerCase();
+            return (
+                lowerUrl.includes('t.me') || 
+                lowerUrl.includes('telegram.org') ||
+                lowerUrl.includes('telegram.me')
+            );
+        }
+
+        function showExternalFallback(url) {
+            document.getElementById('stream-frame').style.display = 'none';
+            document.getElementById('error-state').classList.add('hidden');
+            
+            const fallbackContainer = document.getElementById('external-fallback');
+            const launchBtn = document.getElementById('launch-btn');
+            
+            launchBtn.href = url;
+            fallbackContainer.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
         function showError() {
             document.getElementById('stream-frame').style.display = 'none';
-            document.getElementById('error-state').style.display = 'flex';
+            document.getElementById('external-fallback').classList.add('hidden');
+            
+            const errorState = document.getElementById('error-state');
+            errorState.classList.remove('hidden');
+            errorState.style.display = 'flex';
+            lucide.createIcons();
         }
 
         window.onload = checkAuthenticationAndLoad;
