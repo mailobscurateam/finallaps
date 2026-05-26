@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enrollment | TBCM26</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes falling {
+            0% { transform: translate(0, 0) scale(1); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translate(100vw, 100vh) scale(0.5); opacity: 0; }
+        }
+        .falling-star {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 0 10px 3px #fff;
+            z-index: 5;
+            top: 0;
+            left: 0;
+            opacity: 0;
+        }
+        .animate-fall {
+            animation: falling 6s linear forwards;
+        }
+        .bg-image {
+            background-image: url('https://upload.wikimedia.org/wikipedia/commons/4/46/A_night_view_of_the_Ruwanweli_Maha_Saya%2C_Sri_Lanka.jpg');
+            background-size: cover;
+            background-position: center bottom; 
+        }
+        .glass-box {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col overflow-hidden text-white font-sans bg-slate-950">
+
+    <div id="sky-container" class="h-1/4 w-full relative overflow-hidden flex items-center justify-center bg-black">
+        <div class="absolute top-4 right-10 w-16 h-16 rounded-full bg-yellow-100 shadow-[0_0_40px_10px_rgba(253,230,138,0.5)]"></div>
+        
+        <!-- Falling Star -->
+        <div id="falling-star" class="falling-star"></div>
+        
+        <h1 class="text-xl font-light tracking-[0.5em] text-white/50 z-10 uppercase">Team Next Level</h1>
+    </div>
+
+    <div class="h-3/4 w-full bg-image relative flex flex-col items-center p-12">
+        <div class="absolute inset-0 bg-black/40"></div>
+        
+        <div class="relative z-10 flex w-full max-w-5xl justify-between items-center transform -translate-y-[45%]">
+            <div class="glass-box p-10 rounded-3xl shadow-2xl text-center w-[45%]">
+                <h2 class="text-sm font-bold uppercase tracking-widest text-emerald-400 mb-2">Enrolled Status</h2>
+                <p class="text-4xl font-light text-white">Completed</p>
+            </div>
+            <div class="glass-box p-10 rounded-3xl shadow-2xl text-center w-[45%]">
+                <h2 class="text-sm font-bold uppercase tracking-widest text-blue-400 mb-2">Enrolled Month</h2>
+                <p class="text-4xl font-light text-white">June</p>
+            </div>
+        </div>
+
+        <footer class="absolute bottom-6 text-[10px] text-white/40 tracking-[0.3em] uppercase">
+            &copy; Copyright Message to TBCM26
+        </footer>
+    </div>
+
+    <script>
+        const fallingStar = document.getElementById('falling-star');
+        
+        // Function to trigger the fall
+        function triggerFallingStar() {
+            fallingStar.classList.remove('animate-fall');
+            void fallingStar.offsetWidth; // Trigger reflow
+            fallingStar.classList.add('animate-fall');
+            
+            // Schedule next fall at random time between 1 and 24 hours (for demo, using 30-60s)
+            // Change 30000 to (Math.random() * 86400000) for full 24-hour cycle
+            const nextTime = Math.random() * 30000 + 30000;
+            setTimeout(triggerFallingStar, nextTime);
+        }
+
+        // Initialize background stars
+        const sky = document.getElementById('sky-container');
+        for (let i = 0; i < 50; i++) {
+            const star = document.createElement('div');
+            star.className = 'absolute bg-white rounded-full';
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.width = (Math.random() * 1.5) + 'px';
+            star.style.height = star.style.width;
+            star.style.opacity = (Math.random() * 0.25 + 0.05);
+            sky.appendChild(star);
+        }
+
+        // Start initial timer
+        triggerFallingStar();
+    </script>
+</body>
+</html>
