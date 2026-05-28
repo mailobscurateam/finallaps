@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Study Packs Portal | Nexus Prime</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root { 
+            --nexus-primary: #dc2626; 
+            --nexus-primary-glow: rgba(220, 38, 38, 0.4);
+            --nexus-dark: #050505; 
+        }
+        
+        body { 
+            font-family: 'Outfit', sans-serif; 
+            background-color: var(--nexus-dark); 
+            color: #f4f4f5; 
+            overflow-x: hidden; 
+        }
+        
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        
+        #math-canvas { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            z-index: -10; 
+            pointer-events: none;
+        }
+
+        .glass-card { 
+            background: rgba(12, 12, 12, 0.75); 
+            backdrop-filter: blur(20px); 
+            border: 1px solid rgba(255, 255, 255, 0.04); 
+            transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1); 
+        }
+
+        .glass-card:hover { 
+            border-color: rgba(220, 38, 38, 0.4); 
+            transform: translateY(-6px) scale(1.01); 
+            background: rgba(16, 16, 16, 0.85);
+            box-shadow: 0 20px 40px -20px var(--nexus-primary-glow);
+        }
+
+        .gradient-text { 
+            background: linear-gradient(to bottom right, #fff 40%, #ef4444 100%); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+        }
+
+        .pack-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); 
+            gap: 2.5rem; 
+        }
+
+        .pack-image-container { 
+            width: 100%; 
+            height: 200px; 
+            background: #0a0a0a; 
+            position: relative; 
+            overflow: hidden; 
+        }
+
+        .pack-image { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; 
+            transition: transform 0.7s cubic-bezier(0.23, 1, 0.32, 1); 
+            filter: grayscale(0.2) contrast(1.1);
+        }
+
+        .glass-card:hover .pack-image { 
+            transform: scale(1.08); 
+            filter: grayscale(0) contrast(1.1);
+        }
+
+        .enroll-btn {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.4s ease;
+        }
+
+        .enroll-btn:hover {
+            background: var(--nexus-primary);
+            border-color: var(--nexus-primary);
+            box-shadow: 0 0 20px var(--nexus-primary-glow);
+            color: white;
+        }
+
+        .filter-btn {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            color: #a1a1aa;
+            transition: all 0.3s ease;
+        }
+        .filter-btn:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            color: #fff;
+        }
+        .filter-btn.active {
+            background: rgba(220, 38, 38, 0.15);
+            border-color: var(--nexus-primary);
+            color: #fff;
+            box-shadow: inset 0 0 10px rgba(220, 38, 38, 0.2);
+        }
+
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+
+        .scanline {
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(to right, transparent, var(--nexus-primary), transparent);
+            position: absolute;
+            animation: scanline 4s linear infinite;
+            opacity: 0.3;
+            z-index: 2;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #050505;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #222;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--nexus-primary);
+        }
+    </style>
+</head>
+<body class="bg-[#050505] text-zinc-100 min-h-screen">
+    <div id="math-canvas"></div>
+
+    <!-- Notification System Container -->
+    <div id="notification-zone" class="fixed top-24 right-6 z-50 flex flex-col gap-3 max-w-sm pointer-events-none"></div>
+
+    <div id="auth-overlay" class="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6">
+        <div class="glass-card max-w-md w-full rounded-[2.5rem] border border-white/10 overflow-hidden relative p-10">
+            <div class="scanline"></div>
+            
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-red-600 rounded-2xl flex items-center justify-center font-black text-3xl mx-auto mb-4 text-white shadow-[0_0_20px_rgba(220,38,38,0.5)]">Σ</div>
+                <h2 class="text-3xl font-black text-white tracking-tight">NEXUS<span class="text-red-500">PRIME</span></h2>
+                <p class="text-xs text-zinc-500 mono uppercase tracking-widest mt-2">Tactical Credentials Verification</p>
+            </div>
+
+            <div id="auth-error" class="hidden bg-red-950/40 border border-red-800/60 p-4 rounded-2xl text-xs text-red-400 mb-6 mono text-center"></div>
+
+            <form id="auth-form" onsubmit="handleAuthSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-[10px] mono text-zinc-400 uppercase tracking-widest mb-2 font-bold">Personnel Email Signature</label>
+                    <input type="email" id="auth-email" required class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm text-white focus:outline-none focus:border-red-600 focus:bg-white/[0.08] transition mono" placeholder="spectre.cadet@nexus.io">
+                </div>
+                <div>
+                    <label class="block text-[10px] mono text-zinc-400 uppercase tracking-widest mb-2 font-bold">Secured Cipher Key</label>
+                    <input type="password" id="auth-password" required class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm text-white focus:outline-none focus:border-red-600 focus:bg-white/[0.08] transition mono" placeholder="••••••••">
+                </div>
+
+                <div class="pt-2 flex flex-col gap-3">
+                    <button type="submit" id="submit-auth-btn" class="w-full py-4 bg-red-600 hover:bg-red-700 rounded-2xl text-center font-black text-[11px] uppercase tracking-[0.3em] shadow-[0_0_15px_rgba(220,38,38,0.3)] transition-all text-white">
+                        Authorize Identity
+                    </button>
+                    
+                    <button type="button" onclick="toggleAuthMode()" id="toggle-mode-btn" class="text-zinc-500 hover:text-white transition text-center text-[10px] font-black uppercase tracking-wider py-1">
+                        Don't have clearance? Register Account
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <main id="main-app" class="relative z-10 min-h-screen flex flex-col justify-between hidden">
+        <!-- Persistent Tactical Navigation Header -->
+        <nav class="fixed top-0 w-full z-50 p-6 flex justify-between items-center backdrop-blur-xl bg-black/60 border-b border-b-white/5">
+            <div class="flex items-center space-x-8">
+                <a href="#" onclick="switchDeck('catalog')" class="flex items-center space-x-3 group">
+                    <div class="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center font-black text-xl transition-all group-hover:shadow-[0_0_15px_rgba(220,38,38,0.5)] group-hover:rotate-6 text-white">Σ</div>
+                    <div class="font-black text-xl tracking-tighter text-white">NEXUS<span class="text-red-600">PRIME</span></div>
+                </a>
+                
+                <!-- Deck Switching Hotlinks (Direct page mappings) -->
+                <div class="hidden lg:flex items-center space-x-1 bg-white/5 p-1 rounded-xl border border-white/5 text-xs">
+                    <button onclick="switchDeck('catalog')" id="nav-catalog" class="px-4 py-2 rounded-lg font-black uppercase tracking-widest text-red-500 bg-white/5 transition-all">
+                        <i data-lucide="book-open" class="inline w-3.5 h-3.5 mr-1.5 -mt-0.5"></i> Study Packs
+                    </button>
+                    <button onclick="switchDeck('status')" id="nav-status" class="px-4 py-2 rounded-lg font-black uppercase tracking-widest text-zinc-400 hover:text-white transition-all">
+                        <i data-lucide="activity" class="inline w-3.5 h-3.5 mr-1.5 -mt-0.5"></i> Request Status
+                    </button>
+                    <button onclick="switchDeck('approval')" id="nav-approval" class="px-4 py-2 rounded-lg font-black uppercase tracking-widest text-zinc-400 hover:text-white transition-all relative">
+                        <i data-lucide="shield-check" class="inline w-3.5 h-3.5 mr-1.5 -mt-0.5"></i> Command Deck
+                        <span id="badge-pending-count" class="absolute -top-1 -right-1 bg-red-600 text-[8px] px-1.5 py-0.5 rounded-full font-black text-white scale-90 hidden">0</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-6">
+                <!-- User Display Signature -->
+                <div class="flex items-center space-x-4 bg-white/5 px-4 py-2 rounded-full border border-white/10">
+                    <div class="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_#22c55e]"></div>
+                    <span id="user-email" class="mono text-[10px] text-zinc-300 font-bold uppercase tracking-widest">...</span>
+                    <div class="w-[1px] h-3 bg-white/10"></div>
+                    <button onclick="handleLogout()" class="text-[9px] font-black uppercase tracking-[0.2em] text-red-500 hover:text-white transition">Signout</button>
+                </div>
+            </div>
+        </nav>
+
+        <div class="flex-grow">
+            
+            <!-- DECK 1: Study Packs Catalogue -->
+            <section id="deck-catalog" class="pt-40 pb-32 px-6">
+                <div class="max-w-6xl mx-auto text-center mb-16">
+                    <div class="inline-flex items-center space-x-3 px-5 py-2 rounded-full bg-red-600/10 border border-red-600/30 text-red-500 text-[10px] font-black uppercase tracking-[0.4em] mb-10">
+                        <i data-lucide="archive" class="w-3.5 h-3.5 animate-bounce"></i>
+                        <span>Unified Weaponry Information Packs</span>
+                    </div>
+                    <h1 class="text-6xl md:text-8xl font-black mb-8 tracking-tighter leading-tight text-white">
+                        Study <span class="gradient-text">Packages</span>
+                    </h1>
+                    <p class="text-zinc-400 max-w-3xl mx-auto text-lg md:text-xl font-light leading-relaxed">
+                        Acquire strategic study archives to expand your mathematical trajectory. 
+                        Each bundle compiles top-tier vector maps, algorithmic code frameworks, and classified operational briefs.
+                    </p>
+                </div>
+
+                <!-- Filters Center -->
+                <div class="max-w-7xl mx-auto mb-16">
+                    <div class="flex flex-col items-center">
+                        <div class="mono text-[9px] text-zinc-500 font-bold uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
+                            <i data-lucide="sliders-horizontal" class="w-3 h-3 text-red-600"></i> Subject Filter Node
+                        </div>
+                        <div id="pack-filters" class="flex flex-wrap justify-center gap-3 max-w-3xl backdrop-blur-md bg-black/20 p-2 rounded-3xl border border-white/5">
+                            <button onclick="filterPacks('ALL')" class="filter-btn active text-[10px] font-black uppercase tracking-[0.2em] px-5 py-2.5 rounded-2xl">
+                                All Sectors
+                            </button>
+                            <button onclick="filterPacks('Calculus Arcana')" class="filter-btn text-[10px] font-black uppercase tracking-[0.2em] px-5 py-2.5 rounded-2xl">
+                                Calculus Arcana
+                            </button>
+                            <button onclick="filterPacks('Quantum Math')" class="filter-btn text-[10px] font-black uppercase tracking-[0.2em] px-5 py-2.5 rounded-2xl">
+                                Quantum Mechanics
+                            </button>
+                            <button onclick="filterPacks('AI & Neural')" class="filter-btn text-[10px] font-black uppercase tracking-[0.2em] px-5 py-2.5 rounded-2xl">
+                                Intelligent Engines
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Catalog Grid -->
+                <div class="max-w-7xl mx-auto">
+                    <div id="course-loader" class="flex flex-col items-center py-20">
+                        <div class="relative w-12 h-12 mb-4">
+                            <div class="absolute inset-0 border-2 border-red-900/20 rounded-full"></div>
+                            <div class="absolute inset-0 border-2 border-t-red-600 rounded-full animate-spin"></div>
+                        </div>
+                        <p class="mono text-[9px] text-red-600/60 font-black uppercase tracking-[0.5em] animate-pulse">Syncing Database Matrix...</p>
+                    </div>
+                    <div id="packs-container" class="pack-grid hidden"></div>
+                </div>
+            </section>
+
+
+            <!-- DECK 2: Request Status Console -->
+            <section id="deck-status" class="pt-40 pb-32 px-6 hidden">
+                <div class="max-w-6xl mx-auto text-center mb-16">
+                    <div class="inline-flex items-center space-x-3 px-5 py-2 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-500 text-[10px] font-black uppercase tracking-[0.4em] mb-10">
+                        <i data-lucide="hourglass" class="w-3.5 h-3.5 animate-spin"></i>
+                        <span>Tracking Pulse Active</span>
+                    </div>
+                    <h1 class="text-6xl md:text-8xl font-black mb-8 tracking-tighter leading-tight text-white">
+                        Sovereign <span class="gradient-text">Requests</span>
+                    </h1>
+                    <p class="text-zinc-400 max-w-2xl mx-auto text-lg md:text-xl font-light leading-relaxed">
+                        Monitor the clearance status of your requested material bundles. Approved payloads are immediately available for secure network transmission.
+                    </p>
+                </div>
+
+                <div class="max-w-5xl mx-auto">
+                    <div class="glass-card rounded-[2.5rem] border border-white/5 overflow-hidden">
+                        <div class="px-8 py-6 bg-white/5 border-b border-white/5 flex flex-col md:flex-row justify-between items-center gap-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse"></div>
+                                <span class="mono text-xs uppercase tracking-widest text-zinc-300 font-bold">Secure Request Manifest</span>
+                            </div>
+                            <div class="text-zinc-500 text-[10px] mono uppercase tracking-widest font-black">
+                                SYSTEM LEVEL: <span class="text-white font-normal">SECURE SUITE DEPLOY</span>
+                            </div>
+                        </div>
+
+                        <!-- Requests Table -->
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="border-b border-white/5 bg-black/40 text-[10px] tracking-[0.2em] font-black uppercase text-zinc-500">
+                                        <th class="p-6">Package Details</th>
+                                        <th class="p-6">Tactical Category</th>
+                                        <th class="p-6">Requested Date</th>
+                                        <th class="p-6">Authorization Phase</th>
+                                        <th class="p-6 text-right">Operational Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="status-table-body" class="divide-y divide-white/5">
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+
+            <!-- DECK 3: Command & Approval Panel -->
+            <section id="deck-approval" class="pt-40 pb-32 px-6 hidden">
+                <div class="max-w-6xl mx-auto text-center mb-16">
+                    <div class="inline-flex items-center space-x-3 px-5 py-2 rounded-full bg-red-600/10 border border-red-600/30 text-red-500 text-[10px] font-black uppercase tracking-[0.4em] mb-10">
+                        <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
+                        <span>Nexus Supreme Administration</span>
+                    </div>
+                    <h1 class="text-6xl md:text-8xl font-black mb-8 tracking-tighter leading-tight text-white">
+                        Sovereign <span class="gradient-text">Approvals</span>
+                    </h1>
+                    <p class="text-zinc-400 max-w-2xl mx-auto text-lg md:text-xl font-light leading-relaxed">
+                        Control Center for authorization vectors. Approve or deny pending study pack requests submitted by operations personnel.
+                    </p>
+                </div>
+
+                <!-- Sovereign Statistics -->
+                <div class="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12">
+                    <div class="glass-card p-8 rounded-3xl border border-white/5">
+                        <div class="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-3">Total Operations Enrolled</div>
+                        <div class="text-4xl font-black text-white tracking-tight" id="stat-total-req">0</div>
+                    </div>
+                    <div class="glass-card p-8 rounded-3xl border border-white/5">
+                        <div class="text-amber-500 text-[10px] font-black uppercase tracking-widest mb-3">Awaiting Verification</div>
+                        <div class="text-4xl font-black text-amber-500 tracking-tight" id="stat-pending-req">0</div>
+                    </div>
+                    <div class="glass-card p-8 rounded-3xl border border-white/5">
+                        <div class="text-green-500 text-[10px] font-black uppercase tracking-widest mb-3">Cleared Assets</div>
+                        <div class="text-4xl font-black text-green-500 tracking-tight" id="stat-approved-req">0</div>
+                    </div>
+                </div>
+
+                <!-- Approval Queue Table -->
+                <div class="max-w-6xl mx-auto">
+                    <div class="glass-card rounded-[2.5rem] border border-white/5 overflow-hidden">
+                        <div class="p-8 border-b border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                            <div>
+                                <h3 class="text-xl font-black text-white">Pending Command Authorization Queue</h3>
+                                <p class="text-xs text-zinc-400 font-light mt-1">Review applicant digital signatures, configure duration parameters, and authorize packet extraction.</p>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="border-b border-white/5 bg-black/40 text-[10px] tracking-[0.2em] font-black uppercase text-zinc-500">
+                                        <th class="p-6">Applicant Signature</th>
+                                        <th class="p-6">Material Requested</th>
+                                        <th class="p-6">Security Code / Sector</th>
+                                        <th class="p-6">Filing Timestamp</th>
+                                        <th class="p-6 text-right">Resolve Decision</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="approval-queue-body" class="divide-y divide-white/5">
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- System Footer -->
+        <footer class="relative z-10 border-t border-white/5 bg-black/80 py-12 px-6">
+            <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center font-black text-base text-white">Σ</div>
+                    <div class="font-black text-base tracking-tighter text-white">NEXUS<span class="text-red-600">PRIME</span></div>
+                </div>
+                <div class="mono text-[10px] text-zinc-500 tracking-widest text-center md:text-right">
+                    SECURE SEC-LOG // VERIFICATION PROTOCOL: SHIELD-SECURE 2.5
+                    <div class="text-zinc-600 text-[8px] mt-1">NEXUS COMBINED MATHEMATICS NETWORK &copy; 2026</div>
+                </div>
+            </div>
+        </footer>
+    </main>
+
+    <!-- Custom Modals (Interactive Overlay Details) -->
+    <div id="packet-modal" class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/85 backdrop-blur-md hidden">
+        <div class="glass-card max-w-lg w-full rounded-[2.5rem] border border-white/10 overflow-hidden relative">
+            <div class="scanline"></div>
+            <button onclick="closePacketModal()" class="absolute top-6 right-6 w-8 h-8 rounded-full bg-white/5 hover:bg-red-600/20 text-zinc-400 hover:text-red-500 flex items-center justify-center transition-all z-10">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+            <div class="p-10">
+                <div class="inline-block px-3 py-1 bg-red-600/10 border border-red-500/30 text-red-500 rounded-full text-[9px] font-black uppercase tracking-widest mb-6">
+                    Material Payload Breakdown
+                </div>
+                <h3 id="modal-title" class="text-3xl font-black text-white tracking-tight mb-3">Package Title</h3>
+                <p id="modal-desc" class="text-zinc-400 text-sm leading-relaxed mb-6 font-light">Detailed package summary.</p>
+                
+                <div class="bg-black/40 border border-white/5 rounded-2xl p-6 mb-8 space-y-4">
+                    <h4 class="mono text-[10px] text-zinc-400 uppercase tracking-widest font-black">Archive Directory Structure</h4>
+                    <ul class="text-xs space-y-2 text-zinc-300 mono" id="modal-contents">
+                        <!-- Content elements loaded dynamically -->
+                    </ul>
+                </div>
+
+                <div class="flex gap-4">
+                    <button id="modal-action-btn" class="flex-grow py-4 bg-red-600 hover:bg-red-700 rounded-2xl text-center font-black text-[11px] uppercase tracking-[0.3em] shadow-[0_0_15px_rgba(220,38,38,0.3)] transition-all text-white">
+                        Initialize Vector Extract
+                    </button>
+                    <button onclick="closePacketModal()" class="px-6 py-4 bg-white/5 hover:bg-white/10 rounded-2xl text-center font-black text-[11px] uppercase tracking-[0.2em] border border-white/5 transition-all text-zinc-400 hover:text-white">
+                        Back
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://pcyfdebifmslsvtlpspg.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBjeWZkZWJpZm1zbHN2dGxwc3BnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NzYyNzcsImV4cCI6MjA5NTU1MjI3N30.nYSgFuxfDlnw5Lsbw5TG9q-Yy6iKDPmdewnCFWIBOHM';
+        
+        // Initialize real Supabase client
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Core dynamic application variables
+        let allCourses = [];
+        let allRequests = [];
+        let activeUserSession = null;
+        let isSignUpMode = false;
+        let activeSectorFilter = 'ALL';
+
+        async function checkSession() {
+            try {
+                const { data: { session }, error } = await sb.auth.getSession();
+                if (error) throw error;
+                
+                if (session) {
+                    onAuthenticationSuccess(session);
+                } else {
+                    showAuthOverlay();
+                }
+            } catch (err) {
+                console.error("Session verification error:", err);
+                showAuthOverlay();
+            }
+        }
+
+        function showAuthOverlay() {
+            document.getElementById('auth-overlay').classList.remove('hidden');
+            document.getElementById('main-app').classList.add('hidden');
+        }
+
+        function onAuthenticationSuccess(session) {
+            activeUserSession = session;
+            document.getElementById('auth-overlay').classList.add('hidden');
+            document.getElementById('main-app').classList.remove('hidden');
+            
+            // Render specific logged user email signature
+            document.getElementById('user-email').textContent = session.user.email;
+            
+            // Sync database collections
+            syncDatabaseEngine();
+        }
+
+        function toggleAuthMode() {
+            isSignUpMode = !isSignUpMode;
+            const submitBtn = document.getElementById('submit-auth-btn');
+            const toggleBtn = document.getElementById('toggle-mode-btn');
+            
+            if (isSignUpMode) {
+                submitBtn.innerText = "Register New Account";
+                toggleBtn.innerText = "Already Authorized? Sign In";
+            } else {
+                submitBtn.innerText = "Authorize Identity";
+                toggleBtn.innerText = "Don't have clearance? Register Account";
+            }
+        }
+
+        async function handleAuthSubmit(event) {
+            event.preventDefault();
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            const errorBanner = document.getElementById('auth-error');
+            const submitBtn = document.getElementById('submit-auth-btn');
+
+            errorBanner.classList.add('hidden');
+            submitBtn.disabled = true;
+            submitBtn.innerText = "Processing Cipher Map...";
+
+            try {
+                if (isSignUpMode) {
+                    const { data, error } = await sb.auth.signUp({ email, password });
+                    if (error) throw error;
+                    
+                    showNotification("Identity filed successfully. Sign in initialized.", "success");
+                    isSignUpMode = false;
+                    toggleAuthMode();
+                } else {
+                    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+                    if (error) throw error;
+                    
+                    showNotification("Decryption successful. Loading Nexus...", "success");
+                    onAuthenticationSuccess(data.session);
+                }
+            } catch (err) {
+                console.error(err);
+                errorBanner.innerText = err.message || "Failed terminal authentication handshake.";
+                errorBanner.classList.remove('hidden');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = isSignUpMode ? "Register New Account" : "Authorize Identity";
+            }
+        }
+
+        async function handleLogout() {
+            await sb.auth.signOut();
+            activeUserSession = null;
+            showAuthOverlay();
+            showNotification("Securely terminated security session.", "info");
+        }
+
+        // Checks user's request status records. If an approved record has passed its "expires_at" timestamp,
+        // it automatically flags it as denied/expired on the fly or updates it.
+        function filterActiveRequests(requests) {
+            const now = new Date();
+            return requests.map(req => {
+                if (req.status === 'approved' && req.expires_at) {
+                    const expirationDate = new Date(req.expires_at);
+                    if (now > expirationDate) {
+                        // Dynamically tag client-side status as expired ('denied')
+                        req.status = 'denied';
+                        req.is_expired = true;
+                    }
+                }
+                return req;
+            });
+        }
+
+        async function syncDatabaseEngine() {
+            const loader = document.getElementById('course-loader');
+            const container = document.getElementById('packs-container');
+            
+            loader.classList.remove('hidden');
+            container.classList.add('hidden');
+
+            try {
+                // 1. Retrieve all Courses from database
+                const { data: courses, error: courseError } = await sb
+                    .from('courses')
+                    .select('*');
+                if (courseError) throw courseError;
+                allCourses = courses || [];
+
+                // 2. Retrieve status logs
+                await fetchRequestsFromDb();
+
+                renderCatalog();
+                renderStatusTable();
+                renderApprovalQueue();
+                updateStats();
+
+                loader.classList.add('hidden');
+                container.classList.remove('hidden');
+
+            } catch (err) {
+                console.error("Data syncing malfunctioned:", err);
+                showNotification("Secure Network Connection Dropped. Retrying...", "error");
+            }
+        }
+
+        async function fetchRequestsFromDb() {
+            try {
+                // Fetch status logs joined with the courses table
+                const { data: requests, error } = await sb
+                    .from('course_status')
+                    .select(`
+                        id,
+                        user_id,
+                        course_id,
+                        status,
+                        clearance_code,
+                        created_at,
+                        expires_at,
+                        courses (
+                            name,
+                            category,
+                            instructor,
+                            files
+                        )
+                    `)
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                // Filter the requests through the dynamic expiration validator
+                allRequests = filterActiveRequests(requests || []);
+            } catch (err) {
+                console.error("Error fetching requests:", err);
+            }
+        }
+
+        function renderCatalog() {
+            const container = document.getElementById('packs-container');
+            if (!container) return;
+
+            const filtered = activeSectorFilter === 'ALL'
+                ? allCourses
+                : allCourses.filter(c => c.category === activeSectorFilter);
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-20">
+                        <p class="mono text-xs text-zinc-500 uppercase tracking-widest">No Operational Modules available under this sector trajectory.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filtered.map(course => {
+                // Check user enrollment state from requests
+                const requestRecord = allRequests.find(r => r.course_id === course.id && r.user_id === activeUserSession.user.id);
+                let btnHtml = '';
+
+                if (requestRecord) {
+                    if (requestRecord.status === 'approved') {
+                        const dateFormatted = requestRecord.expires_at ? new Date(requestRecord.expires_at).toLocaleDateString() : 'Unlimited';
+                        btnHtml = `
+                            <div class="text-center mb-3">
+                                <span class="mono text-[9px] text-green-400 font-bold uppercase tracking-widest">
+                                    Access Deadline: ${dateFormatted}
+                                </span>
+                            </div>
+                            <button onclick="downloadPackPayload('${course.id}')" class="w-full py-4 bg-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500 hover:text-black rounded-2xl text-center font-black text-[11px] uppercase tracking-[0.3em] transition-all">
+                                <i data-lucide="download" class="inline w-3.5 h-3.5 mr-1.5 -mt-1"></i> Extract Payload
+                            </button>
+                        `;
+                    } else if (requestRecord.status === 'pending') {
+                        btnHtml = `
+                            <button disabled class="w-full py-4 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-2xl text-center font-black text-[11px] uppercase tracking-[0.3em] cursor-not-allowed">
+                                <i data-lucide="shield-alert" class="inline w-3.5 h-3.5 mr-1.5 -mt-1"></i> Verification Pending
+                            </button>
+                        `;
+                    } else {
+                        // Denied or Expired access
+                        const isExpiredLabel = requestRecord.is_expired ? "Access Terminus Reached" : "Clearance Denied";
+                        btnHtml = `
+                            <div class="text-center mb-3">
+                                <span class="mono text-[9px] text-red-500 font-bold uppercase tracking-widest">
+                                    ${isExpiredLabel}
+                                </span>
+                            </div>
+                            <button onclick="openRequestWindow('${course.id}')" class="w-full py-4 enroll-btn block rounded-2xl text-center font-black text-[11px] uppercase tracking-[0.3em] transition-all text-white">
+                                <i data-lucide="refresh-cw" class="inline w-3.5 h-3.5 mr-1.5 -mt-1"></i> Re-Apply Security Clearance
+                            </button>
+                        `;
+                    }
+                } else {
+                    btnHtml = `
+                        <button onclick="openRequestWindow('${course.id}')" class="w-full py-4 enroll-btn block rounded-2xl text-center font-black text-[11px] uppercase tracking-[0.3em] transition-all text-white">
+                            Initialize Extraction
+                        </button>
+                    `;
+                }
+
+                return `
+                    <div class="glass-card rounded-[2.5rem] flex flex-col h-full group overflow-hidden">
+                        <div class="pack-image-container">
+                            <div class="scanline"></div>
+                            <img src="${course.image_url}" class="pack-image" alt="${course.name}" onerror="this.src='https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=800'">
+                            <div class="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent"></div>
+                            <div class="absolute top-6 left-6 px-3 py-1 bg-white/10 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg">
+                                ${course.badge || 'Operational Sector'}
+                            </div>
+                        </div>
+                        <div class="p-10 flex flex-col flex-grow">
+                            <div class="flex justify-between items-start mb-4 gap-2">
+                                <h3 class="text-2xl font-black leading-tight group-hover:text-red-500 transition-colors text-white tracking-tight">${course.name}</h3>
+                                <div class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center border border-white/10 flex-shrink-0">
+                                    <i data-lucide="chevron-right" class="w-4 h-4 text-zinc-400 group-hover:text-red-500"></i>
+                                </div>
+                            </div>
+                            <p class="mono text-[10px] text-zinc-500 uppercase tracking-widest mb-6 font-bold flex items-center gap-2">
+                                <i data-lucide="user" class="w-3 h-3 text-red-600"></i>
+                                ${course.instructor}
+                            </p>
+                            <p class="text-zinc-400 text-sm leading-relaxed mb-10 flex-grow font-light">
+                                ${course.description}
+                            </p>
+                            <div class="pt-8 border-t border-white/5 mt-auto">
+                                ${btnHtml}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        function filterPacks(category) {
+            activeSectorFilter = category;
+            
+            const buttons = document.querySelectorAll('#pack-filters .filter-btn');
+            buttons.forEach(btn => {
+                if (btn.textContent.toLowerCase().includes(category.toLowerCase()) || (category === 'ALL' && btn.textContent.toLowerCase().includes('all'))) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            renderCatalog();
+        }
+
+        function renderStatusTable() {
+            const tableBody = document.getElementById('status-table-body');
+            if (!tableBody) return;
+
+            // Only filter records created by current logged in ID
+            const personalRequests = allRequests.filter(r => r.user_id === activeUserSession.user.id);
+
+            if (personalRequests.length === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="p-16 text-center">
+                            <i data-lucide="archive-x" class="w-12 h-12 text-zinc-600 mx-auto mb-4"></i>
+                            <p class="mono text-xs text-zinc-500 uppercase tracking-widest">No request tracking logs on record.</p>
+                            <button onclick="switchDeck('catalog')" class="mt-4 px-5 py-2.5 bg-white/5 hover:bg-white/10 text-[10px] text-white font-black uppercase tracking-widest border border-white/5 rounded-xl transition">
+                                Launch Catalogue
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            tableBody.innerHTML = personalRequests.map(req => {
+                const courseInfo = req.courses || {};
+                let statusBadge = '';
+                let actionBtn = '';
+
+                if (req.status === 'approved') {
+                    const dateFormatted = req.expires_at ? new Date(req.expires_at).toLocaleString() : 'Unlimited';
+                    statusBadge = `
+                        <div class="flex flex-col gap-1">
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-green-500/10 border border-green-500/30 text-green-400 rounded-full text-[9px] font-black uppercase tracking-widest w-fit">
+                                <span class="w-1.5 h-1.5 bg-green-400 rounded-full animate-ping"></span> Cleared
+                            </span>
+                            <span class="text-[8px] mono text-green-500 font-bold tracking-wider">UNTIL: ${dateFormatted}</span>
+                        </div>
+                    `;
+                    actionBtn = `
+                        <button onclick="downloadPackPayload('${req.course_id}')" class="px-4 py-2 bg-white/5 hover:bg-green-500 hover:text-black border border-white/10 hover:border-green-500 text-[10px] text-zinc-300 font-black uppercase tracking-widest rounded-xl transition">
+                            Extract
+                        </button>
+                    `;
+                } else if (req.status === 'pending') {
+                    statusBadge = `
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 border border-amber-500/30 text-amber-500 rounded-full text-[9px] font-black uppercase tracking-widest">
+                            <span class="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></span> Verifying
+                        </span>
+                    `;
+                    actionBtn = `
+                        <button disabled class="px-4 py-2 bg-white/5 text-[10px] text-zinc-500 font-black uppercase tracking-widest rounded-xl cursor-not-allowed border border-white/5">
+                            Locked
+                        </button>
+                    `;
+                } else {
+                    const label = req.is_expired ? 'Expired' : 'Denied';
+                    statusBadge = `
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-red-500/10 border border-red-500/30 text-red-500 rounded-full text-[9px] font-black uppercase tracking-widest">
+                            ${label}
+                        </span>
+                    `;
+                    actionBtn = `
+                        <button onclick="openRequestWindow('${req.course_id}')" class="px-4 py-2 bg-red-600/10 hover:bg-red-600 border border-red-600/30 text-[10px] text-red-500 hover:text-white font-black uppercase tracking-widest rounded-xl transition">
+                            Re-Apply
+                        </button>
+                    `;
+                }
+
+                return `
+                    <tr class="hover:bg-white/[0.01] transition-colors">
+                        <td class="p-6">
+                            <div class="font-black text-white text-base">${courseInfo.name || 'Unknown Module'}</div>
+                            <div class="text-[9px] mono text-zinc-500 mt-1 uppercase tracking-wider">SEC-KEY: ${req.clearance_code || 'N/A'}</div>
+                        </td>
+                        <td class="p-6">
+                            <span class="mono text-xs font-bold text-zinc-400">${courseInfo.category || 'N/A'}</span>
+                        </td>
+                        <td class="p-6">
+                            <span class="mono text-xs text-zinc-500">${new Date(req.created_at).toLocaleString()}</span>
+                        </td>
+                        <td class="p-6">${statusBadge}</td>
+                        <td class="p-6 text-right">${actionBtn}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        function renderApprovalQueue() {
+            const queueBody = document.getElementById('approval-queue-body');
+            if (!queueBody) return;
+
+            const pendingRequests = allRequests.filter(r => r.status === 'pending');
+
+            if (pendingRequests.length === 0) {
+                queueBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="p-16 text-center">
+                            <i data-lucide="shield-check" class="w-12 h-12 text-green-500/50 mx-auto mb-4"></i>
+                            <p class="mono text-xs text-zinc-500 uppercase tracking-widest">Authorization pipeline clear. No outstanding actions.</p>
+                        </td>
+                    </tr>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            queueBody.innerHTML = pendingRequests.map(req => {
+                const courseInfo = req.courses || {};
+                return `
+                    <tr class="hover:bg-white/[0.01] transition-colors">
+                        <td class="p-6">
+                            <div class="font-bold text-zinc-100 flex items-center gap-2">
+                                <div class="w-2 h-2 rounded-full bg-red-600 animate-ping"></div>
+                                ${req.user_id === activeUserSession.user.id ? 'My Request (Cadet Spectre)' : 'Operations Cadet'}
+                            </div>
+                            <div class="text-[9px] mono text-zinc-500 mt-1 truncate max-w-[200px]">${req.user_id}</div>
+                        </td>
+                        <td class="p-6">
+                            <div class="font-black text-white text-sm">${courseInfo.name || 'Unknown Bundle'}</div>
+                        </td>
+                        <td class="p-6">
+                            <div class="mono text-xs text-red-500">${req.clearance_code || 'N/A'}</div>
+                            <div class="text-[9px] text-zinc-500 uppercase tracking-widest mt-0.5">${courseInfo.category || 'N/A'}</div>
+                        </td>
+                        <td class="p-6">
+                            <span class="mono text-xs text-zinc-500">${new Date(req.created_at).toLocaleString()}</span>
+                        </td>
+                        <td class="p-6 text-right font-bold" id="action-cell-${req.id}">
+                            <div class="flex gap-2 justify-end">
+                                <button onclick="initiateDurationSelect('${req.id}')" class="px-3.5 py-2 bg-green-500 hover:bg-green-600 text-black font-black text-[10px] uppercase tracking-widest rounded-xl transition">
+                                    Approve
+                                </button>
+                                <button onclick="resolveRequest('${req.id}', 'denied')" class="px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition">
+                                    Deny
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        // Switches action column cell with duration configuring tools
+        function initiateDurationSelect(reqId) {
+            const cell = document.getElementById(`action-cell-${reqId}`);
+            if (!cell) return;
+
+            // Generate calendar default date value (exactly 7 days from now)
+            const defaultDate = new Date();
+            defaultDate.setDate(defaultDate.getDate() + 7);
+            const dateString = defaultDate.toISOString().split('T')[0];
+
+            cell.innerHTML = `
+                <div class="flex flex-col items-end gap-2 p-2 bg-black/40 rounded-2xl border border-white/5 max-w-[240px] ml-auto">
+                    <span class="mono text-[8px] text-zinc-400 uppercase tracking-widest font-black self-start">Access Duration Span</span>
+                    <div class="flex gap-1.5 w-full">
+                        <select id="duration-preset-${reqId}" onchange="handlePresetChange('${reqId}')" class="bg-zinc-900 border border-white/10 rounded-lg text-[9px] mono text-zinc-300 p-1 font-bold w-1/2">
+                            <option value="7">7 Days</option>
+                            <option value="30">30 Days</option>
+                            <option value="custom" selected>Custom</option>
+                        </select>
+                        <input type="date" id="exp-date-${reqId}" value="${dateString}" min="${new Date().toISOString().split('T')[0]}" class="bg-zinc-900 border border-white/10 rounded-lg text-[10px] text-white focus:outline-none focus:border-red-600 p-1 mono w-1/2">
+                    </div>
+                    <div class="flex gap-1.5 w-full">
+                        <button onclick="renderApprovalQueue()" class="w-1/2 py-1.5 bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white font-bold text-[9px] uppercase tracking-widest rounded-lg transition border border-white/5">
+                            Cancel
+                        </button>
+                        <button onclick="submitApproval('${reqId}')" class="w-1/2 py-1.5 bg-green-500 hover:bg-green-600 text-black font-black text-[9px] uppercase tracking-widest rounded-lg transition flex items-center justify-center gap-1">
+                            Authorize
+                        </button>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+        function handlePresetChange(reqId) {
+            const select = document.getElementById(`duration-preset-${reqId}`);
+            const dateInput = document.getElementById(`exp-date-${reqId}`);
+            if (!select || !dateInput) return;
+
+            if (select.value !== 'custom') {
+                const days = parseInt(select.value, 10);
+                const targetDate = new Date();
+                targetDate.setDate(targetDate.getDate() + days);
+                dateInput.value = targetDate.toISOString().split('T')[0];
+                dateInput.disabled = true;
+            } else {
+                dateInput.disabled = false;
+            }
+        }
+
+        async function submitApproval(reqId) {
+            const dateInput = document.getElementById(`exp-date-${reqId}`);
+            if (!dateInput) return;
+
+            const selectedDate = new Date(dateInput.value + 'T23:59:59'); // Access active until end of selected day
+            const isoString = selectedDate.toISOString();
+
+            try {
+                // Update table via client including the expires_at parameter
+                const { error } = await sb
+                    .from('course_status')
+                    .update({ 
+                        status: 'approved',
+                        expires_at: isoString
+                    })
+                    .eq('id', reqId);
+
+                if (error) throw error;
+
+                showNotification(`Cleared vector status: APPROVED until ${selectedDate.toLocaleDateString()}`, 'success');
+                
+                // Re-sync and render
+                await fetchRequestsFromDb();
+                renderCatalog();
+                renderStatusTable();
+                renderApprovalQueue();
+                updateStats();
+            } catch (err) {
+                console.error("Failed executing decision update:", err);
+                showNotification("Database request refused. Double-check your RLS policies.", "error");
+            }
+        }
+
+        async function resolveRequest(reqId, action) {
+            try {
+                // Update table via client
+                const { error } = await sb
+                    .from('course_status')
+                    .update({ status: action })
+                    .eq('id', reqId);
+
+                if (error) throw error;
+
+                showNotification(`Cleared vector status: ${action.toUpperCase()}`, action === 'approved' ? 'success' : 'error');
+                
+                // Re-sync and render
+                await fetchRequestsFromDb();
+                renderCatalog();
+                renderStatusTable();
+                renderApprovalQueue();
+                updateStats();
+            } catch (err) {
+                console.error("Failed executing decision update:", err);
+                showNotification("Database request refused. Double-check your RLS policies.", "error");
+            }
+        }
+
+        async function fileStudyPackRequest(courseId) {
+            try {
+                const randCode = "NEX-" + Math.floor(1000 + Math.random() * 9000);
+
+                const { error } = await sb
+                    .from('course_status')
+                    .insert({
+                        user_id: activeUserSession.user.id,
+                        course_id: courseId,
+                        status: 'pending',
+                        clearance_code: randCode,
+                        created_at: new Date().toISOString()
+                    });
+
+                if (error) throw error;
+
+                showNotification("Payload clearance dispatched to Supreme Command", "success");
+                closePacketModal();
+                
+                await fetchRequestsFromDb();
+                renderCatalog();
+                renderStatusTable();
+                renderApprovalQueue();
+                updateStats();
+
+                // Smoothly route to status deck
+                setTimeout(() => { switchDeck('status'); }, 500);
+
+            } catch (err) {
+                console.error("Submission failed:", err);
+                showNotification("Failed filing request trace. You may already have a pending registration.", "error");
+            }
+        }
+
+        function updateStats() {
+            const total = allRequests.length;
+            const pending = allRequests.filter(r => r.status === 'pending').length;
+            const approved = allRequests.filter(r => r.status === 'approved').length;
+
+            document.getElementById('stat-total-req').textContent = total;
+            document.getElementById('stat-pending-req').textContent = pending;
+            document.getElementById('stat-approved-req').textContent = approved;
+
+            const badge = document.getElementById('badge-pending-count');
+            if (pending > 0) {
+                badge.textContent = pending;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        function openRequestWindow(courseId) {
+            const course = allCourses.find(c => c.id === courseId);
+            if (!course) return;
+
+            const modal = document.getElementById('packet-modal');
+            const titleEl = document.getElementById('modal-title');
+            const descEl = document.getElementById('modal-desc');
+            const contentsEl = document.getElementById('modal-contents');
+            const actionBtn = document.getElementById('modal-action-btn');
+
+            titleEl.textContent = course.name;
+            descEl.textContent = course.description;
+
+            // Load files dynamic arrays
+            const files = course.files || [];
+            contentsEl.innerHTML = files.map(file => {
+                return `
+                    <li class="flex justify-between items-center bg-white/5 px-4 py-2 rounded-lg border border-white/5">
+                        <span class="truncate pr-4 text-white"><i data-lucide="file-text" class="inline w-3.5 h-3.5 mr-2 -mt-0.5 text-red-500"></i> ${file.split(' [')[0]}</span>
+                        <span class="text-[9px] text-zinc-500 font-bold">${file.includes('[') ? '[' + file.split(' [')[1] : ''}</span>
+                    </li>
+                `;
+            }).join('');
+
+            actionBtn.onclick = () => fileStudyPackRequest(course.id);
+
+            modal.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closePacketModal() {
+            document.getElementById('packet-modal').classList.add('hidden');
+        }
+
+        function downloadPackPayload(courseId) {
+            const course = allCourses.find(c => c.id === courseId);
+            if (!course) return;
+
+            showNotification(`Opening direct link... Extracting [${course.name}]`, "success");
+            setTimeout(() => {
+                showNotification(`Successfully extracted 3 files, total payload size ~45MB.`, "success");
+            }, 1000);
+        }
+
+        function switchDeck(deckId) {
+            document.getElementById('deck-catalog').classList.add('hidden');
+            document.getElementById('deck-status').classList.add('hidden');
+            document.getElementById('deck-approval').classList.add('hidden');
+
+            document.getElementById('nav-catalog').className = "px-4 py-2 rounded-lg font-black uppercase tracking-widest text-zinc-400 hover:text-white transition-all";
+            document.getElementById('nav-status').className = "px-4 py-2 rounded-lg font-black uppercase tracking-widest text-zinc-400 hover:text-white transition-all";
+            document.getElementById('nav-approval').className = "px-4 py-2 rounded-lg font-black uppercase tracking-widest text-zinc-400 hover:text-white transition-all relative";
+
+            if (deckId === 'catalog') {
+                document.getElementById('deck-catalog').classList.remove('hidden');
+                document.getElementById('nav-catalog').className = "px-4 py-2 rounded-lg font-black uppercase tracking-widest text-red-500 bg-white/5 transition-all";
+            } else if (deckId === 'status') {
+                document.getElementById('deck-status').classList.remove('hidden');
+                document.getElementById('nav-status').className = "px-4 py-2 rounded-lg font-black uppercase tracking-widest text-red-500 bg-white/5 transition-all";
+            } else if (deckId === 'approval') {
+                document.getElementById('deck-approval').classList.remove('hidden');
+                document.getElementById('nav-approval').className = "px-4 py-2 rounded-lg font-black uppercase tracking-widest text-red-500 bg-white/5 transition-all relative";
+            }
+        }
+
+        function showNotification(message, type = 'info') {
+            const zone = document.getElementById('notification-zone');
+            if (!zone) return;
+
+            const notif = document.createElement('div');
+            notif.className = "glass-card p-5 rounded-2xl border flex items-center gap-4 animate-slide-in pointer-events-auto shadow-2xl relative overflow-hidden transition-all duration-500";
+            
+            let colorClass = 'border-red-600/30';
+            if (type === 'success') colorClass = 'border-green-500/30';
+            else if (type === 'error') colorClass = 'border-red-600';
+
+            notif.classList.add(colorClass);
+
+            notif.innerHTML = `
+                <div class="absolute left-0 top-0 bottom-0 w-1 ${type === 'success' ? 'bg-green-500' : 'bg-red-600'}"></div>
+                <div class="flex-grow">
+                    <p class="text-xs text-white leading-relaxed font-light">${message}</p>
+                </div>
+            `;
+
+            zone.appendChild(notif);
+            lucide.createIcons();
+
+            setTimeout(() => {
+                notif.classList.add('opacity-0', 'translate-x-12');
+                notif.addEventListener('transitionend', () => notif.remove());
+            }, 4000);
+        }
+
+        const initScene = () => {
+            const container = document.getElementById('math-canvas');
+            if (!container) return;
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 100;
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+            const particles = new THREE.BufferGeometry();
+            const posArr = new Float32Array(1200 * 3);
+            for(let i=0; i<3600; i++) posArr[i] = (Math.random() - 0.5) * 450;
+            particles.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
+            const pSystem = new THREE.Points(particles, new THREE.PointsMaterial({ size: 0.8, color: 0xdc2626, transparent: true, opacity: 0.18 }));
+            scene.add(pSystem);
+            const animate = () => { 
+                requestAnimationFrame(animate); 
+                pSystem.rotation.y += 0.00018; 
+                pSystem.rotation.x += 0.00005; 
+                renderer.render(scene, camera); 
+            };
+            animate();
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        };
+
+        // Run verification loop on start
+        document.addEventListener('DOMContentLoaded', () => {
+            initScene();
+            checkSession();
+        });
+    </script>
+</body>
+</html>
