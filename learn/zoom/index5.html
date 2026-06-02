@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stream Terminal | Nexus Prime Security</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root { 
+            --accent: #ff3333;
+            --bg: #0a0a0b;
+            --card-bg: #111113;
+            --border: rgba(255, 255, 255, 0.06);
+        }
+        
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: var(--bg); 
+            color: #ececec; 
+            letter-spacing: -0.01em;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body.ready { opacity: 1; }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        .mesh-bg {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: 
+                radial-gradient(at 0% 0%, rgba(255, 51, 51, 0.03) 0, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(255, 51, 51, 0.02) 0, transparent 50%);
+            z-index: -1;
+        }
+
+        .glass-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+        }
+
+        .nav-blur {
+            backdrop-filter: blur(12px) saturate(180%);
+            background: rgba(10, 10, 11, 0.8);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+            height: 0;
+            overflow: hidden;
+            background: #000;
+        }
+
+        .video-container iframe {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            border: 0; opacity: 0; transition: opacity 1s ease;
+        }
+        .video-container iframe.visible { opacity: 1; }
+
+        .watermark {
+            position: absolute;
+            z-index: 30;
+            pointer-events: none;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: rgba(255, 51, 51, 0.15);
+            text-transform: lowercase;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background: #fff;
+            color: #000;
+            transition: all 0.2s ease;
+        }
+        .btn-primary:disabled {
+            background: rgba(255, 255, 255, 0.04);
+            color: rgba(255, 255, 255, 0.2);
+            border: 1px solid var(--border);
+        }
+
+        .telemetry-box {
+            background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 100%);
+            border: 1px solid var(--border);
+            padding: 1.25rem;
+            border-radius: 20px;
+        }
+
+        /* Critical Lockout Overlay */
+        #lockout-screen {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 99999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .glitch {
+            animation: glitch 1s linear infinite;
+        }
+
+        @keyframes glitch {
+            2%, 64% { transform: translate(2px,0) skew(0deg); }
+            4%, 60% { transform: translate(-2px,0) skew(0deg); }
+            62% { transform: translate(0,0) skew(5deg); }
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <!-- Global Page Preloader -->
+    <div id="global-preloader" class="fixed inset-0 bg-[#0a0a0b] z-[99999] flex flex-col items-center justify-center transition-all duration-700 ease-out">
+        <div class="relative flex flex-col items-center">
+            <!-- Spinner Shell -->
+            <div class="relative w-20 h-20 mb-6 flex items-center justify-center">
+                <div class="absolute inset-0 rounded-full border border-red-500/10"></div>
+                <div class="absolute inset-0 rounded-full border-t-2 border-red-500 animate-spin" style="animation-duration: 0.8s;"></div>
+                <i data-lucide="shield" class="w-8 h-8 text-red-500 animate-pulse"></i>
+            </div>
+            
+            <div class="text-center space-y-1.5">
+                <p class="mono text-[11px] text-white tracking-[0.25em] uppercase font-bold">NEXUS SECURE TERMINAL</p>
+                <div class="flex items-center justify-center gap-2">
+                    <span class="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-ping"></span>
+                    <p class="mono text-[10px] text-neutral-400 font-medium">Establishing handshakes & security handoffs...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lockout Message Container -->
+    <div id="lockout-screen" class="p-6">
+        <div class="p-8 glass-card border-red-900/50 max-w-md w-full relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-red-600 animate-pulse"></div>
+            
+            <div class="flex justify-center mb-6">
+                <div class="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
+                    <i data-lucide="shield-alert" class="w-8 h-8 text-red-500"></i>
+                </div>
+            </div>
+
+            <h1 class="mono text-red-500 font-bold text-xl mb-4 glitch tracking-tighter uppercase">Access Violation Detected</h1>
+            
+            <div class="text-neutral-400 text-sm mb-6 leading-relaxed space-y-3">
+                <p>Security Protocol <strong class="text-white">X-CORE-7</strong> has permanently flagged this session.</p>
+                <p>Unauthorized use of developer tools, script injection, or environment inspection was detected at the hardware level.</p>
+            </div>
+
+            <div class="bg-red-500/10 border border-red-500/20 p-5 rounded-xl mb-6 text-left">
+                <div class="flex justify-between items-start mb-2">
+                    <p class="mono text-[10px] text-red-400 uppercase tracking-widest">Account Status</p>
+                    <span class="bg-red-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded">RESTRICTED</span>
+                </div>
+                <p class="text-white font-bold text-lg">TEMPORARY SUSPENSION</p>
+                <p class="text-red-300/60 text-[10px] mt-1 italic">Duration: 168 Hours (7 Days)</p>
+            </div>
+
+            <div class="border-t border-white/5 pt-6">
+                <p id="ban-expiry" class="mono text-[10px] text-neutral-500 uppercase tracking-tighter"></p>
+                <p class="text-[9px] text-neutral-600 mt-2">All telemetry logs have been forwarded to Nexus Security.</p>
+            </div>
+            
+            <button onclick="window.location.href='/dashboard'" class="mt-8 text-neutral-500 hover:text-white text-[10px] mono uppercase transition-colors">
+                Exit Terminal
+            </button>
+        </div>
+    </div>
+
+    <div class="mesh-bg"></div>
+
+    <div id="main-terminal-content">
+        <!-- Navigation Bar -->
+        <nav class="fixed top-0 w-full z-50 px-6 py-4 nav-blur">
+            <div class="max-w-7xl mx-auto flex justify-between items-center">
+                <div class="flex items-center gap-4">
+                    <button onclick="window.location.href='/curriculum'" class="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/5 transition-colors">
+                        <i data-lucide="arrow-left" class="w-4 h-4 text-neutral-400"></i>
+                    </button>
+                    <div>
+                        <h1 id="lesson-title" class="text-xs font-bold tracking-tight uppercase text-neutral-400">Authenticating...</h1>
+                        <div class="flex items-center gap-2">
+                            <span id="info-status" class="mono text-[9px] text-yellow-500 font-bold tracking-widest uppercase">● Syncing Telemetry</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-6">
+                    <div id="timer-display" class="hidden text-right border-r border-white/10 pr-6">
+                        <p class="mono text-[8px] text-neutral-500 font-bold tracking-widest uppercase">Airtime Remaining</p>
+                        <p id="time-left" class="text-lg font-bold tracking-tighter tabular-nums text-white">--:--:--</p>
+                    </div>
+                    <button id="btn-complete" class="btn-primary px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-2" disabled>
+                        <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Complete
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Body -->
+        <main class="flex-1 pt-32 pb-20 px-6 max-w-7xl mx-auto w-full">
+            <!-- Telemetry Bar -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                <div class="telemetry-box">
+                    <p class="mono text-[9px] text-neutral-500 font-bold uppercase tracking-[0.2em] mb-1">Signal Hash</p>
+                    <p id="info-id" class="text-sm font-bold tracking-tight text-white">X-CORE-REDACTED</p>
+                </div>
+                <div class="telemetry-box">
+                    <p class="mono text-[9px] text-neutral-500 font-bold uppercase tracking-[0.2em] mb-1">Access Tier</p>
+                    <p id="info-limit" class="text-sm font-bold tracking-tight text-neutral-400">--</p>
+                </div>
+                <div class="telemetry-box">
+                    <p class="mono text-[9px] text-neutral-500 font-bold uppercase tracking-[0.2em] mb-1">Security Status</p>
+                    <p class="text-sm font-bold tracking-tight text-green-500 flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> STABLE_AES256
+                    </p>
+                </div>
+            </div>
+
+            <!-- Full-Width Interactive Recording Player Chassis -->
+            <div class="glass-card overflow-hidden border-white/5 shadow-2xl flex flex-col w-full mb-8">
+                
+                <!-- Deck Console Header -->
+                <div class="bg-neutral-900/40 border-b border-white/5 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <!-- Desktop styling indicator dots -->
+                        <div class="flex gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-red-500/80"></span>
+                            <span class="w-2.5 h-2.5 rounded-full bg-yellow-500/80"></span>
+                            <span class="w-2.5 h-2.5 rounded-full bg-green-500/80"></span>
+                        </div>
+                        <span class="text-neutral-700 font-bold mono text-xs select-none">/</span>
+                        <div class="flex flex-col">
+                            <p id="console-lesson-title" class="text-xs font-bold text-white tracking-wide uppercase">Initializing Player Stream...</p>
+                            <p class="text-[9px] text-neutral-500 tracking-tight flex items-center gap-1.5">
+                                <i data-lucide="video" class="w-3 h-3 text-neutral-500"></i> Active Recording Feed
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-2 bg-neutral-950/80 px-3.5 py-1.5 rounded-xl border border-white/5">
+                            <span id="console-status-dot" class="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse"></span>
+                            <span id="console-status-text" class="mono text-[9px] text-yellow-500 font-bold tracking-widest uppercase">DECRYPTING LINK</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Video Frame Layer -->
+                <div id="video-wrapper" class="video-container">
+                    <div id="preloader" class="preloader-overlay absolute inset-0 bg-neutral-950 flex flex-col items-center justify-center z-40">
+                        <div class="w-10 h-10 border-2 border-red-500/20 border-t-red-500 rounded-full animate-spin mb-4"></div>
+                        <p class="mono text-[9px] text-neutral-500 uppercase tracking-widest">Handshaking Server...</p>
+                    </div>
+                    <div id="moving-watermark" class="watermark"></div>
+                    <div id="iframe-holder"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://tsaoxjzvhxiggntibpui.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzYW94anp2aHhpZ2dudGlicHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDQ2OTAsImV4cCI6MjA5MTQyMDY5MH0.Q5Iu51O3NK4k2kcc_GoegnyAYIFIs2SUkQOV10qp2jI';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const lessonId = urlParams.get('id');
+
+        let currentUser = null;
+        let allowedSeconds = 0;
+        let watchedSeconds = 0;
+        let sessionTimer = null;
+        let watermarkData = { x: 10, y: 10, dx: 0.4, dy: 0.4 };
+
+        const SecurityManager = {
+            isBanned: false,
+
+            async executeBan(reason) {
+                if (this.isBanned || !currentUser) return;
+                this.isBanned = true;
+
+                const expiresAt = new Date();
+                expiresAt.setDate(expiresAt.getDate() + 7);
+
+                try {
+                    await sb.from('user_restrictions').insert({
+                        user_id: currentUser.id,
+                        restriction_type: '7_DAY_BAN',
+                        reason: reason,
+                        expires_at: expiresAt.toISOString()
+                    });
+                    await sb.auth.signOut();
+                } catch (e) {
+                    console.error("Critical Security Upload Failure");
+                }
+
+                this.showLockout(expiresAt);
+            },
+
+            showLockout(expiryDate) {
+                const screen = document.getElementById('lockout-screen');
+                const main = document.getElementById('main-terminal-content');
+                const expiryLabel = document.getElementById('ban-expiry');
+                const globalPreloader = document.getElementById('global-preloader');
+                
+                if (globalPreloader) globalPreloader.style.display = 'none';
+                if (main) main.style.display = 'none';
+                if (expiryLabel) expiryLabel.innerText = `Restoration Timestamp: ${expiryDate.toLocaleString()}`;
+                if (screen) screen.style.display = 'flex';
+                
+                document.body.style.overflow = 'hidden';
+                document.body.classList.add('ready');
+                lucide.createIcons();
+            },
+
+            init() {
+                document.addEventListener('contextmenu', e => e.preventDefault());
+                document.addEventListener('keydown', e => {
+                    const devToolsKeys = (
+                        e.keyCode === 123 || 
+                        (e.ctrlKey && e.shiftKey && [73, 74, 67].includes(e.keyCode)) || 
+                        (e.ctrlKey && e.keyCode === 85)
+                    );
+                    if (devToolsKeys) {
+                        e.preventDefault();
+                        this.executeBan('KEYBOARD_INJECTION_ATTEMPT');
+                    }
+                });
+
+                setInterval(() => {
+                    const startTime = performance.now();
+                    debugger;
+                    const endTime = performance.now();
+                    if (endTime - startTime > 100) {
+                        this.executeBan('DEBUGGER_ACTIVE');
+                    }
+                }, 1000);
+
+                window.addEventListener('resize', () => {
+                    if (window.outerWidth - window.innerWidth > 160 || window.outerHeight - window.innerHeight > 160) {
+                        this.executeBan('RESIZE_DETECTION');
+                    }
+                });
+            }
+        };
+
+        async function checkAuth() {
+            const { data: { session } } = await sb.auth.getSession();
+            if (!session) return window.location.href = 'login.html';
+            currentUser = session.user;
+
+            const { data: activeBan, error } = await sb.from('user_restrictions')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .gt('expires_at', new Date().toISOString())
+                .maybeSingle();
+
+            if (activeBan) {
+                SecurityManager.showLockout(new Date(activeBan.expires_at));
+                return;
+            }
+
+            document.getElementById('moving-watermark').innerText = currentUser.email;
+            document.body.classList.add('ready');
+            SecurityManager.init();
+            
+            await fetchLessonData();
+            await checkCompletionStatus();
+            startWatermark();
+            lucide.createIcons();
+
+            // Dismount the global page preloader
+            const globalPreloader = document.getElementById('global-preloader');
+            if (globalPreloader) {
+                globalPreloader.classList.add('opacity-0', 'pointer-events-none');
+                setTimeout(() => globalPreloader.remove(), 700);
+            }
+        }
+
+        async function fetchLessonData() {
+            if (!lessonId) return;
+            const { data: lesson } = await sb.from('lessons').select('*').eq('id', lessonId).single();
+            if (!lesson) return;
+
+            document.getElementById('lesson-title').innerText = lesson.title;
+            document.getElementById('console-lesson-title').innerText = lesson.title;
+            document.getElementById('info-id').innerText = `X-CORE-${lesson.order_index || '000'}`;
+            
+            const hours = parseInt(lesson.watchtime_hours) || 0;
+            const mins = parseInt(lesson.watchtime_minutes) || 0;
+            allowedSeconds = (hours * 3600) + (mins * 60);
+            document.getElementById('info-limit').innerText = `${hours}H ${mins}M ALLOCATED`;
+
+            const { data: sessionData } = await sb.from('watch_sessions').select('total_seconds_watched').eq('user_id', currentUser.id).eq('lesson_id', lessonId).maybeSingle();
+            if (sessionData) watchedSeconds = sessionData.total_seconds_watched;
+
+            if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) {
+                document.getElementById('preloader').innerHTML = `<p class="text-red-500 mono text-xs uppercase">Airtime Depleted</p>`;
+                document.getElementById('console-status-text').innerText = "AIRTIME DEPLETED";
+                document.getElementById('console-status-text').className = "mono text-[9px] text-red-500 font-bold tracking-widest uppercase";
+                document.getElementById('console-status-dot').className = "w-1.5 h-1.5 rounded-full bg-red-500";
+                return;
+            }
+
+            initStream(lesson.video_url);
+        }
+
+        function initStream(url) {
+            const holder = document.getElementById('iframe-holder');
+            const iframe = document.createElement('iframe');
+            iframe.src = url;
+            iframe.allow = "autoplay; fullscreen";
+            iframe.onload = () => {
+                document.getElementById('preloader').style.display = 'none';
+                iframe.classList.add('visible');
+                document.getElementById('timer-display').classList.remove('hidden');
+                
+                // Update terminal connect labels
+                document.getElementById('info-status').innerText = "● TERMINAL_CONNECTED";
+                document.getElementById('info-status').className = "mono text-[9px] text-green-500 font-bold tracking-widest uppercase";
+                
+                // Update console status block
+                document.getElementById('console-status-text').innerText = "STREAM SECURED";
+                document.getElementById('console-status-text').className = "mono text-[9px] text-green-500 font-bold tracking-widest uppercase";
+                document.getElementById('console-status-dot').className = "w-1.5 h-1.5 rounded-full bg-green-500";
+
+                startClock();
+            };
+            holder.appendChild(iframe);
+        }
+
+        function startClock() {
+            sessionTimer = setInterval(async () => {
+                watchedSeconds++;
+                updateTimerUI();
+                if (watchedSeconds % 15 === 0) {
+                    await sb.from('watch_sessions').upsert({ user_id: currentUser.id, lesson_id: lessonId, total_seconds_watched: watchedSeconds, last_watched_at: new Date().toISOString() });
+                }
+                if (allowedSeconds > 0 && watchedSeconds >= allowedSeconds) {
+                    location.reload();
+                }
+            }, 1000);
+        }
+
+        function updateTimerUI() {
+            const remaining = Math.max(0, allowedSeconds - watchedSeconds);
+            const h = Math.floor(remaining / 3600);
+            const m = Math.floor((remaining % 3600) / 60);
+            const s = remaining % 60;
+            document.getElementById('time-left').innerText = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+
+        function startWatermark() {
+            const el = document.getElementById('moving-watermark');
+            const wrapper = document.getElementById('video-wrapper');
+            function animate() {
+                const rect = wrapper.getBoundingClientRect();
+                const elRect = el.getBoundingClientRect();
+                watermarkData.x += watermarkData.dx;
+                watermarkData.y += watermarkData.dy;
+                if (watermarkData.x <= 0 || watermarkData.x + elRect.width >= rect.width) watermarkData.dx *= -1;
+                if (watermarkData.y <= 0 || watermarkData.y + elRect.height >= rect.height) watermarkData.dy *= -1;
+                el.style.left = watermarkData.x + 'px';
+                el.style.top = watermarkData.y + 'px';
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        async function checkCompletionStatus() {
+            const { data } = await sb.from('lesson_completions').select('*').eq('user_id', currentUser.id).eq('lesson_id', lessonId).maybeSingle();
+            if (data) {
+                const btn = document.getElementById('btn-complete');
+                btn.disabled = true;
+                btn.innerText = "COMPLETED";
+                btn.classList.add('text-green-500');
+            } else {
+                document.getElementById('btn-complete').disabled = false;
+            }
+        }
+
+        document.getElementById('btn-complete').onclick = async () => {
+            await sb.from('lesson_completions').insert({ user_id: currentUser.id, lesson_id: lessonId });
+            location.reload();
+        };
+
+        window.onload = checkAuth;
+    </script>
+</body>
+</html>
