@@ -208,7 +208,7 @@
                             </div>
                             <div class="flex justify-between py-1 border-b border-white/[0.02]">
                                 <span class="text-neutral-500">Authority Class</span>
-                                <span class="text-white mono">ADMINISTRATOR</span>
+                                <span id="session-authority" class="text-white mono">L-4 OPERATOR</span>
                             </div>
                             <div class="flex justify-between py-1">
                                 <span class="text-neutral-500">Active Terminal</span>
@@ -407,7 +407,6 @@
             // Compute dynamic unique Student ID using first 8 chars of Auth ID
             const derivedStudentId = `NX-2026-${currentUser.id.slice(0, 8).toUpperCase()}`;
             document.getElementById('student-id').textContent = derivedStudentId;
-            document.getElementById('student-authority').textContent = 'L-4 OPERATOR';
 
             // Display simple platform info
             const platformInfo = navigator.userAgent.toLowerCase();
@@ -420,10 +419,10 @@
             }
 
             try {
-                // Fetch student profiles database attributes
+                // Fetch student profiles database attributes including custom 'authority'
                 const { data: profile, error } = await sb
                     .from('profiles')
-                    .select('full_name, first_name, last_name, phone_number, national_id, stream, address, district, postal_code')
+                    .select('full_name, first_name, last_name, phone_number, national_id, stream, address, district, postal_code, authority')
                     .eq('id', currentUser.id)
                     .single();
 
@@ -447,6 +446,11 @@
                     document.getElementById('input-district').value = profile.district || '';
                     document.getElementById('input-postalcode').value = profile.postal_code || '';
 
+                    // Display authority dynamically from database column
+                    const activeAuthority = profile.authority || 'L-4 OPERATOR';
+                    document.getElementById('student-authority').textContent = activeAuthority;
+                    document.getElementById('session-authority').textContent = activeAuthority;
+
                     // Display academic specialization in holographic card
                     if (profile.stream) {
                         document.getElementById('student-stream').textContent = profile.stream;
@@ -455,11 +459,15 @@
                     }
                 } else {
                     document.getElementById('sidebar-name').textContent = currentUser.email.split('@')[0];
+                    document.getElementById('student-authority').textContent = 'L-4 OPERATOR';
+                    document.getElementById('session-authority').textContent = 'L-4 OPERATOR';
                 }
             } catch (err) {
                 console.error("Profile retrieval issue:", err);
                 showNotification("Could not load complete student details from directory. Placeholder fallback in place.", "error");
                 document.getElementById('sidebar-name').textContent = currentUser.email.split('@')[0];
+                document.getElementById('student-authority').textContent = 'L-4 OPERATOR';
+                document.getElementById('session-authority').textContent = 'L-4 OPERATOR';
             }
 
             lucide.createIcons();
