@@ -364,6 +364,7 @@
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let currentUser = null;
+        let activeStuId = null; // Memory container for generated/fetched 8-digit Student ID
 
         // Custom Premium Toast system
         function showNotification(message, type = 'success') {
@@ -435,16 +436,17 @@
             lucide.createIcons();
         }
 
+        // Helper to generate a unique random 8-digit Student ID
+        function generateRandom8Digit() {
+            return Math.floor(10000000 + Math.random() * 90000000).toString();
+        }
+
         async function init() {
             const { data: { session } } = await sb.auth.getSession();
             if (!session) return window.location.href = '/login';
             
             currentUser = session.user;
             document.getElementById('sidebar-email').textContent = currentUser.email;
-
-            // Compute dynamic unique Student ID using first 8 chars of Auth ID
-            const derivedStudentId = `NX-2026-${currentUser.id.slice(0, 8).toUpperCase()}`;
-            document.getElementById('student-id').textContent = derivedStudentId;
 
             // Display simple platform info
             const platformInfo = navigator.userAgent.toLowerCase();
@@ -457,10 +459,10 @@
             }
 
             try {
-                // Fetch student profiles attributes from profiles (full_name) and perde (the rest of the fields) concurrently
+                // Fetch student profiles attributes from profiles (full_name) and perde concurrently
                 const [profileRes, perdeRes] = await Promise.all([
                     sb.from('profiles').select('full_name').eq('id', currentUser.id).maybeSingle(),
-                    sb.from('perde').select('first_name, last_name, phone_number, national_id, stream, address, district, postal_code, authority').eq('id', currentUser.id).maybeSingle()
+                    sb.from('perde').select('first_name, last_name, phone_number, national_id, stream, address, district, postal_code, authority, stu_id').eq('id', currentUser.id).maybeSingle()
                 ]);
 
                 if (profileRes.error) throw profileRes.error;
@@ -485,6 +487,16 @@
                     document.getElementById('student-authority').textContent = activeAuthority;
                     document.getElementById('session-authority').textContent = activeAuthority;
 
+                    // Handle Student ID mapping
+                    if (perdeData.stu_id) {
+                        activeStuId = perdeData.stu_id;
+                        document.getElementById('student-id').textContent = `NX-2026-${activeStuId}`;
+                    } else {
+                        // Generate a temporary student ID to be submitted with the registry save
+                        activeStuId = generateRandom8Digit();
+                        document.getElementById('student-id').textContent = `NX-2026-${activeStuId} (PENDING)`;
+                    }
+
                     // Display academic specialization in holographic card
                     if (perdeData.stream) {
                         document.getElementById('student-stream').textContent = perdeData.stream;
@@ -495,6 +507,9 @@
                     // Lock registry if all required fields are fully filled inside the 'perde' table
                     checkAndLockProfile(perdeData);
                 } else {
+                    // First time user profile setup: Pre-generate a proposed student ID
+                    activeStuId = generateRandom8Digit();
+                    document.getElementById('student-id').textContent = `NX-2026-${activeStuId} (PENDING)`;
                     document.getElementById('student-authority').textContent = 'L-4 OPERATOR';
                     document.getElementById('session-authority').textContent = 'L-4 OPERATOR';
                 }
@@ -515,6 +530,10 @@
                 document.getElementById('sidebar-name').textContent = currentUser.email.split('@')[0];
                 document.getElementById('student-authority').textContent = 'L-4 OPERATOR';
                 document.getElementById('session-authority').textContent = 'L-4 OPERATOR';
+                if (!activeStuId) {
+                    activeStuId = generateRandom8Digit();
+                    document.getElementById('student-id').textContent = `NX-2026-${activeStuId} (PENDING)`;
+                }
             }
 
             lucide.createIcons();
@@ -542,6 +561,11 @@
             // Build full_name for database synchronicity with the 'profiles' table
             const full_name = `${first_name} ${last_name}`;
 
+            // Safety check: ensure activeStuId is present, generate if missing
+            if (!activeStuId) {
+                activeStuId = generateRandom8Digit();
+            }
+
             try {
                 // Perform upserts to both the 'perde' (identity details) and 'profiles' (aggregated name) tables
                 const [perdeUpdate, profilesUpdate] = await Promise.all([
@@ -555,6 +579,7 @@
                         address: address,
                         district: district,
                         postal_code: postal_code,
+                        stu_id: activeStuId, // Save the randomly generated student ID
                         updated_at: new Date().toISOString()
                     }),
                     sb.from('profiles').upsert({
@@ -568,6 +593,7 @@
                 if (profilesUpdate.error) throw profilesUpdate.error;
 
                 document.getElementById('sidebar-name').textContent = full_name;
+                document.getElementById('student-id').textContent = `NX-2026-${activeStuId}`;
                 
                 // Update badge stream detail dynamically
                 const streamBadge = document.getElementById('student-stream');
