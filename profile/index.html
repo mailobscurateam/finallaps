@@ -457,9 +457,9 @@
             }
 
             try {
-                // Fetch student profiles database attributes including custom 'authority'
+                // Fetch student perde database attributes including custom 'authority'
                 const { data: profile, error } = await sb
-                    .from('profiles')
+                    .from('perde')
                     .select('full_name, first_name, last_name, phone_number, national_id, stream, address, district, postal_code, authority')
                     .eq('id', currentUser.id)
                     .single();
@@ -539,7 +539,7 @@
             try {
                 // Perform upsert (insert or update student details)
                 const { error } = await sb
-                    .from('profiles')
+                    .from('perde')
                     .upsert({
                         id: currentUser.id,
                         full_name: full_name,
