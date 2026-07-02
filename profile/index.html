@@ -178,7 +178,7 @@
                         <div class="space-y-3.5 pt-4 border-t border-white/5">
                             <div>
                                 <span class="block text-[9px] font-bold uppercase tracking-widest text-neutral-600">Student ID</span>
-                                <span id="student-id" class="text-sm font-bold text-white mono tracking-wide">NX-L4-PENDING</span>
+                                <span id="student-id" class="text-sm font-bold text-white mono tracking-wide">NX-2026-LOCKED</span>
                             </div>
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
@@ -192,17 +192,32 @@
                             </div>
                         </div>
 
-                        <!-- Integrated Futuristic QR Code Display Area -->
-                        <div class="mt-5 pt-4 border-t border-white/5 flex items-center justify-between gap-4">
+                        <!-- Integrated Futuristic QR Code Display Area (Hidden by default until identity saved) -->
+                        <div id="qr-container" class="hidden mt-5 pt-4 border-t border-white/5 flex items-center justify-between gap-4">
                             <div class="flex flex-col">
                                 <span class="text-[9px] font-bold uppercase tracking-widest text-neutral-600 block">Operator Pass</span>
                                 <span class="text-[10px] text-neutral-400 mono mt-1 flex items-center gap-1.5">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                                     IDENTITY VERIFIED
                                 </span>
                             </div>
                             <div class="p-1.5 bg-neutral-950/80 border border-white/5 rounded-xl overflow-hidden flex items-center justify-center shadow-inner hover:border-red-500/30 transition-all duration-300">
                                 <canvas id="student-qr-code" class="w-16 h-16 opacity-90 hover:opacity-100 transition-opacity"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Locked QR Code Placeholder shown when Pending -->
+                        <div id="qr-placeholder" class="mt-5 pt-4 border-t border-white/5 flex items-center justify-between gap-4">
+                            <div class="flex flex-col">
+                                <span class="text-[9px] font-bold uppercase tracking-widest text-neutral-600 block">Operator Pass</span>
+                                <span class="text-[10px] text-red-500/80 mono mt-1 flex items-center gap-1.5">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>
+                                    REGISTRY REQUIRED
+                                </span>
+                            </div>
+                            <div class="w-16 h-16 bg-neutral-950 border border-dashed border-neutral-800 rounded-xl flex flex-col items-center justify-center text-neutral-600">
+                                <i data-lucide="lock" class="w-4 h-4"></i>
+                                <span class="text-[7px] font-bold mt-1 tracking-wider uppercase">LOCKED</span>
                             </div>
                         </div>
                     </div>
@@ -380,6 +395,25 @@
         let currentUser = null;
         let activeStuId = null; // Memory container for generated/fetched 8-digit Student ID
 
+        // UI helper to switch between unsaved (pending) state and verified (saved) state
+        function updateBadgeUI(isSaved, stuId) {
+            const qrContainer = document.getElementById('qr-container');
+            const qrPlaceholder = document.getElementById('qr-placeholder');
+            const studentIdEl = document.getElementById('student-id');
+
+            if (isSaved && stuId) {
+                if (qrContainer) qrContainer.classList.remove('hidden');
+                if (qrPlaceholder) qrPlaceholder.classList.add('hidden');
+                if (studentIdEl) studentIdEl.textContent = `NX-2026-${stuId}`;
+                renderStudentQR(stuId);
+            } else {
+                if (qrContainer) qrContainer.classList.add('hidden');
+                if (qrPlaceholder) qrPlaceholder.classList.remove('hidden');
+                if (studentIdEl) studentIdEl.textContent = 'NX-2026-LOCKED';
+            }
+            lucide.createIcons();
+        }
+
         // Custom Premium Toast system
         function showNotification(message, type = 'success') {
             const container = document.getElementById('toast-container');
@@ -504,13 +538,11 @@
                     // Handle Student ID mapping
                     if (perdeData.stu_id) {
                         activeStuId = perdeData.stu_id;
-                        document.getElementById('student-id').textContent = `NX-2026-${activeStuId}`;
-                        renderStudentQR(activeStuId); // Generating QR with precisely the active stu_id
+                        updateBadgeUI(true, activeStuId);
                     } else {
                         // Generate a temporary student ID to be submitted with the registry save
                         activeStuId = generateRandom8Digit();
-                        document.getElementById('student-id').textContent = `NX-2026-${activeStuId} (PENDING)`;
-                        renderStudentQR(activeStuId); // Generating dynamic QR code
+                        updateBadgeUI(false);
                     }
 
                     // Display academic specialization in holographic card
@@ -529,15 +561,16 @@
                     document.getElementById('sidebar-name').textContent = displayName;
 
                     // LOCK FORM IMMEDIATELY: Row already exists in 'perde' table
-                    disableProfileForm();
+                    if (perdeData.stu_id) {
+                        disableProfileForm();
+                    }
                 } else {
-                    // First time user profile setup: Pre-generate a proposed student ID
+                    // First time user profile setup: Pre-generate a proposed student ID, don't show yet
                     activeStuId = generateRandom8Digit();
-                    document.getElementById('student-id').textContent = `NX-2026-${activeStuId} (PENDING)`;
+                    updateBadgeUI(false);
                     document.getElementById('student-authority').textContent = 'L-4 OPERATOR';
                     document.getElementById('session-authority').textContent = 'L-4 OPERATOR';
                     document.getElementById('sidebar-name').textContent = currentUser.email.split('@')[0];
-                    renderStudentQR(activeStuId); // Generating dynamic QR code for new registration
                 }
 
             } catch (err) {
@@ -548,9 +581,8 @@
                 document.getElementById('session-authority').textContent = 'L-4 OPERATOR';
                 if (!activeStuId) {
                     activeStuId = generateRandom8Digit();
-                    document.getElementById('student-id').textContent = `NX-2026-${activeStuId} (PENDING)`;
                 }
-                renderStudentQR(activeStuId);
+                updateBadgeUI(false);
             }
 
             lucide.createIcons();
@@ -601,10 +633,9 @@
                 if (perdeUpdateError) throw perdeUpdateError;
 
                 document.getElementById('sidebar-name').textContent = full_name;
-                document.getElementById('student-id').textContent = `NX-2026-${activeStuId}`;
                 
-                // Re-render QR code instantly to ensure it represents the confirmed, saved ID
-                renderStudentQR(activeStuId);
+                // Unhide, generate, and transition QR code elements to the active state
+                updateBadgeUI(true, activeStuId);
 
                 // Update badge stream detail dynamically
                 const streamBadge = document.getElementById('student-stream');
