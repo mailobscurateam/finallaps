@@ -26,7 +26,6 @@
 
         .mono { font-family: 'JetBrains Mono', monospace; }
 
-        /* Custom Scrollbar */
         ::-webkit-scrollbar {
             width: 6px;
             height: 6px;
@@ -398,22 +397,6 @@
             }, 5000);
         }
 
-        // Utility to lock profile registry fields after they have been filled
-        function checkAndLockProfile(perdeData) {
-            if (perdeData && 
-                perdeData.first_name && perdeData.first_name.trim() !== '' &&
-                perdeData.last_name && perdeData.last_name.trim() !== '' &&
-                perdeData.phone_number && perdeData.phone_number.trim() !== '' &&
-                perdeData.national_id && perdeData.national_id.trim() !== '' &&
-                perdeData.stream && perdeData.stream.trim() !== '' &&
-                perdeData.address && perdeData.address.trim() !== '' &&
-                perdeData.district && perdeData.district.trim() !== '' &&
-                perdeData.postal_code && perdeData.postal_code.trim() !== '') {
-                
-                disableProfileForm();
-            }
-        }
-
         function disableProfileForm() {
             const inputs = [
                 'input-firstname', 'input-lastname', 'input-phone', 
@@ -501,23 +484,24 @@
                         document.getElementById('student-stream').classList.add('text-emerald-500');
                     }
 
-                    // Lock registry if all required fields are fully filled inside the 'perde' table
-                    checkAndLockProfile(perdeData);
+                    // Determine name display priority: combination of 'first_name last_name' from 'perde' table -> email prefix
+                    const fallbackEmailName = currentUser.email.split('@')[0];
+                    let displayName = fallbackEmailName;
+                    if (perdeData.first_name) {
+                        displayName = `${perdeData.first_name} ${perdeData.last_name || ''}`;
+                    }
+                    document.getElementById('sidebar-name').textContent = displayName;
+
+                    // LOCK FORM IMMEDIATELY: Row already exists in 'perde' table
+                    disableProfileForm();
                 } else {
                     // First time user profile setup: Pre-generate a proposed student ID
                     activeStuId = generateRandom8Digit();
                     document.getElementById('student-id').textContent = `NX-2026-${activeStuId} (PENDING)`;
                     document.getElementById('student-authority').textContent = 'L-4 OPERATOR';
                     document.getElementById('session-authority').textContent = 'L-4 OPERATOR';
+                    document.getElementById('sidebar-name').textContent = currentUser.email.split('@')[0];
                 }
-
-                // Determine name display priority: combination of 'first_name last_name' from 'perde' table -> email prefix
-                const fallbackEmailName = currentUser.email.split('@')[0];
-                let displayName = fallbackEmailName;
-                if (perdeData && perdeData.first_name) {
-                    displayName = `${perdeData.first_name} ${perdeData.last_name || ''}`;
-                }
-                document.getElementById('sidebar-name').textContent = displayName;
 
             } catch (err) {
                 console.error("Profile retrieval issue:", err);
