@@ -457,7 +457,7 @@
             }
 
             try {
-                // Fetch student perde database attributes including custom 'authority'
+                // Fetch student profiles database attributes from the 'perde' table
                 const { data: profile, error } = await sb
                     .from('perde')
                     .select('full_name, first_name, last_name, phone_number, national_id, stream, address, district, postal_code, authority')
@@ -537,7 +537,7 @@
             const full_name = `${first_name} ${last_name}`;
 
             try {
-                // Perform upsert (insert or update student details)
+                // Perform upsert (insert or update student details) in 'perde' table
                 const { error } = await sb
                     .from('perde')
                     .upsert({
