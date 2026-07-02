@@ -397,6 +397,44 @@
             }, 5000);
         }
 
+        // Utility to lock profile registry fields after they have been filled
+        function checkAndLockProfile(profile) {
+            if (profile && 
+                profile.first_name && profile.first_name.trim() !== '' &&
+                profile.last_name && profile.last_name.trim() !== '' &&
+                profile.phone_number && profile.phone_number.trim() !== '' &&
+                profile.national_id && profile.national_id.trim() !== '' &&
+                profile.stream && profile.stream.trim() !== '' &&
+                profile.address && profile.address.trim() !== '' &&
+                profile.district && profile.district.trim() !== '' &&
+                profile.postal_code && profile.postal_code.trim() !== '') {
+                
+                disableProfileForm();
+            }
+        }
+
+        function disableProfileForm() {
+            const inputs = [
+                'input-firstname', 'input-lastname', 'input-phone', 
+                'input-nic', 'input-stream', 'input-address', 
+                'input-district', 'input-postalcode'
+            ];
+            inputs.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.disabled = true;
+                    el.classList.add('opacity-60', 'cursor-not-allowed', 'bg-neutral-950/40');
+                }
+            });
+            const saveBtn = document.getElementById('save-profile-btn');
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = `<i data-lucide="lock" class="w-4 h-4 text-neutral-500 animate-pulse"></i> Profile Locked`;
+                saveBtn.className = "px-6 py-3.5 bg-neutral-900 border border-white/5 text-neutral-500 text-xs font-bold uppercase tracking-wider rounded-xl cursor-not-allowed flex items-center gap-2";
+            }
+            lucide.createIcons();
+        }
+
         async function init() {
             const { data: { session } } = await sb.auth.getSession();
             if (!session) return window.location.href = '/login';
@@ -457,6 +495,9 @@
                         document.getElementById('student-stream').classList.remove('text-red-500');
                         document.getElementById('student-stream').classList.add('text-emerald-500');
                     }
+
+                    // Lock registry if all values are fully registered
+                    checkAndLockProfile(profile);
                 } else {
                     document.getElementById('sidebar-name').textContent = currentUser.email.split('@')[0];
                     document.getElementById('student-authority').textContent = 'L-4 OPERATOR';
@@ -524,10 +565,12 @@
                 streamBadge.classList.add('text-emerald-500');
 
                 showNotification("Nexus Student registry updated successfully.");
+                
+                // Seal form inputs on successful initial registration
+                disableProfileForm();
             } catch (err) {
                 console.error("Save profile error:", err);
                 showNotification(err.message || "Failed to sync student file with directory registry.", "error");
-            } finally {
                 saveBtn.disabled = false;
                 saveBtn.innerHTML = originalHTML;
             }
