@@ -398,16 +398,16 @@
         }
 
         // Utility to lock profile registry fields after they have been filled
-        function checkAndLockProfile(profile) {
-            if (profile && 
-                profile.first_name && profile.first_name.trim() !== '' &&
-                profile.last_name && profile.last_name.trim() !== '' &&
-                profile.phone_number && profile.phone_number.trim() !== '' &&
-                profile.national_id && profile.national_id.trim() !== '' &&
-                profile.stream && profile.stream.trim() !== '' &&
-                profile.address && profile.address.trim() !== '' &&
-                profile.district && profile.district.trim() !== '' &&
-                profile.postal_code && profile.postal_code.trim() !== '') {
+        function checkAndLockProfile(perdeData) {
+            if (perdeData && 
+                perdeData.first_name && perdeData.first_name.trim() !== '' &&
+                perdeData.last_name && perdeData.last_name.trim() !== '' &&
+                perdeData.phone_number && perdeData.phone_number.trim() !== '' &&
+                perdeData.national_id && perdeData.national_id.trim() !== '' &&
+                perdeData.stream && perdeData.stream.trim() !== '' &&
+                perdeData.address && perdeData.address.trim() !== '' &&
+                perdeData.district && perdeData.district.trim() !== '' &&
+                perdeData.postal_code && perdeData.postal_code.trim() !== '') {
                 
                 disableProfileForm();
             }
@@ -457,52 +457,58 @@
             }
 
             try {
-                // Fetch student profiles database attributes from the 'perde' table
-                const { data: profile, error } = await sb
-                    .from('perde')
-                    .select('full_name, first_name, last_name, phone_number, national_id, stream, address, district, postal_code, authority')
-                    .eq('id', currentUser.id)
-                    .single();
+                // Fetch student profiles attributes from profiles (full_name) and perde (the rest of the fields) concurrently
+                const [profileRes, perdeRes] = await Promise.all([
+                    sb.from('profiles').select('full_name').eq('id', currentUser.id).maybeSingle(),
+                    sb.from('perde').select('first_name, last_name, phone_number, national_id, stream, address, district, postal_code, authority').eq('id', currentUser.id).maybeSingle()
+                ]);
 
-                if (error && error.code !== 'PGRST116') {
-                    throw error;
-                }
+                if (profileRes.error) throw profileRes.error;
+                if (perdeRes.error) throw perdeRes.error;
 
-                if (profile) {
-                    const fallbackName = currentUser.email.split('@')[0];
-                    const activeName = profile.full_name || (profile.first_name ? `${profile.first_name} ${profile.last_name || ''}` : fallbackName);
-                    
-                    document.getElementById('sidebar-name').textContent = activeName;
-                    
-                    // Set value elements
-                    document.getElementById('input-firstname').value = profile.first_name || '';
-                    document.getElementById('input-lastname').value = profile.last_name || '';
-                    document.getElementById('input-phone').value = profile.phone_number || '';
-                    document.getElementById('input-nic').value = profile.national_id || '';
-                    document.getElementById('input-stream').value = profile.stream || '';
-                    document.getElementById('input-address').value = profile.address || '';
-                    document.getElementById('input-district').value = profile.district || '';
-                    document.getElementById('input-postalcode').value = profile.postal_code || '';
+                const profileData = profileRes.data;
+                const perdeData = perdeRes.data;
 
-                    // Display authority dynamically from database column
-                    const activeAuthority = profile.authority || 'L-4 OPERATOR';
+                if (perdeData) {
+                    // Fill inputs with dynamic data from the 'perde' table
+                    document.getElementById('input-firstname').value = perdeData.first_name || '';
+                    document.getElementById('input-lastname').value = perdeData.last_name || '';
+                    document.getElementById('input-phone').value = perdeData.phone_number || '';
+                    document.getElementById('input-nic').value = perdeData.national_id || '';
+                    document.getElementById('input-stream').value = perdeData.stream || '';
+                    document.getElementById('input-address').value = perdeData.address || '';
+                    document.getElementById('input-district').value = perdeData.district || '';
+                    document.getElementById('input-postalcode').value = perdeData.postal_code || '';
+
+                    // Display authority dynamically from database column inside 'perde' table
+                    const activeAuthority = perdeData.authority || 'L-4 OPERATOR';
                     document.getElementById('student-authority').textContent = activeAuthority;
                     document.getElementById('session-authority').textContent = activeAuthority;
 
                     // Display academic specialization in holographic card
-                    if (profile.stream) {
-                        document.getElementById('student-stream').textContent = profile.stream;
+                    if (perdeData.stream) {
+                        document.getElementById('student-stream').textContent = perdeData.stream;
                         document.getElementById('student-stream').classList.remove('text-red-500');
                         document.getElementById('student-stream').classList.add('text-emerald-500');
                     }
 
-                    // Lock registry if all values are fully registered
-                    checkAndLockProfile(profile);
+                    // Lock registry if all required fields are fully filled inside the 'perde' table
+                    checkAndLockProfile(perdeData);
                 } else {
-                    document.getElementById('sidebar-name').textContent = currentUser.email.split('@')[0];
                     document.getElementById('student-authority').textContent = 'L-4 OPERATOR';
                     document.getElementById('session-authority').textContent = 'L-4 OPERATOR';
                 }
+
+                // Determine name display priority: full_name from 'profiles' table -> combination of 'first_name last_name' from 'perde' table -> email prefix
+                const fallbackEmailName = currentUser.email.split('@')[0];
+                let displayName = fallbackEmailName;
+                if (profileData && profileData.full_name) {
+                    displayName = profileData.full_name;
+                } else if (perdeData && perdeData.first_name) {
+                    displayName = `${perdeData.first_name} ${perdeData.last_name || ''}`;
+                }
+                document.getElementById('sidebar-name').textContent = displayName;
+
             } catch (err) {
                 console.error("Profile retrieval issue:", err);
                 showNotification("Could not load complete student details from directory. Placeholder fallback in place.", "error");
@@ -533,16 +539,14 @@
             const district = document.getElementById('input-district').value.trim();
             const postal_code = document.getElementById('input-postalcode').value.trim();
             
-            // Build full_name for reverse compatibility with the global dashboard
+            // Build full_name for database synchronicity with the 'profiles' table
             const full_name = `${first_name} ${last_name}`;
 
             try {
-                // Perform upsert (insert or update student details) in 'perde' table
-                const { error } = await sb
-                    .from('perde')
-                    .upsert({
+                // Perform upserts to both the 'perde' (identity details) and 'profiles' (aggregated name) tables
+                const [perdeUpdate, profilesUpdate] = await Promise.all([
+                    sb.from('perde').upsert({
                         id: currentUser.id,
-                        full_name: full_name,
                         first_name: first_name,
                         last_name: last_name,
                         phone_number: phone_number,
@@ -552,9 +556,16 @@
                         district: district,
                         postal_code: postal_code,
                         updated_at: new Date().toISOString()
-                    });
+                    }),
+                    sb.from('profiles').upsert({
+                        id: currentUser.id,
+                        full_name: full_name,
+                        updated_at: new Date().toISOString()
+                    })
+                ]);
 
-                if (error) throw error;
+                if (perdeUpdate.error) throw perdeUpdate.error;
+                if (profilesUpdate.error) throw profilesUpdate.error;
 
                 document.getElementById('sidebar-name').textContent = full_name;
                 
