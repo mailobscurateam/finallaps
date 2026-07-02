@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registration Confirmed - July Cohort</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for premium typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: linear-gradient(180deg, #020806 0%, #05140f 50%, #020705 100%);
+        }
+
+        /* Ambient glowing animations */
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 15px rgba(16, 185, 129, 0.2); }
+            50% { box-shadow: 0 0 30px rgba(16, 185, 129, 0.4); }
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+        }
+
+        @keyframes shootingStar {
+            0% {
+                transform: translateX(0) translateY(0) rotate(-35deg) scale(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+                transform: translateX(-100px) translateY(70px) rotate(-35deg) scale(1);
+            }
+            100% {
+                transform: translateX(-400px) translateY(280px) rotate(-35deg) scale(0);
+                opacity: 0;
+            }
+        }
+
+        @keyframes starTwinkle {
+            0%, 100% { opacity: 0.3; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        .animate-pulse-glow {
+            animation: pulseGlow 3s ease-in-out infinite;
+        }
+
+        .animate-float-moon {
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .shooting-star {
+            position: absolute;
+            width: 120px;
+            height: 2px;
+            background: linear-gradient(90deg, rgba(52, 211, 153, 1) 0%, rgba(52, 211, 153, 0) 100%);
+            animation: shootingStar 8s linear infinite;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        /* Glassmorphism utility */
+        .glass-card {
+            background: rgba(8, 24, 18, 0.65);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(52, 211, 153, 0.15);
+        }
+
+        .star {
+            position: absolute;
+            background-color: #fff;
+            border-radius: 50%;
+            animation: starTwinkle 3s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="text-slate-100 min-h-screen flex flex-col justify-between items-center p-4 md:p-8 relative overflow-hidden">
+
+    <!-- Ambient Stars & Shooting Stars -->
+    <div class="absolute inset-0 w-full h-full pointer-events-none z-0" id="stars-container">
+        <!-- Javascript will dynamically populate authentic star layout inspired by image_60e734.png -->
+        <div class="shooting-star top-12 right-[20%]" style="animation-delay: 1s;"></div>
+        <div class="shooting-star top-1/3 right-[10%]" style="animation-delay: 4.5s;"></div>
+        <div class="shooting-star top-10 right-1/2" style="animation-delay: 11s;"></div>
+    </div>
+
+    <!-- Glowing Moon in Top Right with a green minty aura matching the aesthetic -->
+    <div class="absolute top-[8%] right-[10%] md:right-[15%] w-24 h-24 md:w-32 md:h-32 rounded-full bg-[#f4fff9] shadow-[0_0_60px_20px_rgba(52,211,153,0.18)] pointer-events-none z-10 flex items-center justify-center animate-float-moon">
+        <!-- Moon texture patterns matching image_60e734.png -->
+        <div class="absolute inset-0 rounded-full opacity-[0.08] bg-emerald-900 mix-blend-multiply"></div>
+        <div class="w-6 h-6 rounded-full bg-emerald-950/5 absolute top-4 left-6"></div>
+        <div class="w-4 h-4 rounded-full bg-emerald-950/5 absolute top-12 left-4"></div>
+        <div class="w-5 h-5 rounded-full bg-emerald-950/5 absolute top-8 right-6"></div>
+    </div>
+
+    <!-- Main Container to push layout properly -->
+    <div class="w-full flex-grow flex items-center justify-center z-20 py-10">
+
+        <!-- Central Success Card closely referencing the style, typography, and badges of image_60e734.png -->
+        <main class="w-full max-w-lg glass-card rounded-[28px] p-6 md:p-10 text-center transition-all duration-300 hover:border-emerald-400/30 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+            
+            <!-- Checkmark Header with Greenish Aura Ring -->
+            <div class="flex flex-col items-center mb-6">
+                <div class="w-16 h-16 rounded-full border border-emerald-500/30 flex items-center justify-center bg-emerald-950/30 mb-5 relative shadow-[0_0_20px_rgba(16,185,129,0.15)] animate-pulse-glow">
+                    <!-- Glowing Outer Ring Ripple -->
+                    <span class="absolute inline-flex h-full w-full rounded-full bg-emerald-400/10 opacity-70 animate-ping"></span>
+                    
+                    <svg class="w-7 h-7 text-emerald-400" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                </div>
+                
+                <!-- Pill Registration Confirmed Badge -->
+                <div class="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-950/50 border border-emerald-500/30 text-emerald-400 text-xs font-semibold tracking-wide uppercase mb-4">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    Registration Confirmed
+                </div>
+
+                <!-- Headline modeled perfectly from image_60e734.png for month July -->
+                <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight text-white leading-tight">
+                    You Successfully <span class="text-emerald-400">Enrolled</span> in <br class="hidden sm:block">Month <span class="text-emerald-400">July</span>.
+                </h1>
+                
+                <p class="text-slate-400 text-xs md:text-sm mt-3 max-w-sm">
+                    Your educational journey begins this summer.
+                </p>
+            </div>
+
+            <!-- Dropdown Details Panel (Smooth expander for summary information) -->
+            <div class="mt-6 border-t border-emerald-500/10 pt-6 text-left">
+                <button onclick="toggleDetails()" class="w-full flex items-center justify-between text-xs font-semibold text-emerald-400/90 tracking-widest uppercase hover:text-emerald-300 transition duration-150">
+                    <span>Show Details Summary</span>
+                    <svg id="arrow-icon" class="w-4 h-4 transform transition-transform duration-300" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </button>
+                
+                <div id="details-panel" class="max-h-0 overflow-hidden transition-all duration-300 ease-in-out">
+                    <div class="grid grid-cols-1 gap-3 py-4 text-xs md:text-sm text-slate-300 border-b border-emerald-500/10">
+                        <div class="flex justify-between items-center">
+                            <span class="text-slate-500">Program</span>
+                            <span class="font-medium text-slate-200">Interactive Graphics & Design</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-slate-500">Student ID</span>
+                            <span class="font-medium text-slate-200 font-mono">#JUL-2026-0814</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-slate-500">Term Begins</span>
+                            <span class="font-medium text-slate-200">Monday, July 13, 2026</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-slate-500">Access Tier</span>
+                            <span class="inline-flex items-center gap-1 font-medium text-emerald-400">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Fully Activated
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Informational Next Steps list -->
+            <div class="mt-6 text-left text-xs text-slate-400 space-y-2.5">
+                <p class="font-semibold text-slate-300 text-xs">What's your next move?</p>
+                <div class="flex items-start gap-2.5">
+                    <span class="w-4 h-4 rounded-full bg-emerald-950/80 border border-emerald-500/20 text-[10px] flex items-center justify-center font-bold text-emerald-400 shrink-0 mt-0.5">1</span>
+                    <span>An invitation to the workspace hub is sent to your registered email address.</span>
+                </div>
+                <div class="flex items-start gap-2.5">
+                    <span class="w-4 h-4 rounded-full bg-emerald-950/80 border border-emerald-500/20 text-[10px] flex items-center justify-center font-bold text-emerald-400 shrink-0 mt-0.5">2</span>
+                    <span>Setup your profile credentials and choose your elective sessions.</span>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Pine Tree Silhouette Layer matching the layout of image_60e734.png -->
+    <div class="absolute bottom-0 left-0 w-full overflow-hidden pointer-events-none z-10 select-none">
+        <svg class="w-full h-24 md:h-36 min-w-[1200px] transform translate-y-1 fill-[#010604] stroke-[#05110d]/50 stroke-[0.5px]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 180" preserveAspectRatio="none">
+            <!-- First deeper/lighter tree layer -->
+            <path opacity="0.45" d="M0,180 L0,140 L25,100 L50,140 L40,140 L70,80 L100,140 L90,140 L130,50 L170,140 L160,140 L200,60 L240,140 L230,140 L280,40 L330,140 L320,140 L360,70 L400,140 L390,140 L440,30 L490,140 L480,140 L520,70 L560,140 L550,140 L600,40 L650,140 L640,140 L680,60 L720,140 L710,140 L760,30 L810,140 L800,140 L840,70 L880,140 L870,140 L920,40 L970,140 L960,140 L1000,60 L1040,140 L1030,140 L1080,30 L1130,140 L1120,140 L1160,70 L1200,140 L1190,140 L1240,40 L1290,140 L1280,140 L1320,60 L1360,140 L1350,140 L1400,30 L1440,140 L1440,180 Z"></path>
+            <!-- Foreground primary forest path -->
+            <path d="M0,180 L0,150 L20,110 L40,150 L35,150 L60,95 L85,150 L80,150 L115,70 L150,150 L145,150 L180,80 L215,150 L210,150 L250,55 L290,150 L285,150 L320,90 L355,150 L350,150 L390,45 L430,150 L425,150 L460,85 L495,150 L490,150 L530,55 L570,150 L565,150 L600,90 L635,150 L630,150 L670,45 L710,150 L705,150 L740,85 L775,150 L770,150 L810,55 L850,150 L845,150 L880,90 L915,150 L910,150 L950,45 L990,150 L985,150 L1020,85 L1055,150 L1050,150 L1090,55 L1130,150 L1125,150 L1160,90 L1195,150 L1190,150 L1230,45 L1270,150 L1265,150 L1300,85 L1335,150 L1330,150 L1370,55 L1410,150 L1405,150 L1440,100 L1440,180 Z"></path>
+        </svg>
+    </div>
+
+    <!-- Interactive Logic & Generators -->
+    <script>
+        // Generate Starry Night sky programmatically
+        function buildStarrySky() {
+            const container = document.getElementById('stars-container');
+            const totalStars = window.innerWidth < 768 ? 60 : 130;
+            
+            for (let i = 0; i < totalStars; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                
+                // Random size to build deep perspective
+                const size = Math.random() > 0.85 ? (Math.random() * 2 + 1) : Math.random() * 1.5;
+                star.style.width = `${size}px`;
+                star.style.height = `${size}px`;
+                
+                // Position stars across coordinates
+                star.style.left = `${Math.random() * 100}%`;
+                star.style.top = `${Math.random() * 75}%`; // Stay above the forest
+                
+                // Twinkling offset
+                star.style.animationDelay = `${Math.random() * 4}s`;
+                star.style.animationDuration = `${2 + Math.random() * 4}s`;
+                
+                container.appendChild(star);
+            }
+        }
+
+        // Details drawer toggling
+        function toggleDetails() {
+            const panel = document.getElementById('details-panel');
+            const arrow = document.getElementById('arrow-icon');
+            
+            if (panel.style.maxHeight === '0px' || !panel.style.maxHeight) {
+                panel.style.maxHeight = '200px';
+                arrow.style.transform = 'rotate(180deg)';
+            } else {
+                panel.style.maxHeight = '0px';
+                arrow.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        // Initial setup
+        window.onload = function() {
+            buildStarrySky();
+        };
+
+        // Redraw stars on size changes to maintain spacing integrity
+        window.onresize = function() {
+            const container = document.getElementById('stars-container');
+            // Remove old stars to rebuild
+            const starElements = container.getElementsByClassName('star');
+            while(starElements.length > 0){
+                starElements[0].parentNode.removeChild(starElements[0]);
+            }
+            buildStarrySky();
+        };
+    </script>
+</body>
+</html>
