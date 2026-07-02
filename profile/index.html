@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght=300;400;500;600;700;800&family=JetBrains+Mono:wght=400;500&display=swap" rel="stylesheet">
     <style>
         :root { 
@@ -188,6 +189,20 @@
                                     <span class="block text-[9px] font-bold uppercase tracking-widest text-neutral-600">Specialization</span>
                                     <span id="student-stream" class="text-xs font-bold text-red-500 uppercase truncate block">UNASSIGNED</span>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- Integrated Futuristic QR Code Display Area -->
+                        <div class="mt-5 pt-4 border-t border-white/5 flex items-center justify-between gap-4">
+                            <div class="flex flex-col">
+                                <span class="text-[9px] font-bold uppercase tracking-widest text-neutral-600 block">Operator Pass</span>
+                                <span class="text-[10px] text-neutral-400 mono mt-1 flex items-center gap-1.5">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>
+                                    IDENTITY VERIFIED
+                                </span>
+                            </div>
+                            <div class="p-1.5 bg-neutral-950/80 border border-white/5 rounded-xl overflow-hidden flex items-center justify-center shadow-inner hover:border-red-500/30 transition-all duration-300">
+                                <canvas id="student-qr-code" class="w-16 h-16 opacity-90 hover:opacity-100 transition-opacity"></canvas>
                             </div>
                         </div>
                     </div>
@@ -397,6 +412,25 @@
             }, 5000);
         }
 
+        function renderStudentQR(value) {
+            const canvas = document.getElementById('student-qr-code');
+            if (!canvas) return;
+
+            try {
+                // Instantiates QRious dynamic rendering
+                new QRious({
+                    element: canvas,
+                    value: value || 'NX-PENDING',
+                    size: 140,
+                    background: '#0a0a0c', // Dark canvas background
+                    foreground: '#ff3333', // Cyber red foreground pixels matching layout accent color
+                    level: 'H'
+                });
+            } catch (err) {
+                console.error("QR Code rendering failed:", err);
+            }
+        }
+
         function disableProfileForm() {
             const inputs = [
                 'input-firstname', 'input-lastname', 'input-phone', 
@@ -471,10 +505,12 @@
                     if (perdeData.stu_id) {
                         activeStuId = perdeData.stu_id;
                         document.getElementById('student-id').textContent = `NX-2026-${activeStuId}`;
+                        renderStudentQR(activeStuId); // Generating QR with precisely the active stu_id
                     } else {
                         // Generate a temporary student ID to be submitted with the registry save
                         activeStuId = generateRandom8Digit();
                         document.getElementById('student-id').textContent = `NX-2026-${activeStuId} (PENDING)`;
+                        renderStudentQR(activeStuId); // Generating dynamic QR code
                     }
 
                     // Display academic specialization in holographic card
@@ -501,6 +537,7 @@
                     document.getElementById('student-authority').textContent = 'L-4 OPERATOR';
                     document.getElementById('session-authority').textContent = 'L-4 OPERATOR';
                     document.getElementById('sidebar-name').textContent = currentUser.email.split('@')[0];
+                    renderStudentQR(activeStuId); // Generating dynamic QR code for new registration
                 }
 
             } catch (err) {
@@ -513,12 +550,12 @@
                     activeStuId = generateRandom8Digit();
                     document.getElementById('student-id').textContent = `NX-2026-${activeStuId} (PENDING)`;
                 }
+                renderStudentQR(activeStuId);
             }
 
             lucide.createIcons();
         }
 
-        // Profile Submit logic
         document.getElementById('profile-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const saveBtn = document.getElementById('save-profile-btn');
@@ -566,6 +603,9 @@
                 document.getElementById('sidebar-name').textContent = full_name;
                 document.getElementById('student-id').textContent = `NX-2026-${activeStuId}`;
                 
+                // Re-render QR code instantly to ensure it represents the confirmed, saved ID
+                renderStudentQR(activeStuId);
+
                 // Update badge stream detail dynamically
                 const streamBadge = document.getElementById('student-stream');
                 streamBadge.textContent = stream;
