@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile Settings | Nexus Prime</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght=300;400;500;600;700;800&family=JetBrains+Mono:wght=400;500&display=swap" rel="stylesheet">
+    <style>
+        :root { 
+            --accent: #ff3333;
+            --bg: #060608;
+            --card-bg: #0d0d10;
+            --border: rgba(255, 255, 255, 0.05);
+            --accent-glow: rgba(255, 51, 51, 0.15);
+        }
+        
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: var(--bg); 
+            color: #eeeeee; 
+            letter-spacing: -0.01em;
+        }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0a0a0c;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #222227;
+            border-radius: 99px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent);
+        }
+
+        .mesh-bg {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: 
+                radial-gradient(at 0% 0%, rgba(255, 51, 51, 0.04) 0, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(255, 51, 51, 0.02) 0, transparent 50%);
+            z-index: -1;
+        }
+
+        .glass-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .glass-card:hover {
+            border-color: rgba(255, 51, 51, 0.2);
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.8), 0 0 20px -5px var(--accent-glow);
+        }
+
+        /* Input styling */
+        .input-field {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            transition: all 0.3s ease;
+        }
+        .input-field:focus {
+            border-color: var(--accent);
+            background: rgba(255, 51, 51, 0.02);
+            box-shadow: 0 0 12px rgba(255, 51, 51, 0.1);
+            outline: none;
+        }
+
+        .btn-primary {
+            background: #ffffff;
+            color: #000000;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .btn-primary:hover {
+            background: var(--accent);
+            color: #ffffff;
+            transform: translateY(-1px);
+            box-shadow: 0 10px 20px -8px rgba(255, 51, 51, 0.5);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.03);
+            color: #ffffff;
+            border: 1px solid var(--border);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        @keyframes slideInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slide-up {
+            animation: slideInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between overflow-x-hidden">
+    <div class="mesh-bg"></div>
+
+    <!-- Minimal Navbar -->
+    <nav class="fixed top-0 w-full z-50 px-6 py-4.5 backdrop-blur-md bg-black/60 border-b border-white/5">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3 select-none">
+                <div class="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-lg shadow-white/5">
+                    <i data-lucide="zap" class="w-4 h-4 text-black fill-black"></i>
+                </div>
+                <span class="font-extrabold tracking-tight text-sm">NEXUS<span class="text-neutral-500 font-medium">PRIME</span></span>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <a href="/dashboard" class="btn-secondary px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                    <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+                    Dashboard
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Content container -->
+    <main class="flex-grow pt-28 pb-20 px-6 max-w-6xl mx-auto w-full">
+        <div class="space-y-8 animate-slide-up">
+            <!-- Header section -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h1 class="text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
+                        <i data-lucide="user-cog" class="text-red-500 w-8 h-8"></i>
+                        Profile Settings
+                    </h1>
+                    <p class="text-neutral-500 text-sm mt-1">Configure your operator identities, location credentials, educational stream and access keys.</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <!-- Sidebar card / Info panel -->
+                <div class="lg:col-span-4 space-y-6">
+                    <!-- Futuristic Student Badge ID -->
+                    <div class="glass-card p-6 relative overflow-hidden border-neutral-800 bg-gradient-to-b from-neutral-900 to-black">
+                        <div class="absolute -top-10 -right-10 w-28 h-28 bg-red-500/10 rounded-full blur-2xl"></div>
+                        
+                        <div class="flex justify-between items-start mb-6">
+                            <span class="text-[8px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded bg-red-500/10 text-red-500 border border-red-500/20">STUDENT CARD</span>
+                            <div class="flex items-center gap-1">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <span class="text-[9px] mono text-neutral-500 uppercase">SYS SECURE</span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-4 mb-6">
+                            <div class="relative group">
+                                <div class="w-16 h-16 rounded-2xl bg-neutral-950 border border-white/5 flex items-center justify-center overflow-hidden transition-all group-hover:border-red-500/30">
+                                    <i data-lucide="user" class="w-8 h-8 text-neutral-500"></i>
+                                </div>
+                            </div>
+
+                            <div class="min-w-0 flex-1">
+                                <h3 id="sidebar-name" class="font-extrabold text-base text-white truncate">...</h3>
+                                <p id="sidebar-email" class="text-xs text-neutral-500 truncate mt-0.5">...</p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3.5 pt-4 border-t border-white/5">
+                            <div>
+                                <span class="block text-[9px] font-bold uppercase tracking-widest text-neutral-600">Student ID</span>
+                                <span id="student-id" class="text-sm font-bold text-white mono tracking-wide">NX-L4-PENDING</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <span class="block text-[9px] font-bold uppercase tracking-widest text-neutral-600">Authority</span>
+                                    <span id="student-authority" class="text-xs font-bold text-neutral-300 mono">L-4 OPERATOR</span>
+                                </div>
+                                <div>
+                                    <span class="block text-[9px] font-bold uppercase tracking-widest text-neutral-600">Specialization</span>
+                                    <span id="student-stream" class="text-xs font-bold text-red-500 uppercase truncate block">UNASSIGNED</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Integrated Futuristic QR Code Display Area -->
+                        <div class="mt-5 pt-4 border-t border-white/5 flex items-center justify-between gap-4">
+                            <div class="flex flex-col">
+                                <span class="text-[9px] font-bold uppercase tracking-widest text-neutral-600 block">Operator Pass</span>
+                                <span class="text-[10px] text-neutral-400 mono mt-1 flex items-center gap-1.5">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>
+                                    IDENTITY VERIFIED
+                                </span>
+                            </div>
+                            <div class="p-1.5 bg-neutral-950/80 border border-white/5 rounded-xl overflow-hidden flex items-center justify-center shadow-inner hover:border-red-500/30 transition-all duration-300">
+                                <canvas id="student-qr-code" class="w-16 h-16 opacity-90 hover:opacity-100 transition-opacity"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-card p-6 space-y-4">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-2">
+                            <i data-lucide="activity" class="w-3.5 h-3.5 text-neutral-500"></i>
+                            System Session Info
+                        </h4>
+                        <div class="space-y-2 text-xs">
+                            <div class="flex justify-between py-1 border-b border-white/[0.02]">
+                                <span class="text-neutral-500">Node Status</span>
+                                <span class="text-emerald-500 font-bold flex items-center gap-1.5">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                    CONNECTED
+                                </span>
+                            </div>
+                            <div class="flex justify-between py-1 border-b border-white/[0.02]">
+                                <span class="text-neutral-500">Authority Class</span>
+                                <span id="session-authority" class="text-white mono">L-4 OPERATOR</span>
+                            </div>
+                            <div class="flex justify-between py-1">
+                                <span class="text-neutral-500">Active Terminal</span>
+                                <span id="current-terminal" class="text-neutral-400 mono">DESKTOP-H4</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Editor Area -->
+                <div class="lg:col-span-8 space-y-6">
+                    <!-- General Settings -->
+                    <div class="glass-card p-8">
+                        <h3 class="text-lg font-bold tracking-tight mb-6 text-white flex items-center gap-2">
+                            <i data-lucide="fingerprint" class="w-5 h-5 text-red-500"></i>
+                            General Identity & Student Registry
+                        </h3>
+
+                        <form id="profile-form" class="space-y-6">
+                            <!-- Row 1: First Name & Last Name -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                <div>
+                                    <label class="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">First Name</label>
+                                    <div class="relative">
+                                        <i data-lucide="user" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500"></i>
+                                        <input id="input-firstname" type="text" placeholder="John" required class="w-full pl-11 pr-4 py-3 bg-neutral-900/60 border border-white/5 rounded-xl text-sm text-white focus:outline-none focus:border-red-500/50 transition-all">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">Last Name</label>
+                                    <div class="relative">
+                                        <i data-lucide="user" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500"></i>
+                                        <input id="input-lastname" type="text" placeholder="Doe" required class="w-full pl-11 pr-4 py-3 bg-neutral-900/60 border border-white/5 rounded-xl text-sm text-white focus:outline-none focus:border-red-500/50 transition-all">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Row 2: Phone & National ID -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                <div>
+                                    <label class="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">Phone Number</label>
+                                    <div class="relative">
+                                        <i data-lucide="phone" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500"></i>
+                                        <input id="input-phone" type="tel" placeholder="+94 77 123 4567" required class="w-full pl-11 pr-4 py-3 bg-neutral-900/60 border border-white/5 rounded-xl text-sm text-white focus:outline-none focus:border-red-500/50 transition-all">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">National ID (NIC)</label>
+                                    <div class="relative">
+                                        <i data-lucide="credit-card" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500"></i>
+                                        <input id="input-nic" type="text" placeholder="200012345678 or 991234567V" required class="w-full pl-11 pr-4 py-3 bg-neutral-900/60 border border-white/5 rounded-xl text-sm text-white focus:outline-none focus:border-red-500/50 transition-all">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Row 3: Educational Stream -->
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">Academic Stream</label>
+                                <div class="relative">
+                                    <i data-lucide="book-open" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 z-10"></i>
+                                    <select id="input-stream" required class="w-full pl-11 pr-10 py-3 bg-neutral-900/60 border border-white/5 rounded-xl text-sm text-white focus:outline-none focus:border-red-500/50 appearance-none cursor-pointer transition-all">
+                                        <option value="" disabled selected class="bg-neutral-950 text-neutral-400">Select physical or biological science stream</option>
+                                        <option value="Physical Science" class="bg-neutral-950 text-white">Physical Science</option>
+                                        <option value="Biological Science" class="bg-neutral-950 text-white">Biological Science</option>
+                                    </select>
+                                    <i data-lucide="chevron-down" class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none z-10"></i>
+                                </div>
+                            </div>
+
+                            <!-- Row 4: Address -->
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">Physical Residential Address</label>
+                                <div class="relative">
+                                    <i data-lucide="map-pin" class="absolute left-4 top-3 w-4 h-4 text-neutral-500"></i>
+                                    <textarea id="input-address" rows="3" placeholder="No. 123, Nexus Boulevard, Colombo" required class="w-full pl-11 pr-4 py-3 bg-neutral-900/60 border border-white/5 rounded-xl text-sm text-white focus:outline-none focus:border-red-500/50 transition-all resize-none"></textarea>
+                                </div>
+                            </div>
+
+                            <!-- Row 5: District & Postal Code -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                <div>
+                                    <label class="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">District</label>
+                                    <div class="relative">
+                                        <i data-lucide="map" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500"></i>
+                                        <input id="input-district" type="text" placeholder="Colombo / Gampaha" required class="w-full pl-11 pr-4 py-3 bg-neutral-900/60 border border-white/5 rounded-xl text-sm text-white focus:outline-none focus:border-red-500/50 transition-all">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">Postal Code</label>
+                                    <div class="relative">
+                                        <i data-lucide="hash" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500"></i>
+                                        <input id="input-postalcode" type="text" placeholder="00100" required class="w-full pl-11 pr-4 py-3 bg-neutral-900/60 border border-white/5 rounded-xl text-sm text-white focus:outline-none focus:border-red-500/50 transition-all">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="pt-6 border-t border-white/5 flex justify-end">
+                                <button type="submit" id="save-profile-btn" class="px-6 py-3.5 bg-white hover:bg-red-500 hover:text-white text-black text-xs font-bold uppercase tracking-wider rounded-xl transition-all flex items-center gap-2">
+                                    <i data-lucide="save" class="w-4 h-4"></i>
+                                    Save Identity
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Change Password (Security Settings) -->
+                    <div class="glass-card p-8">
+                        <h3 class="text-lg font-bold tracking-tight mb-6 text-white flex items-center gap-2">
+                            <i data-lucide="lock" class="w-5 h-5 text-red-500"></i>
+                            Security Key Access Update
+                        </h3>
+
+                        <form id="password-form" class="space-y-5">
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">New Access Password</label>
+                                <div class="relative">
+                                    <i data-lucide="key-round" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500"></i>
+                                    <input id="input-password" type="password" placeholder="••••••••••••" minlength="6" required class="w-full pl-11 pr-4 py-3 bg-neutral-900/60 border border-white/5 rounded-xl text-sm text-white focus:outline-none focus:border-red-500/50 transition-all">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">Confirm Password</label>
+                                <div class="relative">
+                                    <i data-lucide="check-circle-2" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500"></i>
+                                    <input id="input-confirm-password" type="password" placeholder="••••••••••••" minlength="6" required class="w-full pl-11 pr-4 py-3 bg-neutral-900/60 border border-white/5 rounded-xl text-sm text-white focus:outline-none focus:border-red-500/50 transition-all">
+                                </div>
+                            </div>
+
+                            <div class="pt-4 border-t border-white/5 flex justify-end">
+                                <button type="submit" id="change-pwd-btn" class="px-6 py-3 btn-secondary text-xs font-bold uppercase tracking-wider rounded-xl flex items-center gap-2">
+                                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                                    Update Access Key
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modern Notification Toast -->
+    <div id="toast-container" class="fixed bottom-6 right-6 z-[200] flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
+
+    <footer class="py-8 border-t border-white/5 bg-black/40 text-center text-xs text-neutral-600">
+        <p>© 2026 Nexus Prime Protocol. Operating globally under clearance Level-4.</p>
+    </footer>
+
+    <script>
+        const SUPABASE_URL = 'https://tsaoxjzvhxiggntibpui.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzYW94anp2aHhpZ2dudGlicHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDQ2OTAsImV4cCI6MjA5MTQyMDY5MH0.Q5Iu51O3NK4k2kcc_GoegnyAYIFIs2SUkQOV10qp2jI';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let currentUser = null;
+        let activeStuId = null; // Memory container for generated/fetched 8-digit Student ID
+
+        // Custom Premium Toast system
+        function showNotification(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `glass-card p-4 flex items-start gap-3 shadow-2xl pointer-events-auto transition-all duration-300 transform translate-y-2 opacity-0 max-w-sm ${type === 'error' ? 'border-red-500/40 bg-red-950/20' : 'border-emerald-500/30 bg-emerald-950/10'}`;
+            
+            const icon = type === 'error' ? 'alert-triangle' : 'sparkles';
+            const iconColor = type === 'error' ? 'text-red-500' : 'text-emerald-500';
+            
+            toast.innerHTML = `
+                <div class="mt-0.5"><i data-lucide="${icon}" class="w-4.5 h-4.5 ${iconColor}"></i></div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-semibold text-white leading-relaxed">${message}</p>
+                </div>
+                <button onclick="this.parentElement.remove()" class="text-neutral-500 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+            `;
+
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            // Trigger animation
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            // Auto dismiss after 5s
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+        }
+
+        function renderStudentQR(value) {
+            const canvas = document.getElementById('student-qr-code');
+            if (!canvas) return;
+
+            try {
+                // Instantiates QRious dynamic rendering
+                new QRious({
+                    element: canvas,
+                    value: value || 'NX-PENDING',
+                    size: 140,
+                    background: '#0a0a0c', // Dark canvas background
+                    foreground: '#ff3333', // Cyber red foreground pixels matching layout accent color
+                    level: 'H'
+                });
+            } catch (err) {
+                console.error("QR Code rendering failed:", err);
+            }
+        }
+
+        function disableProfileForm() {
+            const inputs = [
+                'input-firstname', 'input-lastname', 'input-phone', 
+                'input-nic', 'input-stream', 'input-address', 
+                'input-district', 'input-postalcode'
+            ];
+            inputs.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.disabled = true;
+                    el.classList.add('opacity-60', 'cursor-not-allowed', 'bg-neutral-950/40');
+                }
+            });
+            const saveBtn = document.getElementById('save-profile-btn');
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = `<i data-lucide="lock" class="w-4 h-4 text-neutral-500 animate-pulse"></i> Profile Locked`;
+                saveBtn.className = "px-6 py-3.5 bg-neutral-900 border border-white/5 text-neutral-500 text-xs font-bold uppercase tracking-wider rounded-xl cursor-not-allowed flex items-center gap-2";
+            }
+            lucide.createIcons();
+        }
+
+        // Helper to generate a unique random 8-digit Student ID
+        function generateRandom8Digit() {
+            return Math.floor(10000000 + Math.random() * 90000000).toString();
+        }
+
+        async function init() {
+            const { data: { session } } = await sb.auth.getSession();
+            if (!session) return window.location.href = '/login';
+            
+            currentUser = session.user;
+            document.getElementById('sidebar-email').textContent = currentUser.email;
+
+            // Display simple platform info
+            const platformInfo = navigator.userAgent.toLowerCase();
+            if (platformInfo.includes('macintosh') || platformInfo.includes('mac os')) {
+                document.getElementById('current-terminal').textContent = 'NEOS-MACX';
+            } else if (platformInfo.includes('linux')) {
+                document.getElementById('current-terminal').textContent = 'NEOS-LINUX';
+            } else if (platformInfo.includes('android') || platformInfo.includes('iphone')) {
+                document.getElementById('current-terminal').textContent = 'MOBILE-NET';
+            }
+
+            try {
+                // Fetch student profiles attributes from the 'perde' table
+                const { data: perdeData, error: perdeError } = await sb
+                    .from('perde')
+                    .select('first_name, last_name, phone_number, national_id, stream, address, district, postal_code, authority, stu_id')
+                    .eq('id', currentUser.id)
+                    .maybeSingle();
+
+                if (perdeError) throw perdeError;
+
+                if (perdeData) {
+                    // Fill inputs with dynamic data from the 'perde' table
+                    document.getElementById('input-firstname').value = perdeData.first_name || '';
+                    document.getElementById('input-lastname').value = perdeData.last_name || '';
+                    document.getElementById('input-phone').value = perdeData.phone_number || '';
+                    document.getElementById('input-nic').value = perdeData.national_id || '';
+                    document.getElementById('input-stream').value = perdeData.stream || '';
+                    document.getElementById('input-address').value = perdeData.address || '';
+                    document.getElementById('input-district').value = perdeData.district || '';
+                    document.getElementById('input-postalcode').value = perdeData.postal_code || '';
+
+                    // Display authority dynamically from database column inside 'perde' table
+                    const activeAuthority = perdeData.authority || 'L-4 OPERATOR';
+                    document.getElementById('student-authority').textContent = activeAuthority;
+                    document.getElementById('session-authority').textContent = activeAuthority;
+
+                    // Handle Student ID mapping
+                    if (perdeData.stu_id) {
+                        activeStuId = perdeData.stu_id;
+                        document.getElementById('student-id').textContent = `NX-2026-${activeStuId}`;
+                        renderStudentQR(activeStuId); // Generating QR with precisely the active stu_id
+                    } else {
+                        // Generate a temporary student ID to be submitted with the registry save
+                        activeStuId = generateRandom8Digit();
+                        document.getElementById('student-id').textContent = `NX-2026-${activeStuId} (PENDING)`;
+                        renderStudentQR(activeStuId); // Generating dynamic QR code
+                    }
+
+                    // Display academic specialization in holographic card
+                    if (perdeData.stream) {
+                        document.getElementById('student-stream').textContent = perdeData.stream;
+                        document.getElementById('student-stream').classList.remove('text-red-500');
+                        document.getElementById('student-stream').classList.add('text-emerald-500');
+                    }
+
+                    // Determine name display priority: combination of 'first_name last_name' from 'perde' table -> email prefix
+                    const fallbackEmailName = currentUser.email.split('@')[0];
+                    let displayName = fallbackEmailName;
+                    if (perdeData.first_name) {
+                        displayName = `${perdeData.first_name} ${perdeData.last_name || ''}`;
+                    }
+                    document.getElementById('sidebar-name').textContent = displayName;
+
+                    // LOCK FORM IMMEDIATELY: Row already exists in 'perde' table
+                    disableProfileForm();
+                } else {
+                    // First time user profile setup: Pre-generate a proposed student ID
+                    activeStuId = generateRandom8Digit();
+                    document.getElementById('student-id').textContent = `NX-2026-${activeStuId} (PENDING)`;
+                    document.getElementById('student-authority').textContent = 'L-4 OPERATOR';
+                    document.getElementById('session-authority').textContent = 'L-4 OPERATOR';
+                    document.getElementById('sidebar-name').textContent = currentUser.email.split('@')[0];
+                    renderStudentQR(activeStuId); // Generating dynamic QR code for new registration
+                }
+
+            } catch (err) {
+                console.error("Profile retrieval issue:", err);
+                showNotification("Could not load complete student details from directory. Placeholder fallback in place.", "error");
+                document.getElementById('sidebar-name').textContent = currentUser.email.split('@')[0];
+                document.getElementById('student-authority').textContent = 'L-4 OPERATOR';
+                document.getElementById('session-authority').textContent = 'L-4 OPERATOR';
+                if (!activeStuId) {
+                    activeStuId = generateRandom8Digit();
+                    document.getElementById('student-id').textContent = `NX-2026-${activeStuId} (PENDING)`;
+                }
+                renderStudentQR(activeStuId);
+            }
+
+            lucide.createIcons();
+        }
+
+        document.getElementById('profile-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const saveBtn = document.getElementById('save-profile-btn');
+            const originalHTML = saveBtn.innerHTML;
+
+            // Loading state
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = `<span class="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></span> SYNCING...`;
+
+            const first_name = document.getElementById('input-firstname').value.trim();
+            const last_name = document.getElementById('input-lastname').value.trim();
+            const phone_number = document.getElementById('input-phone').value.trim();
+            const national_id = document.getElementById('input-nic').value.trim();
+            const stream = document.getElementById('input-stream').value;
+            const address = document.getElementById('input-address').value.trim();
+            const district = document.getElementById('input-district').value.trim();
+            const postal_code = document.getElementById('input-postalcode').value.trim();
+            
+            // Build full_name for interface presentation
+            const full_name = `${first_name} ${last_name}`;
+
+            // Safety check: ensure activeStuId is present, generate if missing
+            if (!activeStuId) {
+                activeStuId = generateRandom8Digit();
+            }
+
+            try {
+                // Perform upsert solely to the 'perde' table
+                const { error: perdeUpdateError } = await sb.from('perde').upsert({
+                    id: currentUser.id,
+                    first_name: first_name,
+                    last_name: last_name,
+                    phone_number: phone_number,
+                    national_id: national_id,
+                    stream: stream,
+                    address: address,
+                    district: district,
+                    postal_code: postal_code,
+                    stu_id: activeStuId, // Save the randomly generated student ID
+                    updated_at: new Date().toISOString()
+                });
+
+                if (perdeUpdateError) throw perdeUpdateError;
+
+                document.getElementById('sidebar-name').textContent = full_name;
+                document.getElementById('student-id').textContent = `NX-2026-${activeStuId}`;
+                
+                // Re-render QR code instantly to ensure it represents the confirmed, saved ID
+                renderStudentQR(activeStuId);
+
+                // Update badge stream detail dynamically
+                const streamBadge = document.getElementById('student-stream');
+                streamBadge.textContent = stream;
+                streamBadge.classList.remove('text-red-500');
+                streamBadge.classList.add('text-emerald-500');
+
+                showNotification("Nexus Student registry updated successfully.");
+                
+                // Seal form inputs on successful initial registration
+                disableProfileForm();
+            } catch (err) {
+                console.error("Save profile error:", err);
+                showNotification(err.message || "Failed to sync student file with directory registry.", "error");
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = originalHTML;
+            }
+        });
+
+        // Password update logic
+        document.getElementById('password-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const pwdBtn = document.getElementById('change-pwd-btn');
+            const originalHTML = pwdBtn.innerHTML;
+
+            const password = document.getElementById('input-password').value;
+            const confirmPassword = document.getElementById('input-confirm-password').value;
+
+            if (password !== confirmPassword) {
+                return showNotification("Password entries mismatch.", "error");
+            }
+
+            pwdBtn.disabled = true;
+            pwdBtn.innerHTML = `<span class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span> SYNCHRONIZING KEY...`;
+
+            try {
+                const { error } = await sb.auth.updateUser({ password: password });
+                if (error) throw error;
+
+                showNotification("Nexus login access key changed successfully.");
+                document.getElementById('password-form').reset();
+            } catch (err) {
+                console.error("Security update error:", err);
+                showNotification(err.message || "Failed to communicate with key registry.", "error");
+            } finally {
+                pwdBtn.disabled = false;
+                pwdBtn.innerHTML = originalHTML;
+            }
+        });
+
+        window.onload = init;
+    </script>
+</body>
+</html>
