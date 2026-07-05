@@ -1,0 +1,1520 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Prime - Live Student Portal</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght=300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Supabase JS Client CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#fff5f5',
+                            100: '#fed7d7',
+                            500: '#ef4444', // Cyber Red
+                            600: '#dc2626',
+                            700: '#b91c1c',
+                            950: '#450a0a',
+                        },
+                        prime: {
+                            yellow: '#facc15', // Premium Gold Yellow
+                            dark: '#09090b', // Slate Zinc Black
+                            card: '#18181b', // Zinc dark gray
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .theme-transition {
+            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+        }
+        @keyframes pulse-glow-zoom {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
+            50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+        }
+        @keyframes pulse-glow-qbt {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.6); }
+            50% { box-shadow: 0 0 0 8px rgba(250, 204, 21, 0); }
+        }
+        @keyframes pulse-glow-ppp {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.6); }
+            50% { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0); }
+        }
+        .live-zoom-pulse {
+            animation: pulse-glow-zoom 2s infinite;
+        }
+        .live-qbt-pulse {
+            animation: pulse-glow-qbt 2s infinite;
+        }
+        .live-ppp-pulse {
+            animation: pulse-glow-ppp 2s infinite;
+        }
+        
+        /* Smooth Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #27272a;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+    </style>
+</head>
+<body class="bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50 min-h-screen font-sans theme-transition pb-16">
+
+    <!-- AUTHENTICATION CONTAINER (Guards Dashboard Access) -->
+    <div id="authSection" class="min-h-screen flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 bg-zinc-50 dark:bg-zinc-950 transition-colors">
+        <div class="sm:mx-auto sm:w-full sm:max-w-md text-center">
+            <div class="inline-flex bg-gradient-to-br from-brand-600 to-prime-yellow text-zinc-950 p-4 rounded-2xl shadow-xl shadow-brand-500/10 mb-4">
+                <i class="fa-solid fa-circle-nodes text-3xl"></i>
+            </div>
+            <h2 class="text-3.5xl font-black tracking-tight text-zinc-950 dark:text-white">
+                NEXUS<span class="text-brand-500">PRIME</span>
+            </h2>
+            <p class="mt-2 text-sm text-zinc-500 dark:text-zinc-400 font-semibold tracking-wide uppercase">
+                Enterprise Learning &amp; Live Portal
+            </p>
+        </div>
+
+        <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+            <div class="bg-white dark:bg-zinc-900 py-8 px-6 shadow-2xl rounded-3xl border border-zinc-200 dark:border-zinc-800/80 transition-colors">
+                <!-- Sign In Header -->
+                <div class="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 mb-6 pb-3">
+                    <h3 class="text-lg font-bold tracking-tight text-zinc-800 dark:text-white flex items-center gap-2">
+                        <i class="fa-solid fa-shield text-brand-500"></i>
+                        Student Portal Login
+                    </h3>
+                    <button onclick="toggleAuthTab('config')" id="tab-config" class="text-zinc-400 dark:text-zinc-500 hover:text-brand-500 transition-all" title="Supabase Settings">
+                        <i class="fa-solid fa-gears text-lg"></i>
+                    </button>
+                </div>
+
+                <!-- Supabase Credential Quick Config Panel -->
+                <div id="panel-config" class="hidden mb-6 p-4 bg-brand-50/50 dark:bg-zinc-800/40 rounded-2xl border border-brand-100 dark:border-zinc-800">
+                    <div class="flex items-center gap-2 mb-2 text-xs font-bold text-brand-600 dark:text-brand-500 uppercase tracking-wider">
+                        <i class="fa-solid fa-database"></i> Database Credentials
+                    </div>
+                    <p class="text-[11px] text-zinc-500 dark:text-zinc-400 mb-3 leading-relaxed">
+                        Verify or update your database parameters below. Parameters are automatically loaded and remembered.
+                    </p>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase">Supabase URL</label>
+                            <input type="text" id="config-url" placeholder="https://your-project-id.supabase.co" class="mt-1 block w-full px-3 py-1.5 text-xs rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:ring-1 focus:ring-brand-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase">Anon Key / Public Key</label>
+                            <input type="password" id="config-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." class="mt-1 block w-full px-3 py-1.5 text-xs rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:ring-1 focus:ring-brand-500 focus:outline-none">
+                        </div>
+                        <button onclick="saveSupabaseConfig()" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-2 rounded-lg text-xs transition-colors">
+                            Apply Parameters
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Forms Area -->
+                <form id="authForm" onsubmit="handleAuthSubmit(event)" class="space-y-5">
+                    <div>
+                        <label for="email" class="block text-xs font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wide">Email address</label>
+                        <div class="mt-1.5 relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-zinc-400">
+                                <i class="fa-solid fa-envelope text-xs"></i>
+                            </span>
+                            <input id="email" type="email" required autocomplete="email" class="block w-full pl-9 pr-3 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-850 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-sm transition-all" placeholder="student@school.com">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="password" class="block text-xs font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wide">Password</label>
+                        <div class="mt-1.5 relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-zinc-400">
+                                <i class="fa-solid fa-lock text-xs"></i>
+                            </span>
+                            <input id="password" type="password" required autocomplete="current-password" class="block w-full pl-9 pr-3 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-850 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-sm transition-all" placeholder="••••••••">
+                        </div>
+                    </div>
+
+                    <div>
+                        <button type="submit" id="btnAuthSubmit" class="w-full flex justify-center py-3 px-4 rounded-xl shadow-lg shadow-brand-500/10 text-sm font-bold text-white bg-brand-600 hover:bg-brand-700 focus:outline-none transition-colors cursor-pointer">
+                            Access Portal Dashboard
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN PORTAL CONTAINER (Initially Hidden) -->
+    <div id="mainPortalSection" class="hidden">
+        <!-- Header Section -->
+        <header class="border-b border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/90 backdrop-blur sticky top-0 z-50 transition-colors">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-gradient-to-r from-brand-600 to-prime-yellow text-zinc-950 p-2.5 rounded-xl shadow-lg">
+                        <i class="fa-solid fa-circle-nodes text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg sm:text-xl font-black tracking-tight">NEXUS<span class="text-brand-500">PRIME</span></h1>
+                        <p class="text-[10px] sm:text-xs text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-wide">Live Student Command Center</p>
+                    </div>
+                </div>
+                
+                <!-- User Profile & Navigation System -->
+                <div class="flex items-center space-x-2 sm:space-x-3">
+                    <div class="hidden md:flex flex-col text-right mr-1">
+                        <span id="userDisplayEmail" class="text-xs font-bold text-zinc-800 dark:text-zinc-200">student@nexusprime.com</span>
+                        <span class="text-[9px] font-bold text-brand-500 uppercase tracking-wider">Verified Identity</span>
+                    </div>
+
+                    <!-- Actions -->
+                    <button onclick="fetchLiveClassData()" class="p-2 rounded-lg text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800 transition-colors" title="Sync Live Database">
+                        <i class="fa-solid fa-arrows-rotate text-md"></i>
+                    </button>
+                    <button id="themeToggle" class="p-2 rounded-lg text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800 transition-colors" title="Toggle Theme">
+                        <i id="themeIcon" class="fa-solid fa-moon text-lg"></i>
+                    </button>
+                    <button onclick="handleLogout()" class="ml-1 p-2 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors" title="Sign out">
+                        <i class="fa-solid fa-right-from-bracket text-lg"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+            
+            <!-- Live Smart Portal Banner -->
+            <div class="mb-8 p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-zinc-950 via-zinc-900 to-brand-950 text-white shadow-2xl relative overflow-hidden border border-brand-500/10">
+                <div class="absolute right-0 bottom-0 opacity-5 transform translate-x-12 translate-y-12 pointer-events-none">
+                    <i class="fa-solid fa-circle-nodes text-[16rem]"></i>
+                </div>
+                <div class="relative z-10 max-w-4xl">
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-brand-500/10 text-brand-500 border border-brand-500/30 mb-4">
+                        <span class="w-2 h-2 rounded-full bg-prime-yellow mr-2 animate-pulse"></span>
+                        Command Center Online
+                    </span>
+                    <h2 class="text-3xl sm:text-4xl font-black tracking-tight mb-3">Welcome to Nexus Prime</h2>
+                    <p class="text-zinc-300 text-sm sm:text-base mb-6 leading-relaxed">
+                        Access real-time classrooms, custom forms, and schedules. Class buttons and details are automatically authorized and synced live based on your registered <strong class="text-prime-yellow">Monthly approvals schedule</strong>.
+                    </p>
+                    
+                    <div class="flex flex-wrap gap-3 text-xs text-zinc-300">
+                        <div class="flex items-center space-x-2 bg-zinc-900 px-4 py-2.5 rounded-xl border border-zinc-800">
+                            <i class="fa-regular fa-clock text-brand-500"></i>
+                            <span id="currentTimeDisplay" class="font-bold tracking-wider">Current Time: --:--:--</span>
+                        </div>
+                        <div class="flex items-center space-x-2 bg-zinc-900 px-4 py-2.5 rounded-xl border border-zinc-800">
+                            <i class="fa-regular fa-calendar-days text-brand-500"></i>
+                            <span id="currentDateDisplay" class="font-bold">Date: --/--/----</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Quick Stats Overview -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+                    <div>
+                        <span class="text-xs text-zinc-500 dark:text-zinc-400 font-bold block uppercase tracking-wider">Scheduled Today</span>
+                        <span id="statTodayCount" class="text-2xl font-black text-brand-600 dark:text-brand-500">0</span>
+                    </div>
+                    <div class="p-3 bg-brand-50 dark:bg-zinc-800 text-brand-600 dark:text-brand-500 rounded-xl">
+                        <i class="fa-solid fa-calendar-day text-xl"></i>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+                    <div>
+                        <span class="text-xs text-zinc-500 dark:text-zinc-400 font-bold block uppercase tracking-wider">Active Live Now</span>
+                        <span id="statActiveCount" class="text-2xl font-black text-prime-yellow">0</span>
+                    </div>
+                    <div class="p-3 bg-zinc-100 dark:bg-zinc-800 text-prime-yellow rounded-xl">
+                        <i class="fa-solid fa-circle-play text-xl animate-pulse"></i>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+                    <div>
+                        <span class="text-xs text-zinc-500 dark:text-zinc-400 font-bold block uppercase tracking-wider">Approved Months</span>
+                        <span id="statApprovedMonthsCount" class="text-2xl font-black text-zinc-800 dark:text-zinc-200">0</span>
+                    </div>
+                    <div class="p-3 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-xl">
+                        <i class="fa-solid fa-clipboard-check text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TODAY'S EXCLUSIVE FOCUS SECTION -->
+            <div id="todayHighlightsSection" class="mb-10 hidden">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-extrabold tracking-tight text-zinc-900 dark:text-white flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 bg-brand-600 rounded-full animate-ping"></span>
+                        ⭐ TODAY'S SCHEDULED ACTIVITIES
+                    </h3>
+                    <span class="text-xs font-semibold px-2.5 py-1 bg-brand-50 dark:bg-zinc-800 text-brand-600 dark:text-brand-400 rounded-full">
+                        Priority Dashboard
+                    </span>
+                </div>
+                <div id="todayGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Dynamically populated today's cards -->
+                </div>
+            </div>
+
+            <!-- Dynamic Filter Controls -->
+            <div id="filterControls" class="flex flex-col gap-4 mb-8">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div class="relative flex-1 max-w-md">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-zinc-500 dark:text-zinc-400">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                        </span>
+                        <input id="searchInput" type="text" placeholder="Search activities, subjects, or types..." class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent text-zinc-900 dark:text-zinc-100 transition-all">
+                    </div>
+                    
+                    <!-- Quick Reset Filters -->
+                    <button onclick="resetAllFilters()" class="self-end sm:self-auto text-xs font-semibold text-zinc-600 hover:text-brand-600 dark:text-zinc-300 dark:hover:text-brand-400 flex items-center gap-1.5 transition-colors">
+                        <i class="fa-solid fa-filter-circle-xmark"></i> Reset Filters
+                    </button>
+                </div>
+
+                <!-- Scrollable Buttons Container for Subject/Type Filters -->
+                <div class="flex flex-col gap-2.5">
+                    <span class="text-[10px] font-bold tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">Filter by Course Name:</span>
+                    <div id="filterButtonsContainer" class="flex items-center space-x-2 overflow-x-auto pb-1.5 scrollbar-thin">
+                        <!-- Dynamically populated unique types -->
+                    </div>
+                </div>
+
+                <!-- Scrollable Buttons Container for Quick Dates -->
+                <div class="flex flex-col gap-2.5">
+                    <span class="text-[10px] font-bold tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">Quick Date Filter:</span>
+                    <div id="dateFilterButtonsContainer" class="flex items-center space-x-2 overflow-x-auto pb-1.5 scrollbar-thin">
+                        <!-- Dynamically populated dates -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading State Spinner -->
+            <div id="statusIndicator" class="hidden text-center py-20">
+                <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-brand-500 border-t-transparent mb-4"></div>
+                <p class="text-sm text-zinc-600 dark:text-zinc-400 font-semibold">Synchronizing Nexus Prime Databases...</p>
+            </div>
+
+            <!-- Connection Outage / Reset State -->
+            <div id="connectionErrorState" class="text-center py-16 bg-white dark:bg-zinc-900 rounded-3xl border border-dashed border-red-300 dark:border-red-950 p-8 hidden max-w-xl mx-auto">
+                <div class="w-16 h-16 bg-rose-50 dark:bg-rose-950/50 rounded-2xl flex items-center justify-center mx-auto mb-4 text-brand-600">
+                    <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
+                </div>
+                <h3 class="text-lg font-bold mb-2 text-zinc-900 dark:text-white">Database Query Failed</h3>
+                <p class="text-sm text-zinc-600 dark:text-zinc-400 mb-6">
+                    We had difficulty querying the Nexus Prime databases. Please verify your schema configs, table connections, or run the app with cached mock parameters.
+                </p>
+                <div class="flex items-center justify-center gap-3">
+                    <button onclick="retrySync()" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold shadow-lg text-sm transition-all cursor-pointer">
+                        <i class="fa-solid fa-rotate"></i> Query Live Table
+                    </button>
+                    <button onclick="loadMockSchedules()" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-zinc-100 hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-semibold text-sm transition-all cursor-pointer">
+                        <i class="fa-solid fa-database"></i> Use Cached Mock Data
+                    </button>
+                </div>
+            </div>
+
+            <!-- Grouped Class Cards Area -->
+            <div id="groupedScheduleContainer" class="space-y-12">
+                <!-- Dynamically populated groups of dates with headers -->
+            </div>
+
+            <!-- Custom Notification Toast Box -->
+            <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-10 opacity-0 pointer-events-none transition-all duration-300 max-w-sm w-full bg-zinc-900 text-white dark:bg-zinc-800 rounded-xl p-4 shadow-2xl flex items-start space-x-3 border border-zinc-700 dark:border-zinc-600">
+                <div class="bg-brand-600 text-white p-1.5 rounded-lg">
+                    <i class="fa-solid fa-info-circle text-md"></i>
+                </div>
+                <div class="flex-1">
+                    <p id="toastTitle" class="text-sm font-semibold"></p>
+                    <p id="toastMessage" class="text-xs text-zinc-350 mt-0.5"></p>
+                </div>
+                <button onclick="hideToast()" class="text-zinc-400 hover:text-white transition-colors">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // SUPABASE DEFAULT CREDENTIALS 
+        let SUPABASE_URL = "https://tsaoxjzvhxiggntibpui.supabase.co";
+        let SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzYW94anp2aHhpZ2dudGlicHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDQ2OTAsImV4cCI6MjA5MTQyMDY5MH0.Q5Iu51O3NK4k2kcc_GoegnyAYIFIs2SUkQOV10qp2jI";
+
+        // Global State variables
+        let supabaseClient = null;
+        let sessionsData = [];
+        let coursesList = []; // Local cache of course table records
+        let approvedMonths = []; // Array of registered month numbers representing user approval schedule
+        let activeFilter = 'all';
+        let activeDateFilter = 'all';
+        let tickerInterval = null;
+        let lockStatesInterval = null;
+
+        // Dynamic Component Schema (Exam has been updated to Zoom Class View)
+        const COMPONENT_SCHEMAS = [
+            {
+                key: 'zoom',
+                name: 'Zoom Class', 
+                stKey: 'ST_Zoom',
+                etKey: 'ET_Zoom',
+                linkKey: 'Zoom_Link', 
+                icon: 'fa-solid fa-video',
+                iconColor: 'text-brand-500',
+                gradient: 'from-brand-600 to-red-700',
+                pulseClass: 'live-zoom-pulse',
+                lockedIcon: 'fa-solid fa-video-slash'
+            },
+            {
+                key: 'qbt',
+                name: 'QBT Form',
+                stKey: 'ST_form_QBT',
+                etKey: 'ET_form_QBT',
+                linkKey: 'GForm_QBT',
+                icon: 'fa-regular fa-file-lines',
+                iconColor: 'text-prime-yellow',
+                gradient: 'from-amber-500 to-yellow-600',
+                pulseClass: 'live-qbt-pulse',
+                lockedIcon: 'fa-regular fa-file-lines'
+            },
+            {
+                key: 'ppp',
+                name: 'PPP Form',
+                stKey: 'ST_form_PPP',
+                etKey: 'ET_form_PPP',
+                linkKey: 'Gform_PPP',
+                icon: 'fa-solid fa-file-signature',
+                iconColor: 'text-red-500',
+                gradient: 'from-brand-600 to-zinc-900',
+                pulseClass: 'live-ppp-pulse',
+                lockedIcon: 'fa-solid fa-clipboard-list'
+            }
+        ];
+
+        window.onload = function() {
+            initTheme();
+            loadSavedSupabaseConfig();
+            initSupabaseClient();
+            checkCurrentUserSession();
+        };
+
+        /* ==================== THEME MANAGEMENT ==================== */
+        function initTheme() {
+            if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+                updateThemeIcon(true);
+            } else {
+                document.documentElement.classList.remove('dark');
+                updateThemeIcon(false);
+            }
+
+            document.getElementById('themeToggle').addEventListener('click', () => {
+                const isDark = document.documentElement.classList.toggle('dark');
+                localStorage.theme = isDark ? 'dark' : 'light';
+                updateThemeIcon(isDark);
+            });
+        }
+
+        function updateThemeIcon(isDark) {
+            const icon = document.getElementById('themeIcon');
+            if (icon) {
+                if (isDark) {
+                    icon.className = 'fa-solid fa-sun text-lg text-prime-yellow';
+                } else {
+                    icon.className = 'fa-solid fa-moon text-lg text-zinc-500';
+                }
+            }
+        }
+
+        /* ==================== SUPABASE DB AND AUTHENTICATION LAYER ==================== */
+        function loadSavedSupabaseConfig() {
+            const savedUrl = localStorage.getItem('SP_SUPABASE_URL');
+            const savedKey = localStorage.getItem('SP_SUPABASE_KEY');
+            if (savedUrl) SUPABASE_URL = savedUrl;
+            if (savedKey) SUPABASE_ANON_KEY = savedKey;
+
+            document.getElementById('config-url').value = SUPABASE_URL;
+            document.getElementById('config-key').value = SUPABASE_ANON_KEY;
+        }
+
+        function saveSupabaseConfig() {
+            const url = document.getElementById('config-url').value.trim();
+            const key = document.getElementById('config-key').value.trim();
+
+            if (!url || !key) {
+                showToast("Missing Parameters", "Please provide a valid URL and Anon Key.");
+                return;
+            }
+
+            localStorage.setItem('SP_SUPABASE_URL', url);
+            localStorage.setItem('SP_SUPABASE_KEY', key);
+            SUPABASE_URL = url;
+            SUPABASE_ANON_KEY = key;
+
+            showToast("Credentials Applied", "Configured client with your Supabase database parameters.");
+            initSupabaseClient();
+        }
+
+        function initSupabaseClient() {
+            if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+                try {
+                    const { createClient } = supabase;
+                    supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                } catch (e) {
+                    console.error("Supabase initiation failed", e);
+                    showToast("SDK Error", "Failed to build the Supabase client wrapper.");
+                }
+            }
+        }
+
+        function toggleAuthTab(tab) {
+            const configPanel = document.getElementById('panel-config');
+            const configBtn = document.getElementById('tab-config');
+
+            if (configPanel.classList.contains('hidden')) {
+                configPanel.classList.remove('hidden');
+                configBtn.classList.add('text-brand-500');
+            } else {
+                configPanel.classList.add('hidden');
+                configBtn.classList.remove('text-brand-500');
+            }
+        }
+
+        async function checkCurrentUserSession() {
+            if (!supabaseClient) {
+                toggleAuthTab('config');
+                showToast("Connection Needed", "Configure Supabase credentials to access Auth.");
+                return;
+            }
+
+            try {
+                const { data: { session }, error } = await supabaseClient.auth.getSession();
+                if (session && session.user) {
+                    await fetchUserApprovalSchedule(session.user);
+                    showMainPortal(session.user);
+                }
+            } catch (err) {
+                console.warn("Session retrieval issues", err);
+            }
+        }
+
+        // Fetch monthly approvals assigned for this user
+        async function fetchUserApprovalSchedule(user) {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('monthly_approvals')
+                    .select('*')
+                    .eq('email', user.email);
+
+                if (error) throw error;
+
+                if (data && data.length > 0) {
+                    approvedMonths = data.map(row => {
+                        // Support column variations ('month_number', 'Month_Number', or 'month')
+                        const mVal = row.month_number !== undefined ? row.month_number : (row.Month_Number !== undefined ? row.Month_Number : row.month);
+                        return mVal !== undefined && mVal !== null ? String(mVal).trim() : null;
+                    }).filter(Boolean);
+                } else {
+                    approvedMonths = [];
+                }
+                
+                document.getElementById('statApprovedMonthsCount').textContent = approvedMonths.length;
+            } catch (err) {
+                console.warn("Failed fetching approvals from monthly_approvals. Standardizing in mock context.", err);
+                // Fail-safe default approved months (e.g., month "7" is July) for local/testing
+                approvedMonths = ["7", "July", "7.0", "07"];
+                document.getElementById('statApprovedMonthsCount').textContent = approvedMonths.length;
+            }
+        }
+
+        async function handleAuthSubmit(e) {
+            e.preventDefault();
+            if (!supabaseClient) {
+                showToast("Initialization Failed", "Please enter valid Supabase settings.");
+                toggleAuthTab('config');
+                return;
+            }
+
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const submitBtn = document.getElementById('btnAuthSubmit');
+            
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin mr-2"></i> Signing In...`;
+
+            try {
+                const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                if (error) throw error;
+                
+                showToast("Sign In Successful", "Logging into Command center...");
+                await fetchUserApprovalSchedule(data.user);
+                showMainPortal(data.user);
+            } catch (err) {
+                showToast("Authentication Error", err.message || "An unexpected error occurred.");
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = "Access Portal Dashboard";
+            }
+        }
+
+        async function handleLogout() {
+            if (supabaseClient) {
+                try {
+                    await supabaseClient.auth.signOut();
+                } catch (e) {
+                    console.error("Signout fail", e);
+                }
+            }
+            document.getElementById('mainPortalSection').classList.add('hidden');
+            document.getElementById('authSection').classList.remove('hidden');
+            
+            clearInterval(tickerInterval);
+            clearInterval(lockStatesInterval);
+            showToast("Signed Out", "You have successfully signed out of the Nexus Prime command center.");
+        }
+
+        function showMainPortal(user) {
+            document.getElementById('authSection').classList.add('hidden');
+            document.getElementById('mainPortalSection').classList.remove('hidden');
+            
+            document.getElementById('userDisplayEmail').textContent = user.email;
+
+            // Start up timers
+            updateTimeTicker();
+            tickerInterval = setInterval(updateTimeTicker, 1000);
+            lockStatesInterval = setInterval(evalLockStates, 1000);
+
+            // Fetch active schedules and courses from Supabase
+            fetchLiveClassData();
+        }
+
+        /* ==================== PORTAL SCHEDULING LOGIC FROM SUPABASE ==================== */
+        function retrySync() {
+            document.getElementById('connectionErrorState').classList.add('hidden');
+            fetchLiveClassData();
+        }
+
+        async function fetchLiveClassData() {
+            if (!supabaseClient) {
+                showToast("Supabase Error", "Database client is not initialized.");
+                return;
+            }
+
+            const statusIndicator = document.getElementById('statusIndicator');
+            const connectionErrorState = document.getElementById('connectionErrorState');
+            
+            statusIndicator.classList.remove('hidden');
+            connectionErrorState.classList.add('hidden');
+
+            try {
+                // 1. Fetch available course mappings from "courses" table
+                try {
+                    const { data: courses, error: courseErr } = await supabaseClient
+                        .from('courses')
+                        .select('*');
+                    
+                    if (!courseErr && Array.isArray(courses)) {
+                        coursesList = courses;
+                    } else {
+                        // Backup check singular "course" table
+                        const { data: coursesSingular, error: courseSingularErr } = await supabaseClient
+                            .from('course')
+                            .select('*');
+                        if (!courseSingularErr && Array.isArray(coursesSingular)) {
+                            coursesList = coursesSingular;
+                        }
+                    }
+                } catch(cErr) {
+                    console.warn("Could not query 'courses' or 'course' schemas. Using inline types fallback.", cErr);
+                }
+
+                // 2. Fetch direct from 'liveclass' table
+                const { data, error } = await supabaseClient
+                    .from('liveclass')
+                    .select('*');
+
+                if (error) throw error;
+
+                if (Array.isArray(data)) {
+                    sessionsData = processDates(data);
+                    initDashboard();
+                } else {
+                    throw new Error("Invalid structure returned from Supabase table");
+                }
+            } catch (err) {
+                console.error("Supabase liveclass fetch error: ", err);
+                statusIndicator.classList.add('hidden');
+                connectionErrorState.classList.remove('hidden');
+                showToast("Fetch Failure", err.message || "Failed to retrieve schedules.");
+                loadMockSchedules();
+            } finally {
+                statusIndicator.classList.add('hidden');
+            }
+        }
+
+        // Processing database rows with safety wrappers for case-sensitivity and snake_case mapping
+        function processDates(data) {
+            return data.map(item => {
+                // Dynamically resolve course name mapping using 'Type' value from the liveclass record matched with courses's name column
+                let finalType = item.Type || item.type || 'Class';
+                
+                if (coursesList.length > 0) {
+                    const matchedCourse = coursesList.find(c => 
+                        String(c.id) === String(finalType) || 
+                        String(c.code) === String(finalType) || 
+                        String(c.Type || c.type || '').toLowerCase() === String(finalType).toLowerCase() ||
+                        String(c.name).toLowerCase() === String(finalType).toLowerCase()
+                    );
+                    if (matchedCourse && matchedCourse.name) {
+                        finalType = matchedCourse.name;
+                    }
+                }
+
+                // Map fields dynamically to withstand snake_case, lowercase, or direct PascalCase table keys
+                const mappedItem = {
+                    Name: item.Name || item.name || item.title || 'Untitled Session',
+                    "Session Number": item["Session Number"] || item.session_number || item.sessionnumber || item.SessionNumber || '',
+                    Subject: item.Subject || item.subject || 'General Science',
+                    Type: finalType, // Resolves from course name matched with "Type"
+                    Duration: item.Duration || item.duration || '1 hr',
+                    Date: normalizeToISODate(item.Date || item.date),
+                    Month: String(item.Month !== undefined ? item.Month : (item.month !== undefined ? item.month : '')).trim(),
+                    ST_Zoom: item.ST_Zoom || item.st_zoom || item.zoom_start_time || '',
+                    ET_Zoom: item.ET_Zoom || item.et_zoom || item.zoom_end_time || '',
+                    ST_form_QBT: item.ST_form_QBT || item.st_form_qbt || item.qbt_start_time || '',
+                    ET_form_QBT: item.ET_form_QBT || item.et_form_qbt || item.qbt_end_time || '',
+                    ST_form_PPP: item.ST_form_PPP || item.st_form_ppp || item.ppp_start_time || '',
+                    ET_form_PPP: item.ET_form_PPP || item.et_form_ppp || item.ppp_end_time || '',
+                    Zoom_Link: item.Zoom_Link || item.zoom_link || '',
+                    GForm_QBT: item.GForm_QBT || item.gform_qbt || '',
+                    Gform_PPP: item.Gform_PPP || item.gform_ppp || item.GForm_PPP || ''
+                };
+                return mappedItem;
+            });
+        }
+
+        function normalizeToISODate(dateStr) {
+            if (!dateStr) return '';
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+            if (dateStr.includes('T')) return dateStr.split('T')[0];
+            
+            try {
+                const d = new Date(dateStr);
+                if (!isNaN(d.getTime())) {
+                    const yyyy = d.getFullYear();
+                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                    const dd = String(d.getDate()).padStart(2, '0');
+                    return `${yyyy}-${mm}-${dd}`;
+                }
+            } catch(e){}
+            return dateStr;
+        }
+
+        function loadMockSchedules() {
+            document.getElementById('connectionErrorState').classList.add('hidden');
+            
+            const now = getSystemTime();
+            const todayStr = getISOFormattedDate(now);
+            
+            const tomorrow = new Date(now);
+            tomorrow.setDate(now.getDate() + 1);
+            const tomorrowStr = getISOFormattedDate(tomorrow);
+            
+            const fallbackData = [
+                {
+                    Name: "Advanced Physics Seminar - Gravitational Fields",
+                    "Session Number": "S-101",
+                    Subject: "Physics",
+                    Type: "AP-Physics",
+                    Duration: "1 hr 30 mins",
+                    Date: todayStr, 
+                    Month: "7", // July
+                    ST_Zoom: "08:00:00",
+                    ET_Zoom: "14:30:00",
+                    ST_form_QBT: "08:15:00",
+                    ET_form_QBT: "08:45:00",
+                    ST_form_PPP: "09:00:00",
+                    ET_form_PPP: "14:45:00",
+                    Zoom_Link: "https://zoom.us",
+                    GForm_QBT: "https://docs.google.com/forms",
+                    Gform_PPP: "https://docs.google.com/forms"
+                },
+                {
+                    Name: "Chemistry Evaluation Assessment - Unit 3 & 4",
+                    "Session Number": "S-102",
+                    Subject: "Chemistry",
+                    Type: "Exam-Prep",
+                    Duration: "2 hrs 00 mins",
+                    Date: todayStr, 
+                    Month: "8", // August (Will show month lock unless user has approval)
+                    ST_Zoom: "16:30:00",
+                    ET_Zoom: "20:30:00",
+                    ST_form_QBT: "16:45:00",
+                    ET_form_QBT: "17:45:00",
+                    ST_form_PPP: "17:00:00",
+                    ET_form_PPP: "19:00:00",
+                    Zoom_Link: "https://zoom.us",
+                    GForm_QBT: "https://docs.google.com/forms",
+                    Gform_PPP: "https://docs.google.com/forms"
+                },
+                {
+                    Name: "Organic Chemistry Lecture Series",
+                    "Session Number": "S-103",
+                    Subject: "Chemistry",
+                    Type: "Class-Lecture",
+                    Duration: "1 hr 00 mins",
+                    Date: todayStr, 
+                    Month: "7", // July
+                    ST_Zoom: "20:00:00",
+                    ET_Zoom: "23:00:00",
+                    ST_form_QBT: "20:10:00",
+                    ET_form_QBT: "20:30:00",
+                    ST_form_PPP: "20:40:00",
+                    ET_form_PPP: "21:20:00",
+                    Zoom_Link: "https://zoom.us",
+                    GForm_QBT: "https://docs.google.com/forms",
+                    Gform_PPP: "https://docs.google.com/forms"
+                }
+            ];
+
+            sessionsData = fallbackData;
+            initDashboard();
+            showToast("Offline Data Activated", "Interactive mock schedules updated successfully.");
+        }
+
+        function initDashboard() {
+            sortSchedules();
+            renderFilterButtons();
+            renderDateFilterButtons();
+            renderDashboard();
+            calculateQuickStats();
+        }
+
+        function sortSchedules() {
+            const now = getSystemTime();
+            
+            sessionsData.sort((a, b) => {
+                const dateA = parseDateTime(a.Date, a.ST_Zoom || "00:00:00");
+                const dateB = parseDateTime(b.Date, b.ST_Zoom || "00:00:00");
+                
+                if (!dateA || !dateB) return 0;
+
+                const rankA = getSessionProgressRank(a, now);
+                const rankB = getSessionProgressRank(b, now);
+
+                if (rankA !== rankB) {
+                    return rankA - rankB; 
+                }
+
+                return dateA - dateB;
+            });
+        }
+
+        function getSessionProgressRank(item, now) {
+            const zoomStart = parseDateTime(item.Date, item.ST_Zoom);
+            const zoomEnd = parseDateTime(item.Date, item.ET_Zoom);
+            if (!zoomStart || !zoomEnd) return 3;
+
+            let isLive = (now >= zoomStart && now <= zoomEnd);
+            if (!isLive) {
+                COMPONENT_SCHEMAS.forEach(schema => {
+                    const stVal = item[schema.stKey];
+                    const etVal = item[schema.etKey];
+                    if (stVal && etVal) {
+                        const start = parseDateTime(item.Date, stVal);
+                        const end = parseDateTime(item.Date, etVal);
+                        if (start && end && now >= start && now <= end) {
+                            isLive = true;
+                        }
+                    }
+                });
+            }
+
+            const isUpcoming = (now < zoomStart);
+
+            if (isLive) return 1;
+            if (isUpcoming) return 2;
+            return 3;
+        }
+
+        function parseDateTime(dateStr, timeStr) {
+            if (!dateStr || !timeStr) return null;
+            const cleanedDate = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+            return new Date(`${cleanedDate}T${timeStr}`);
+        }
+
+        function getSystemTime() {
+            return new Date();
+        }
+
+        // Real-time visual ticking
+        function updateTimeTicker() {
+            const now = getSystemTime();
+            const timeDisplay = document.getElementById('currentTimeDisplay');
+            const dateDisplay = document.getElementById('currentDateDisplay');
+            if (timeDisplay) timeDisplay.textContent = "Current Time: " + now.toLocaleTimeString();
+            if (dateDisplay) dateDisplay.textContent = "Date: " + now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        }
+
+        function calculateQuickStats() {
+            const now = getSystemTime();
+            const todayStr = getISOFormattedDate(now);
+            
+            let todayCount = 0;
+            let activeCount = 0;
+
+            sessionsData.forEach(item => {
+                if (item.Date === todayStr) {
+                    todayCount++;
+                }
+
+                let isAnyActive = false;
+                COMPONENT_SCHEMAS.forEach(schema => {
+                    const stVal = item[schema.stKey];
+                    const etVal = item[schema.etKey];
+                    if (stVal && etVal) {
+                        const start = parseDateTime(item.Date, stVal);
+                        const end = parseDateTime(item.Date, etVal);
+                        if (start && end && now >= start && now <= end) {
+                            isAnyActive = true;
+                        }
+                    }
+                });
+                if (isAnyActive) {
+                    activeCount++;
+                }
+            });
+
+            document.getElementById('statTodayCount').textContent = todayCount;
+            document.getElementById('statActiveCount').textContent = activeCount;
+        }
+
+        function getISOFormattedDate(date) {
+            const yyyy = date.getFullYear();
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+
+        function renderFilterButtons() {
+            const container = document.getElementById('filterButtonsContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const uniqueTypes = [...new Set(sessionsData.map(item => item.Type).filter(Boolean))];
+
+            const allBtn = document.createElement('button');
+            allBtn.textContent = 'All Courses';
+            allBtn.className = "filter-btn whitespace-nowrap px-4 py-2 rounded-xl text-sm font-semibold bg-brand-600 text-white transition-all border border-transparent flex items-center gap-1.5 shadow-md cursor-pointer";
+            allBtn.onclick = (e) => filterClasses('all', e.currentTarget);
+            container.appendChild(allBtn);
+
+            uniqueTypes.forEach(type => {
+                const typeBtn = document.createElement('button');
+                typeBtn.textContent = type;
+                typeBtn.className = "filter-btn whitespace-nowrap px-4 py-2 rounded-xl text-sm font-semibold bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-350 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all border border-zinc-200 dark:border-zinc-800 flex items-center gap-1.5 cursor-pointer";
+                typeBtn.onclick = (e) => filterClasses(type, e.currentTarget);
+                container.appendChild(typeBtn);
+            });
+        }
+
+        function renderDateFilterButtons() {
+            const container = document.getElementById('dateFilterButtonsContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const uniqueDates = [...new Set(sessionsData.map(item => item.Date).filter(Boolean))].sort();
+
+            const allBtn = document.createElement('button');
+            allBtn.textContent = 'All Dates';
+            allBtn.className = "date-filter-btn whitespace-nowrap px-4 py-2 rounded-xl text-sm font-semibold bg-brand-600 text-white transition-all border border-transparent flex items-center gap-1.5 shadow-md cursor-pointer";
+            allBtn.onclick = (e) => filterDates('all', e.currentTarget);
+            container.appendChild(allBtn);
+
+            uniqueDates.forEach(dateStr => {
+                const formattedName = getFriendlyDateName(dateStr);
+                const btn = document.createElement('button');
+                btn.textContent = formattedName;
+                btn.className = "date-filter-btn whitespace-nowrap px-4 py-2 rounded-xl text-sm font-semibold bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-350 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all border border-zinc-200 dark:border-zinc-800 flex items-center gap-1.5 cursor-pointer";
+                btn.onclick = (e) => filterDates(dateStr, e.currentTarget);
+                container.appendChild(btn);
+            });
+        }
+
+        function getFriendlyDateName(dateStr) {
+            const now = getSystemTime();
+            const todayStr = getISOFormattedDate(now);
+            
+            const tomorrow = new Date(now);
+            tomorrow.setDate(now.getDate() + 1);
+            const tomorrowStr = getISOFormattedDate(tomorrow);
+
+            if (dateStr === todayStr) return "Today";
+            if (dateStr === tomorrowStr) return "Tomorrow";
+
+            const d = new Date(dateStr + "T00:00:00");
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+
+        function renderDashboard() {
+            const now = getSystemTime();
+            const todayStr = getISOFormattedDate(now);
+
+            const todayGrid = document.getElementById('todayGrid');
+            const todayHighlightsSection = document.getElementById('todayHighlightsSection');
+            
+            const todayItems = sessionsData.filter(item => item.Date === todayStr);
+
+            if (todayItems.length > 0) {
+                todayHighlightsSection.classList.remove('hidden');
+                todayGrid.innerHTML = '';
+                todayItems.forEach(item => {
+                    const originalIndex = sessionsData.indexOf(item);
+                    todayGrid.appendChild(createCardMarkup(item, originalIndex, true));
+                });
+            } else {
+                todayHighlightsSection.classList.add('hidden');
+            }
+
+            const groupedContainer = document.getElementById('groupedScheduleContainer');
+            groupedContainer.innerHTML = '';
+
+            const groupedByDate = {};
+            sessionsData.forEach((item) => {
+                const dateKey = item.Date;
+                if (!groupedByDate[dateKey]) {
+                    groupedByDate[dateKey] = [];
+                }
+                groupedByDate[dateKey].push(item);
+            });
+
+            const sortedGroupDates = Object.keys(groupedByDate).sort();
+
+            if (sortedGroupDates.length === 0) {
+                groupedContainer.innerHTML = `
+                    <div class="text-center py-20 bg-white dark:bg-zinc-900 rounded-3xl p-8 border border-zinc-200 dark:border-zinc-800">
+                        <i class="fa-solid fa-calendar-xmark text-5xl text-zinc-300 dark:text-zinc-700 mb-3"></i>
+                        <h4 class="text-lg font-bold text-zinc-800 dark:text-white">No Schedules Found</h4>
+                        <p class="text-sm text-zinc-500 mt-2">There are currently no sessions or exams available.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            sortedGroupDates.forEach(dateKey => {
+                const groupWrapper = document.createElement('div');
+                groupWrapper.className = "date-group-section space-y-6";
+                groupWrapper.setAttribute('data-group-date', dateKey);
+
+                const d = new Date(dateKey + "T00:00:00");
+                const friendlyTitle = d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                const isTodayGroup = (dateKey === todayStr);
+                const badgeText = isTodayGroup ? `<span class="bg-brand-600 text-white text-[10px] px-3 py-1 rounded-full font-bold ml-3 uppercase tracking-wider animate-pulse">TODAY'S PLAN</span>` : '';
+
+                groupWrapper.innerHTML = `
+                    <div class="flex items-center border-b border-zinc-200 dark:border-zinc-800 pb-3">
+                        <div class="p-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg text-zinc-600 dark:text-zinc-300 mr-3">
+                            <i class="fa-regular fa-calendar-check text-md"></i>
+                        </div>
+                        <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">${friendlyTitle}</h2>
+                        ${badgeText}
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 date-cards-grid">
+                        <!-- Cards added programmatically -->
+                    </div>
+                `;
+
+                const grid = groupWrapper.querySelector('.date-cards-grid');
+                groupedByDate[dateKey].forEach(item => {
+                    const originalIndex = sessionsData.indexOf(item);
+                    grid.appendChild(createCardMarkup(item, originalIndex, false));
+                });
+
+                groupedContainer.appendChild(groupWrapper);
+            });
+
+            evalLockStates();
+        }
+
+        function getSessionNumber(item) {
+            if (!item) return '';
+            const possibleKeys = [
+                'Session Number', 'SessionNumber', 'sessionnumber', 'sessionNumber', 
+                'SESSION NUMBER', 'session_number', 'Session_Number', 'sessionNo', 'SessionNo'
+            ];
+            for (const key of possibleKeys) {
+                if (item[key] !== undefined && item[key] !== null && String(item[key]).trim() !== '') {
+                    return String(item[key]).trim();
+                }
+            }
+            return '';
+        }
+
+        function getSessionLink(item, schema) {
+            if (!item || !schema) return '';
+            
+            if (item[schema.linkKey] !== undefined && item[schema.linkKey] !== null) {
+                const val = String(item[schema.linkKey]).trim();
+                if (val !== '' && val !== 'undefined') return val;
+            }
+
+            if (schema.key === 'zoom') {
+                const keys = ['Zoom_Link', 'Zoom Link', 'ZoomLink', 'zoom_link', 'zoomlink', 'zoomLink', 'link', 'Link'];
+                for (const k of keys) {
+                    if (item[k] !== undefined && item[k] !== null) {
+                        const val = String(item[k]).trim();
+                        if (val !== '' && val !== 'undefined') return val;
+                    }
+                }
+            }
+
+            if (schema.key === 'qbt') {
+                const keys = ['GForm_QBT', 'Gform_QBT', 'gform_qbt', 'GFormQBT', 'qbt', 'QBT'];
+                for (const k of keys) {
+                    if (item[k] !== undefined && item[k] !== null) {
+                        const val = String(item[k]).trim();
+                        if (val !== '' && val !== 'undefined') return val;
+                    }
+                }
+            }
+
+            if (schema.key === 'ppp') {
+                const keys = ['Gform_PPP', 'GForm_PPP', 'gform_ppp', 'GFormPPP', 'ppp', 'PPP'];
+                for (const k of keys) {
+                    if (item[k] !== undefined && item[k] !== null) {
+                        const val = String(item[k]).trim();
+                        if (val !== '' && val !== 'undefined') return val;
+                    }
+                }
+            }
+
+            return '';
+        }
+
+        function createCardMarkup(item, index, isPriorityCard = false) {
+            const uniqueId = isPriorityCard ? `priority-${index}` : `normal-${index}`;
+            const sessionNum = getSessionNumber(item);
+            const searchTags = `${item.Name} ${item.Subject} ${item.Type} ${item.Date} ${sessionNum}`.toLowerCase();
+
+            const card = document.createElement('div');
+            card.className = "class-card group flex flex-col justify-between bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-md hover:shadow-xl overflow-hidden transform hover:-translate-y-1 transition-all duration-300 relative";
+            card.setAttribute('data-type', item.Type || '');
+            card.setAttribute('data-date', item.Date || '');
+            card.setAttribute('data-search', searchTags);
+            card.id = `session-card-${uniqueId}`;
+
+            let scheduleItemsHTML = `
+                <div class="flex items-center space-x-2 text-xs text-zinc-600 dark:text-zinc-400 col-span-2">
+                    <i class="fa-regular fa-calendar text-brand-500 w-4"></i>
+                    <div>
+                        <span class="block text-[10px] text-zinc-500 dark:text-zinc-400 uppercase font-semibold">Scheduled Date</span>
+                        <span class="font-bold text-zinc-850 dark:text-zinc-200">${item.Date}</span>
+                    </div>
+                </div>
+            `;
+
+            COMPONENT_SCHEMAS.forEach(schema => {
+                const stVal = item[schema.stKey];
+                const etVal = item[schema.etKey];
+                if (stVal && etVal) {
+                    scheduleItemsHTML += `
+                        <div class="flex items-center space-x-2 text-xs text-zinc-600 dark:text-zinc-400 col-span-2 border-t border-zinc-100 dark:border-zinc-800/40 pt-2">
+                            <i class="${schema.icon} ${schema.iconColor} w-4"></i>
+                            <div>
+                                <span class="block text-[10px] text-zinc-500 dark:text-zinc-400 uppercase font-semibold">${schema.name} Window</span>
+                                <span class="font-bold text-zinc-850 dark:text-zinc-200">${stVal.slice(0,5)} - ${etVal.slice(0,5)}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+
+            // If class month has value, display which month it belongs to
+            const monthText = item.Month ? `<span class="bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-[11px] px-2.5 py-0.5 rounded-lg border border-zinc-200 dark:border-zinc-700">Month: ${item.Month}</span>` : '';
+
+            card.innerHTML = `
+                <div class="bg-zinc-50 dark:bg-zinc-800/80 px-4 py-2.5 text-xs font-semibold flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800">
+                    <span id="status-badge-${uniqueId}" class="flex items-center uppercase tracking-wider text-zinc-600 dark:text-zinc-300">
+                    </span>
+                    <span class="text-zinc-500 dark:text-zinc-400 font-bold">Duration: ${item.Duration || '--'}</span>
+                </div>
+                
+                <div class="p-6 flex-grow">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+                        <span class="bg-brand-500/10 text-brand-600 dark:text-brand-400 text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider">
+                            ${item.Type}
+                        </span>
+                        <div class="flex items-center gap-1.5">
+                            ${monthText}
+                            <span id="badge-countdown-${uniqueId}" class="text-xs px-2.5 py-1 rounded-md font-bold flex items-center"></span>
+                        </div>
+                    </div>
+
+                    <h3 class="text-md sm:text-lg font-bold mb-4 text-zinc-950 dark:text-white group-hover:text-brand-500 transition-colors leading-snug">
+                        ${item.Name}
+                    </h3>
+
+                    <div class="grid grid-cols-2 gap-y-3 gap-x-4 border-t border-zinc-100 dark:border-zinc-800/80 pt-4 mb-4">
+                        <div class="flex items-center space-x-2 text-xs text-zinc-600 dark:text-zinc-400 col-span-2">
+                            <i class="fa-solid fa-graduation-cap text-brand-500 w-4"></i>
+                            <div>
+                                <span class="block text-[10px] text-zinc-500 dark:text-zinc-400 uppercase font-semibold">Subject Area</span>
+                                <span class="font-bold text-zinc-850 dark:text-zinc-200">${item.Subject}</span>
+                            </div>
+                        </div>
+                        ${scheduleItemsHTML}
+                    </div>
+                </div>
+
+                <div id="action-area-${uniqueId}" class="p-5 bg-zinc-50 dark:bg-zinc-900/50 border-t border-zinc-100 dark:border-zinc-800/80 flex flex-col gap-2.5">
+                    <!-- Dynamic Action Buttons -->
+                </div>
+            `;
+            return card;
+        }
+
+        // Check if the individual class's month matches any of the user's approved month schedules
+        function isUserMonthApproved(itemMonth) {
+            if (!itemMonth || approvedMonths.length === 0) return false;
+            
+            // Clean value for direct matching (e.g. Month "7" matches string "7" or month name matches)
+            const cleanItemMonth = String(itemMonth).toLowerCase().trim();
+            
+            return approvedMonths.some(approvedMonth => {
+                const cleanApproved = String(approvedMonth).toLowerCase().trim();
+                return cleanItemMonth === cleanApproved || 
+                       parseFloat(cleanItemMonth) === parseFloat(cleanApproved);
+            });
+        }
+
+        function evalLockStates() {
+            if (sessionsData.length === 0) return;
+
+            const now = getSystemTime();
+
+            const evaluationIds = [];
+            sessionsData.forEach((_, index) => {
+                evaluationIds.push(`priority-${index}`);
+                evaluationIds.push(`normal-${index}`);
+            });
+
+            evaluationIds.forEach(uniqueId => {
+                const index = parseInt(uniqueId.split('-')[1]);
+                const item = sessionsData[index];
+                if (!item) return;
+
+                const actionArea = document.getElementById(`action-area-${uniqueId}`);
+                const statusBadge = document.getElementById(`status-badge-${uniqueId}`);
+                const countdownBadge = document.getElementById(`badge-countdown-${uniqueId}`);
+                if (!actionArea || !statusBadge) return;
+
+                const sessionNo = getSessionNumber(item);
+                const hasApprovedMonth = isUserMonthApproved(item.Month);
+
+                let activeComponent = null;
+                let nextUpcomingComponent = null;
+                let nextUpcomingTime = null;
+
+                COMPONENT_SCHEMAS.forEach(schema => {
+                    const stVal = item[schema.stKey];
+                    const etVal = item[schema.etKey];
+                    if (!stVal || !etVal) return;
+
+                    const start = parseDateTime(item.Date, stVal);
+                    const end = parseDateTime(item.Date, etVal);
+                    if (!start || !end) return;
+
+                    const isLive = (now >= start && now <= end);
+                    const isUpcoming = (now < start);
+
+                    if (isLive) {
+                        activeComponent = { schema, start, end };
+                    } else if (isUpcoming) {
+                        if (!nextUpcomingTime || start < nextUpcomingTime) {
+                            nextUpcomingTime = start;
+                            nextUpcomingComponent = { schema, start, end };
+                        }
+                    }
+                });
+
+                let overallStatusHTML = "";
+                let overallBadgeClass = "";
+                
+                if (activeComponent) {
+                    const sessionTag = sessionNo ? `<span class="ml-2 px-2 py-0.5 text-[10px] bg-emerald-200 dark:bg-emerald-900/55 text-emerald-900 dark:text-emerald-100 rounded font-bold tracking-wider uppercase">Session ${sessionNo}</span>` : '';
+                    overallStatusHTML = `<span class="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-2 animate-ping"></span> <span class="text-emerald-700 dark:text-emerald-400 font-extrabold">Active Now</span>${sessionTag}`;
+                    overallBadgeClass = "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-400";
+                } else if (nextUpcomingComponent) {
+                    const sessionTag = sessionNo ? `<span class="ml-2 px-2 py-0.5 text-[10px] bg-amber-200 dark:bg-amber-900/55 text-amber-900 dark:text-amber-100 rounded font-bold tracking-wider uppercase">Session ${sessionNo}</span>` : '';
+                    overallStatusHTML = `<i class="fa-solid fa-clock mr-2 text-amber-600"></i><span class="text-amber-700 dark:text-amber-400 font-extrabold">Scheduled</span>${sessionTag}`;
+                    overallBadgeClass = "bg-amber-100 dark:bg-amber-950/40 text-amber-850 dark:text-amber-300";
+                } else {
+                    const sessionTag = sessionNo ? `<span class="ml-2 px-2 py-0.5 text-[10px] bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-350 rounded font-bold tracking-wider uppercase">Session ${sessionNo}</span>` : '';
+                    overallStatusHTML = `<i class="fa-solid fa-circle-check mr-2 text-zinc-500"></i> <span class="text-zinc-600 dark:text-zinc-400 font-semibold">Ended</span>${sessionTag}`;
+                    overallBadgeClass = "bg-zinc-200 dark:bg-zinc-850 text-zinc-700 dark:text-zinc-300";
+                }
+                statusBadge.innerHTML = overallStatusHTML;
+
+                if (activeComponent) {
+                    countdownBadge.className = `text-[10px] sm:text-xs px-2.5 py-1 rounded-md font-bold flex items-center animate-pulse ${overallBadgeClass}`;
+                    countdownBadge.innerHTML = `<i class="fa-solid fa-hourglass-start mr-1"></i> ${activeComponent.schema.name} ends in ${getCountdownText(activeComponent.end, now)}`;
+                } else if (nextUpcomingComponent) {
+                    countdownBadge.className = `text-[10px] sm:text-xs px-2.5 py-1 rounded-md font-bold flex items-center ${overallBadgeClass}`;
+                    countdownBadge.innerHTML = `<i class="fa-regular fa-clock mr-1"></i> Next: ${nextUpcomingComponent.schema.name} in ${getCountdownText(nextUpcomingComponent.start, now)}`;
+                } else {
+                    countdownBadge.className = "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-xs px-2.5 py-1 rounded-md font-semibold";
+                    countdownBadge.innerHTML = "Ended";
+                }
+
+                let buttonsHTML = "";
+
+                COMPONENT_SCHEMAS.forEach(schema => {
+                    const stVal = item[schema.stKey];
+                    const etVal = item[schema.etKey];
+                    if (!stVal || !etVal) return;
+
+                    const resolvedUrl = getSessionLink(item, schema);
+                    const hasLink = (resolvedUrl !== '');
+                    
+                    const start = parseDateTime(item.Date, stVal);
+                    const end = parseDateTime(item.Date, etVal);
+                    if (!start || !end) return;
+
+                    const isLive = (now >= start && now <= end);
+                    const isUpcoming = (now < start);
+
+                    if (!hasApprovedMonth) {
+                        // User has no approval registration matching this specific class's month column
+                        buttonsHTML += `
+                            <button disabled class="w-full bg-zinc-100 dark:bg-zinc-800/40 text-brand-600 dark:text-brand-500 font-bold py-2.5 px-4 rounded-xl flex items-center justify-between cursor-not-allowed border border-brand-500/20 min-w-0">
+                                <span class="flex items-center space-x-2 truncate mr-2">
+                                    <i class="fa-solid fa-user-lock text-sm flex-shrink-0"></i>
+                                    <span class="text-xs sm:text-sm truncate">Requires Month ${item.Month || ''} Approval</span>
+                                </span>
+                                <span class="text-[9px] bg-brand-500/10 text-brand-600 dark:text-brand-400 px-2 py-0.5 rounded font-mono uppercase tracking-wider flex-shrink-0">Locked</span>
+                            </button>
+                        `;
+                    } else if (isUpcoming) {
+                        buttonsHTML += `
+                            <button disabled class="w-full bg-zinc-100 dark:bg-zinc-800/40 text-zinc-500 dark:text-zinc-400 font-bold py-2.5 px-4 rounded-xl flex items-center justify-between cursor-not-allowed border border-zinc-200 dark:border-zinc-800/60 min-w-0">
+                                <span class="flex items-center space-x-2 truncate mr-2">
+                                    <i class="${schema.lockedIcon || schema.icon} text-sm text-zinc-400 flex-shrink-0"></i>
+                                    <span class="text-xs sm:text-sm truncate">${schema.name} Locked</span>
+                                </span>
+                                <span class="text-[10px] bg-zinc-200 dark:bg-zinc-800 px-2 py-0.5 rounded text-zinc-700 dark:text-zinc-350 font-mono flex-shrink-0">${getCountdownText(start, now)}</span>
+                            </button>
+                        `;
+                    } else if (isLive) {
+                        if (hasLink) {
+                            buttonsHTML += `
+                                <button onclick="handleRedirectByIndex(${index}, '${schema.key}')" class="${schema.pulseClass} w-full bg-gradient-to-r ${schema.gradient} text-white font-bold py-2.5 px-4 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center space-x-2 transform hover:scale-[1.01] cursor-pointer">
+                                    <i class="${schema.icon} text-md animate-bounce"></i>
+                                    <span class="text-xs sm:text-sm">Join ${schema.name}</span>
+                                </button>
+                            `;
+                        } else {
+                            buttonsHTML += `
+                                <button disabled class="w-full bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 font-bold py-2.5 px-4 rounded-xl flex items-center justify-center space-x-2 border border-amber-200 dark:border-amber-900/45 cursor-not-allowed">
+                                    <i class="fa-solid fa-circle-notch animate-spin text-sm"></i>
+                                    <span class="text-xs sm:text-sm">Configuring Link...</span>
+                                </button>
+                            `;
+                        }
+                    } else {
+                        buttonsHTML += `
+                            <button disabled class="w-full bg-zinc-200 dark:bg-zinc-800/30 text-zinc-400 dark:text-zinc-500 font-bold py-2.5 px-4 rounded-xl flex items-center justify-center space-x-2 border border-zinc-300/40 dark:border-zinc-800/45 cursor-not-allowed">
+                                <i class="fa-solid fa-lock text-sm"></i>
+                                <span class="text-xs sm:text-sm">${schema.name} Closed</span>
+                            </button>
+                        `;
+                    }
+                });
+
+                actionArea.innerHTML = buttonsHTML;
+            });
+        }
+
+        function getCountdownText(targetTime, now) {
+            const diffMs = targetTime - now;
+            if (diffMs <= 0) return "0s";
+            
+            const diffDays = Math.floor(diffMs / 86400000);
+            const diffHrs = Math.floor((diffMs % 86400000) / 3600000);
+            const diffMins = Math.floor((diffMs % 3600000) / 60000);
+            const diffSecs = Math.floor((diffMs % 60000) / 1000);
+
+            let text = "";
+            if (diffDays > 0) text += `${diffDays}d `;
+            if (diffHrs > 0) text += `${diffHrs}h `;
+            if (diffMins > 0 || diffHrs > 0 || diffDays > 0) text += `${diffMins}m `;
+            text += `${diffSecs}s`;
+            return text;
+        }
+
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                applyCombinedFilters();
+            });
+        }
+
+        function filterClasses(type, targetButton) {
+            activeFilter = type;
+            const buttons = document.querySelectorAll('.filter-btn');
+
+            buttons.forEach(btn => {
+                btn.className = "filter-btn whitespace-nowrap px-4 py-2 rounded-xl text-sm font-semibold bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all border border-zinc-200 dark:border-zinc-800 flex items-center gap-1.5 cursor-pointer";
+            });
+
+            if (targetButton) {
+                targetButton.className = "filter-btn whitespace-nowrap px-4 py-2 rounded-xl text-sm font-semibold bg-brand-600 text-white transition-all border border-transparent flex items-center gap-1.5 shadow-sm cursor-pointer";
+            }
+
+            applyCombinedFilters();
+        }
+
+        function filterDates(dateStr, targetButton) {
+            activeDateFilter = dateStr;
+            const buttons = document.querySelectorAll('.date-filter-btn');
+
+            buttons.forEach(btn => {
+                btn.className = "date-filter-btn whitespace-nowrap px-4 py-2 rounded-xl text-sm font-semibold bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-350 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all border border-zinc-200 dark:border-zinc-800 flex items-center gap-1.5 cursor-pointer";
+            });
+
+            if (targetButton) {
+                targetButton.className = "date-filter-btn whitespace-nowrap px-4 py-2 rounded-xl text-sm font-semibold bg-brand-600 text-white transition-all border border-transparent flex items-center gap-1.5 shadow-sm cursor-pointer";
+            }
+
+            applyCombinedFilters();
+        }
+
+        function resetAllFilters() {
+            if (searchInput) searchInput.value = '';
+            
+            const firstTypeBtn = document.querySelector('.filter-btn');
+            if (firstTypeBtn) firstTypeBtn.click();
+            
+            const firstDateBtn = document.querySelector('.date-filter-btn');
+            if (firstDateBtn) firstDateBtn.click();
+        }
+
+        function applyCombinedFilters() {
+            const val = searchInput ? searchInput.value.toLowerCase().trim() : '';
+            const cards = document.querySelectorAll('.class-card');
+            const dateGroups = document.querySelectorAll('.date-group-section');
+
+            cards.forEach(card => {
+                const cardType = card.getAttribute('data-type');
+                const cardDate = card.getAttribute('data-date');
+                const searchTags = card.getAttribute('data-search') || '';
+                const cardText = card.textContent.toLowerCase();
+
+                const matchesType = (activeFilter === 'all' || cardType === activeFilter);
+                const matchesDate = (activeDateFilter === 'all' || cardDate === activeDateFilter);
+                const matchesSearch = (val === '' || cardText.includes(val) || searchTags.includes(val));
+
+                if (matchesType && matchesDate && matchesSearch) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+
+            dateGroups.forEach(group => {
+                const groupDate = group.getAttribute('data-group-date');
+                const innerCards = group.querySelectorAll('.class-card');
+                let visibleCount = 0;
+
+                innerCards.forEach(card => {
+                    if (card.style.display !== 'none') {
+                        visibleCount++;
+                    }
+                });
+
+                const matchesGroupDate = (activeDateFilter === 'all' || groupDate === activeDateFilter);
+
+                if (visibleCount > 0 && matchesGroupDate) {
+                    group.style.display = 'block';
+                } else {
+                    group.style.display = 'none';
+                }
+            });
+        }
+
+        function handleRedirectByIndex(index, componentKey) {
+            const item = sessionsData[index];
+            if (!item) return;
+
+            const schema = COMPONENT_SCHEMAS.find(s => s.key === componentKey);
+            if (!schema) return;
+
+            const rawUrl = getSessionLink(item, schema);
+            const systemName = schema.name;
+
+            if (rawUrl === '') {
+                showToast("Missing Link", `There is no active URL configured inside the database for ${systemName}.`);
+                return;
+            }
+
+            let cleanUrl = rawUrl;
+            if (!/^https?:\/\//i.test(cleanUrl)) {
+                cleanUrl = 'https://' + cleanUrl;
+            }
+
+            showToast(`Opening ${systemName}`, "Opening secure external link...");
+            setTimeout(() => {
+                window.open(cleanUrl, '_blank');
+            }, 800);
+        }
+
+        let toastTimeout;
+        function showToast(title, message) {
+            const toast = document.getElementById('toast');
+            if (!toast) return;
+            document.getElementById('toastTitle').textContent = title;
+            document.getElementById('toastMessage').textContent = message;
+
+            toast.classList.remove('translate-y-10', 'opacity-0', 'pointer-events-none');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                hideToast();
+            }, 4000);
+        }
+
+        function hideToast() {
+            const toast = document.getElementById('toast');
+            if (toast) {
+                toast.classList.add('translate-y-10', 'opacity-0', 'pointer-events-none');
+                toast.classList.remove('translate-y-0', 'opacity-100');
+            }
+        }
+    </script>
+</body>
+</html>
