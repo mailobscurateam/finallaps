@@ -67,6 +67,7 @@
             background: #000;
             border-left: none;
             border-right: none;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         /* Apply neat boundaries on larger viewports to keep standard widescreen sizing optimal */
@@ -78,6 +79,19 @@
             }
         }
 
+        /* Maximized space fullscreen mode completely inside page space */
+        .in-space-fullscreen {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: 9999 !important;
+            border: none !important;
+            border-radius: 0 !important;
+            background: #000 !important;
+        }
+
         .video-container iframe {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -87,7 +101,7 @@
 
         .watermark {
             position: absolute;
-            z-index: 30;
+            z-index: 20;
             pointer-events: none;
             font-family: 'JetBrains Mono', monospace;
             font-size: 11px;
@@ -236,6 +250,32 @@
                     
                     <!-- Bouncing Watermark -->
                     <div id="moving-watermark" class="watermark"></div>
+
+                    <!-- Custom Intercept/Security Overlay -->
+                    <div id="video-overlay" class="absolute inset-0 z-30 flex flex-col justify-between p-4 pointer-events-auto select-none">
+                        <!-- Top HUD Bar: Dynamic Fades-In on hover -->
+                        <div class="flex justify-between items-start opacity-0 hover:opacity-100 transition-opacity duration-300 pointer-events-none w-full">
+                            <div class="bg-black/85 backdrop-blur-md border border-red-500/20 px-3 py-1.5 rounded-lg flex items-center gap-2 pointer-events-auto">
+                                <span class="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>
+                                <span class="mono text-[9px] text-red-500 font-bold uppercase tracking-widest">PROTECTED FEED TERMINAL</span>
+                            </div>
+                            
+                            <!-- Custom In-Space Fullscreen toggle -->
+                            <button id="btn-maximize" class="bg-black/80 hover:bg-neutral-900/95 text-white border border-white/10 hover:border-red-500/30 w-8 h-8 rounded-lg flex items-center justify-center transition-all pointer-events-auto" title="In-Space Fullscreen">
+                                <i id="maximize-icon" data-lucide="maximize" class="w-4 h-4 text-neutral-400 hover:text-white"></i>
+                            </button>
+                        </div>
+                        
+                        <!-- Bottom HUD warning message on right-click / hover -->
+                        <div class="flex justify-between items-end opacity-0 hover:opacity-100 transition-opacity duration-300 pointer-events-none w-full">
+                            <div class="bg-black/85 backdrop-blur-md border border-white/5 px-3 py-1.5 rounded-lg pointer-events-auto">
+                                <p class="mono text-[9px] text-neutral-400">Right-click is restricted by system security protocol.</p>
+                            </div>
+                            <div class="bg-black/85 backdrop-blur-md border border-white/5 px-3 py-1.5 rounded-lg pointer-events-auto">
+                                <p class="mono text-[9px] text-neutral-400">Esc to exit full-space view</p>
+                            </div>
+                        </div>
+                    </div>
                     
                     <!-- Embedding target element -->
                     <div id="iframe-holder" class="w-full h-full"></div>
@@ -273,6 +313,7 @@
         let watchedSeconds = 0;
         let sessionTimer = null;
         let watermarkData = { x: 10, y: 10, dx: 0.5, dy: 0.5 };
+        let isMaximized = false;
 
         const SecurityManager = {
             isBanned: false,
@@ -367,6 +408,7 @@
             fetchLessonData();
             checkCompletionStatus();
             startWatermark();
+            setupOverlayAndFullscreen();
             lucide.createIcons();
         }
 
@@ -399,7 +441,8 @@
             const iframe = document.createElement('iframe');
             iframe.src = url;
             iframe.className = "w-full h-full";
-            iframe.allow = "autoplay; fullscreen";
+            // Omit "fullscreen" permissions to block native browser fullscreen
+            iframe.allow = "autoplay"; 
             iframe.onload = () => {
                 document.getElementById('preloader').style.display = 'none';
                 iframe.classList.add('visible');
@@ -447,6 +490,85 @@
                 requestAnimationFrame(animate);
             }
             animate();
+        }
+
+        function toggleInSpaceFullscreen(forceState) {
+            const wrapper = document.getElementById('video-wrapper');
+            const icon = document.getElementById('maximize-icon');
+            
+            isMaximized = (forceState !== undefined) ? forceState : !isMaximized;
+            
+            if (isMaximized) {
+                wrapper.classList.add('in-space-fullscreen');
+                if (icon) {
+                    icon.setAttribute('data-lucide', 'minimize');
+                    lucide.createIcons();
+                }
+            } else {
+                wrapper.classList.remove('in-space-fullscreen');
+                if (icon) {
+                    icon.setAttribute('data-lucide', 'maximize');
+                    lucide.createIcons();
+                }
+            }
+        }
+
+        function setupOverlayAndFullscreen() {
+            const overlay = document.getElementById('video-overlay');
+            const btnMaximize = document.getElementById('btn-maximize');
+
+            if (overlay) {
+                overlay.addEventListener('mousedown', (e) => {
+                    // Do not apply event click bypass if interacting with overlay controls
+                    if (e.target.closest('#btn-maximize')) {
+                        return;
+                    }
+
+                    if (e.button === 2) { 
+                        // Intercept and completely block right click context menu on overlay
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return;
+                    }
+
+                    // For Left Click: Temporarily disable overlay's pointer-events
+                    // This lets the browser pass the native left-click interaction down to the stream player
+                    overlay.style.pointerEvents = 'none';
+
+                    // Re-enable interception shortly after click event completes
+                    setTimeout(() => {
+                        overlay.style.pointerEvents = 'auto';
+                    }, 350);
+                });
+
+                // Prevent context menu spawning over our entire target region
+                overlay.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
+            }
+
+            if (btnMaximize) {
+                btnMaximize.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleInSpaceFullscreen();
+                });
+            }
+
+            // Intercept native browser fullscreen changes and convert them to our clean in-space maximization
+            document.addEventListener('fullscreenchange', () => {
+                if (document.fullscreenElement) {
+                    document.exitFullscreen().catch(() => {});
+                    toggleInSpaceFullscreen(true);
+                }
+            });
+
+            // Handle ESC key to safely exit maximized view
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && isMaximized) {
+                    toggleInSpaceFullscreen(false);
+                }
+            });
         }
 
         async function checkCompletionStatus() {
